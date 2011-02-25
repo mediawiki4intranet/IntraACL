@@ -1,0 +1,40 @@
+= IntraACL extension for MediaWiki =
+
+IntraACL extension for MediaWiki is the page rights extension based on
+HaloACL, correcting its endless bugs and inconveniences.
+
+* Homepage and help: http://wiki.4intra.net/IntraACL
+* License: GPLv3
+* Copyright (c) 2010+, Vitaliy Filippov, Stas Fomin
+* Copyright 2009, ontoprise GmbH
+
+== REQUIREMENTS ==
+
+The only requirement is MediaWiki of at least version 1.13.2.
+If you want to use Semantic MediaWiki, its version must be at least 1.4.2.
+
+== INSTALLATION ==
+
+* Add the following lines into your LocalSettings.php:
+  require_once('extensions/IntraACL/includes/HACL_Initialize.php');
+  enableIntraACL();
+* You can also add custom configuration options before enableIntraACL() call.
+  For the option list, see extensions/IntraACL/includes/HACL_Initialize.php
+  or http://wiki.4intra.net/IntraACL
+* Apply patches for appropriate version of MediaWiki.
+  cd YOUR_WIKI_INSTALLATION_DIR
+  patch -p0 < patches/intraacl_mw_<YOUR_VERSION>.diff
+* Run MediaWiki database update tool:
+  php maintenance/update.php
+* You should check all your extensions for compatibility with IntraACL
+  because of possible security breaches.
+
+The method of IntraACL installation via the super-duper-installer
+of Halo MediaWiki bundle is now removed as very non-standard.
+
+== MediaWiki 4 Intranet ==
+
+You can also use Mediawiki4Intranet bundle. It already includes IntraACL and
+many other useful extensions which are made compatible with it.
+
+See http://wiki.4intra.net/Mediawiki4Intranet

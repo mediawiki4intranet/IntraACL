@@ -1,0 +1,416 @@
+Index: includes/PageHistory.php
+===================================================================
+--- includes/PageHistory.php	(revision 5604)
++++ includes/PageHistory.php	(working copy)
+@@ -248,8 +248,14 @@
+ 			$s .= ' ' . $this->mSkin->formatRevisionSize( $size );
+ 		}
+ 
+-		$s .= $this->mSkin->revComment( $rev, false, true );
+-
++/*op-patch|TS|2009-11-05|HaloACL|Protected properties|start*/
++		global $haclgProtectProperties;
++		if (!$haclgProtectProperties) {
++			// The comment for an article might reveal values of protected properties
++			$s .= $this->mSkin->revComment( $rev, false, true );
++		}
++/*op-patch|TS|2009-11-05|end*/  
++		
+ 		if ($notificationtimestamp && ($row->rev_timestamp >= $notificationtimestamp)) {
+ 			$s .= ' <span class="updatedmarker">' .  wfMsgHtml( 'updatedmarker' ) . '</span>';
+ 		}
+Index: includes/CategoryPage.php
+===================================================================
+--- includes/CategoryPage.php	(revision 3749)
++++ includes/CategoryPage.php	(working copy)
+@@ -147,6 +147,11 @@
+ 	 * @deprectated kept for compatibility, please use addSubcategoryObject instead
+ 	 */
+ 	function addSubcategory( $title, $sortkey, $pageLength ) {
++/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++		if (!$title->userCanReadEx()) {
++			return;
++		}
++/*op-patch|TS|2009-06-19|end*/  
+ 		global $wgContLang;
+ 		// Subcategory; strip the 'Category' namespace from the link text.
+ 		$this->children[] = $this->getSkin()->makeKnownLinkObj(
+@@ -193,6 +198,12 @@
+ 	 * Add a miscellaneous page
+ 	 */
+ 	function addPage( $title, $sortkey, $pageLength, $isRedirect = false ) {
++/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++		if (!$title->userCanReadEx()) {
++			return;
++		}
++/*op-patch|TS|2009-06-19|end*/  
++		
+ 		global $wgContLang;
+ 		$this->articles[] = $isRedirect
+ 			? '<span class="redirect-in-category">' . $this->getSkin()->makeKnownLinkObj( $title ) . '</span>'
+Index: includes/LogEventsList.php
+===================================================================
+--- includes/LogEventsList.php	(revision 3749)
++++ includes/LogEventsList.php	(working copy)
+@@ -194,6 +194,12 @@
+ 		global $wgLang, $wgUser, $wgContLang;
+ 
+ 		$title = Title::makeTitle( $row->log_namespace, $row->log_title );
++/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++		if (!$title->userCanReadEx()) {
++			return '';
++		}
++/*op-patch|TS|2009-06-19|end*/  
++		
+ 		$time = $wgLang->timeanddate( wfTimestamp(TS_MW, $row->log_timestamp), true );
+ 		// User links
+ 		if( self::isDeleted($row,LogPage::DELETED_USER) ) {
+Index: includes/QueryPage.php
+===================================================================
+--- includes/QueryPage.php	(revision 3749)
++++ includes/QueryPage.php	(working copy)
+@@ -396,6 +396,13 @@
+ 			# $res might contain the whole 1,000 rows, so we read up to
+ 			# $num [should update this to use a Pager]
+ 			for( $i = 0; $i < $num && $row = $dbr->fetchObject( $res ); $i++ ) {
++/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++				$title = Title::makeTitleSafe( $row->namespace, $row->title );
++				if (!$title->userCanReadEx()) {
++					continue;
++				}
++/*op-patch|TS|2009-06-19|end*/  
++				
+ 				$line = $this->formatResult( $skin, $row );
+ 				if( $line ) {
+ 					$attr = ( isset( $row->usepatrol ) && $row->usepatrol && $row->patrolled == 0 )
+Index: includes/Title.php
+===================================================================
+--- includes/Title.php	(revision 3749)
++++ includes/Title.php	(working copy)
+@@ -100,7 +100,11 @@
+ 		$t = new Title();
+ 		$t->mDbkeyform = $key;
+ 		if( $t->secureAndSplit() )
+-			return $t;
++/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++			return $t->checkAccessControl();
++/*op-patch|TS|2009-06-19|end*/  
++//Replaced by patch		return $t;
++		
+ 		else
+ 			return NULL;
+ 	}
+@@ -153,7 +157,10 @@
+ 				$cachedcount++;
+ 				Title::$titleCache[$text] =& $t;
+ 			}
+-			return $t;
++/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++			return $t->checkAccessControl();
++/*op-patch|TS|2009-06-19|end*/  
++// Preplaced by patch			return $t;
+ 		} else {
+ 			$ret = NULL;
+ 			return $ret;
+@@ -179,7 +186,10 @@
+ 
+ 		$t->mDbkeyform = str_replace( ' ', '_', $url );
+ 		if( $t->secureAndSplit() ) {
+-			return $t;
++/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++			return $t->checkAccessControl();
++/*op-patch|TS|2009-06-19|end*/  
++// Preplaced by patch			return $t;
+ 		} else {
+ 			return NULL;
+ 		}
+@@ -262,7 +272,11 @@
+ 		$t->mArticleID = ( $ns >= 0 ) ? -1 : 0;
+ 		$t->mUrlform = wfUrlencode( $t->mDbkeyform );
+ 		$t->mTextform = str_replace( '_', ' ', $title );
++/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++		$t = $t->checkAccessControl();
+ 		return $t;
++/*op-patch|TS|2009-06-19|end*/  
++// Preplaced by patch		return $t;
+ 	}
+ 
+ 	/**
+@@ -279,7 +293,10 @@
+ 		$t = new Title();
+ 		$t->mDbkeyform = Title::makeName( $ns, $title, $fragment );
+ 		if( $t->secureAndSplit() ) {
+-			return $t;
++/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++			return $t->checkAccessControl();
++/*op-patch|TS|2009-06-19|end*/  
++// Preplaced by patch			return $t;
+ 		} else {
+ 			return NULL;
+ 		}
+@@ -3232,4 +3249,105 @@
+ 		}
+ 		return $redirs;
+ 	}
++	
++/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++	
++	/**
++	 * This function is called from the patches for HaloACL for secure listings 
++	 * (e.g. Spcecial:AllPages). It checks, whether the current user is allowed
++	 * to read the article for this title object. For normal pages this is 
++	 * evaluate in the method <userCanRead>. 
++	 * However, the special pages that generate listings, often create title 
++	 * objects before the can check their accessibility. The fallback mechanism
++	 * of HaloACL creates the title "Permission denied" for the article that 
++	 * must not be accessed. The listings would then show a link to "Permission
++	 * denied". So this function returns "false" for the title "Permission denied"
++	 * as well. 
++	 *
++	 * @return 
++	 * 		true, if this title can be read
++	 * 		false, if the title is protected or "Permission denied".
++	 */
++	public function userCanReadEx() {
++		if (!defined('HACL_HALOACL_VERSION')) {
++			//HaloACL is disabled
++			return true;
++		}
++		global $haclgContLang;
++		return $this->mTextform !== $haclgContLang->getPermissionDeniedPage() 
++		       && $this->userCanRead();
++	}
++	
++	/**
++	 * This function checks, if this title is accessible for the action of the
++	 * current request. If the action is unknown it is assumed to be "read".
++	 * If the title is not accessible, the new title "Permission denied" is 
++	 * returned. This is a fallback to protect titles if all other security 
++	 * patches fail.
++	 * 
++	 * While a page is rendered, the same title is often checked several times. 
++	 * To speed things up, the results of an accessibility check are internally
++	 * cached.  
++	 * 
++	 * This function can be disabled in HACL_Initialize.php or LocalSettings.php
++	 * by setting the variable $haclgEnableTitleCheck = false.
++	 *
++	 * @return 
++	 * 		$this, if access is granted on this title or
++	 * 		the title for "Permission denied" if not.
++	 */
++	private function checkAccessControl() {
++		if (!defined('HACL_HALOACL_VERSION')) {
++			//HaloACL is disabled
++			return $this;
++		}
++		global $haclgEnableTitleCheck;
++		if (isset($haclgEnableTitleCheck) && $haclgEnableTitleCheck === false) {
++			return $this;  
++		}
++		static $permissionCache = array();
++		
++		global $wgRequest;
++		$action = $wgRequest->getVal( 'action', 'read');
++		$currentTitle = $wgRequest->getVal('title');
++		$currentTitle = str_replace( '_', ' ', $currentTitle);
++		if ($this->getFullText() != $currentTitle) {
++			$action = 'read';
++		}
++//		echo $this->getText()."($action): ";
++		$index = $this->getFullText().'-'.$action; // A bug was fixed here thanks to Dave MacDonald
++		$allowed = @$permissionCache[$index];
++		if (!isset($allowed)) {
++			switch ($action) {
++				case 'create':
++					$allowed = $this->userCanCreate();
++					break;
++				case 'edit':
++					$allowed = $this->userCanEdit();
++					break;
++				case 'move':
++					$allowed = $this->userCanMove();
++					break;
++				case 'annotate':
++					$allowed = $this->userCan($action);
++					break;
++				default:
++					$allowed = $this->userCanRead();
++			}
++			$permissionCache[$index] = $allowed;
++		}
++		if ($allowed === false) {
++//			echo "no\n";
++			global $haclgContLang;
++			$etc = $haclgEnableTitleCheck;
++			$haclgEnableTitleCheck = false;
++			$t = Title::newFromURL($haclgContLang->getPermissionDeniedPage());
++			$haclgEnableTitleCheck = $etc;
++			return $t;
++		}
++//		echo "yes\n";
++		return $this;
++	}
++/*op-patch|TS|2009-06-19|end*/  
++		
+ }
+Index: includes/specials/SpecialAllpages.php
+===================================================================
+--- includes/specials/SpecialAllpages.php	(revision 3749)
++++ includes/specials/SpecialAllpages.php	(working copy)
+@@ -263,6 +263,11 @@
+ 	
+ 			while( ($n < $this->maxPerPage) && ($s = $dbr->fetchObject( $res )) ) {
+ 				$t = Title::makeTitle( $s->page_namespace, $s->page_title );
++/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++				if ($t && !$t->userCanReadEx()) {
++					continue; 
++				}
++/*op-patch|TS|2009-06-19|end*/  
+ 				if( $t ) {
+ 					$link = ($s->page_is_redirect ? '<div class="allpagesredirect">' : '' ) .
+ 						$sk->makeKnownLinkObj( $t, htmlspecialchars( $t->getText() ), false, false ) .
+Index: includes/specials/SpecialListredirects.php
+===================================================================
+--- includes/specials/SpecialListredirects.php	(revision 3749)
++++ includes/specials/SpecialListredirects.php	(working copy)
+@@ -38,6 +38,12 @@
+ 		if( $revision ) {
+ 			# Make a link to the destination page
+ 			$target = Title::newFromRedirect( $revision->getText() );
++/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++			if (!$target->userCanReadEx()) {
++				return;
++			}
++/*op-patch|TS|2009-06-19|end*/  
++			
+ 			if( $target ) {
+ 				$arr = $wgContLang->getArrow() . $wgContLang->getDirMark();
+ 				$targetLink = $skin->makeLinkObj( $target );
+Index: includes/specials/SpecialNewpages.php
+===================================================================
+--- includes/specials/SpecialNewpages.php	(revision 3749)
++++ includes/specials/SpecialNewpages.php	(working copy)
+@@ -232,6 +232,12 @@
+ 		$dm = $wgContLang->getDirMark();
+ 
+ 		$title = Title::makeTitleSafe( $result->page_namespace, $result->page_title );
++/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++		if (!$title->userCanReadEx()) {
++			return;
++		}
++/*op-patch|TS|2009-06-19|end*/  
++		
+ 		$time = $wgLang->timeAndDate( $result->rc_timestamp, true );
+ 		$plink = $this->skin->makeKnownLinkObj( $title, '', $this->patrollable( $result ) ? 'rcid=' . $result->rc_id : '' );
+ 		$hist = $this->skin->makeKnownLinkObj( $title, wfMsgHtml( 'hist' ), 'action=history' );
+Index: includes/specials/SpecialPrefixindex.php
+===================================================================
+--- includes/specials/SpecialPrefixindex.php	(revision 3749)
++++ includes/specials/SpecialPrefixindex.php	(working copy)
+@@ -102,6 +102,11 @@
+ 	
+ 				while( ($n < $this->maxPerPage) && ($s = $dbr->fetchObject( $res )) ) {
+ 					$t = Title::makeTitle( $s->page_namespace, $s->page_title );
++/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++					if ($t && !$t->userCanReadEx()) {
++						continue; 
++					}
++/*op-patch|TS|2009-06-19|end*/  
+ 					if( $t ) {
+ 						$link = ($s->page_is_redirect ? '<div class="allpagesredirect">' : '' ) .
+ 							$sk->makeKnownLinkObj( $t, htmlspecialchars( $t->getText() ), false, false ) .
+Index: includes/specials/SpecialRecentchanges.php
+===================================================================
+--- includes/specials/SpecialRecentchanges.php	(revision 3749)
++++ includes/specials/SpecialRecentchanges.php	(working copy)
+@@ -352,6 +352,14 @@
+ 		$dbr = wfGetDB( DB_SLAVE );
+ 
+ 		foreach( $rows as $obj ){
++
++/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++			$rc = RecentChange::newFromRow( $obj );
++			if (!$rc->getTitle()->userCanReadEx()) {
++				continue;
++			}
++/*op-patch|TS|2009-06-19|end*/  
++			
+ 			if( $limit == 0) {
+ 				break;
+ 			}
+Index: includes/specials/SpecialSearch.php
+===================================================================
+--- includes/specials/SpecialSearch.php	(revision 3749)
++++ includes/specials/SpecialSearch.php	(working copy)
+@@ -340,7 +340,14 @@
+ 		$out .= "<ul class='mw-search-results'>\n";
+ 
+ 		while( $result = $matches->next() ) {
+-			$out .= $this->showHit( $result, $terms );
++/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++			if (($result->getTitle() != NULL) 
++			    && ($result->getTitle()->userCanReadEx())) {
++/*op-patch|TS|2009-06-19|end*/  
++				$out .= $this->showHit( $result, $terms );
++/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++			}
++/*op-patch|TS|2009-06-19|end*/  
+ 		}
+ 		$out .= "</ul>\n";
+ 
+Index: includes/specials/SpecialWatchlist.php
+===================================================================
+--- includes/specials/SpecialWatchlist.php	(revision 3749)
++++ includes/specials/SpecialWatchlist.php	(working copy)
+@@ -290,6 +290,12 @@
+ 	while ( $obj = $dbr->fetchObject( $res ) ) {
+ 		# Make RC entry
+ 		$rc = RecentChange::newFromRow( $obj );
++/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++		if (!$rc->getTitle()->userCanReadEx()) {
++			continue;
++		}
++/*op-patch|TS|2009-06-19|end*/  
++		
+ 		$rc->counter = $counter++;
+ 
+ 		if ( $wgShowUpdatedMarker ) {
+Index: includes/specials/SpecialWhatlinkshere.php
+===================================================================
+--- includes/specials/SpecialWhatlinkshere.php	(revision 3749)
++++ includes/specials/SpecialWhatlinkshere.php	(working copy)
+@@ -238,6 +238,11 @@
+ 		$wgOut->addHTML( $this->listStart() );
+ 		foreach ( $rows as $row ) {
+ 			$nt = Title::makeTitle( $row->page_namespace, $row->page_title );
++/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++			if (!$nt->userCanReadEx()) {
++				continue;
++			}
++/*op-patch|TS|2009-06-19|end*/  
+ 
+ 			if ( $row->page_is_redirect && $level < 2 ) {
+ 				$wgOut->addHTML( $this->listItem( $row, $nt, true ) );
+Index: includes/specials/SpecialExport.php
+===================================================================
+--- includes/specials/SpecialExport.php	(revision 4634)
++++ includes/specials/SpecialExport.php	(working copy)
+@@ -41,8 +41,14 @@
+ 			$ns = $wgContLang->getNsText( $row->page_namespace );
+ 			$n = $ns . ':' . $n;
+ 		}
+-
+-		$pages[] = $n;
++/*op-patch|TS|2009-07-09|HaloACL|SafeTitle|start*/
++		$t = Title::newFromText($n);
++		global $wgUser;
++		$allowed = wfRunHooks( 'userCan', array( &$t, &$wgUser, "read", &$result));
++		if ($allowed) {
++			$pages[] = $n;
++		}
++/*op-patch|TS|2009-07-09|end*/		
+ 	}
+ 	$dbr->freeResult($res);
+ 
+			

@@ -1,0 +1,799 @@
+Index: extensions/SemanticMediaWiki/includes/SMW_DV_Number.php
+===================================================================
+--- extensions/SemanticMediaWiki/includes/SMW_DV_Number.php	(revision 4401)
++++ extensions/SemanticMediaWiki/includes/SMW_DV_Number.php	(working copy)
+@@ -94,6 +94,11 @@
+ 
+ 	public function getShortWikiText($linked = NULL) {
+ 		$this->unstub();
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		if (($linked === NULL) || ($linked === false)) {
+ 			return $this->m_caption;
+ 		}
+@@ -128,6 +133,12 @@
+ 
+ 	public function getLongWikiText($linked = NULL) {
+ 		$this->unstub();
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
++		
+ 		if (!$this->isValid()) {
+ 			return $this->getErrorText();
+ 		} else {
+@@ -205,6 +216,11 @@
+ 
+ 	public function getExportData() {
+ 		$this->unstub();
++/*op-patch|TS|2009-08-07|HaloACL|Semantic protection|start*/
++		if ($this->m_property && !$this->m_property->userCan('propertyread')) {
++			return NULL;
++		}
++/*op-patch|TS|2009-08-07|end*/
+ 		if ($this->isValid()) {
+ 			$lit = new SMWExpLiteral($this->m_value, $this, 'http://www.w3.org/2001/XMLSchema#double');
+ 			return new SMWExpData($lit);
+Index: extensions/SemanticMediaWiki/includes/storage/SMW_Description.php
+===================================================================
+--- extensions/SemanticMediaWiki/includes/storage/SMW_Description.php	(revision 4401)
++++ extensions/SemanticMediaWiki/includes/storage/SMW_Description.php	(working copy)
+@@ -695,7 +695,26 @@
+ 			$description->setPrintRequests(array());
+ 		}
+ 	}
+-
++	
++/*op-patch|TS|2009-06-19|HaloACL|Semantic protection|start*/
++	public function removeDescriptions($indices) {
++		$num = count($this->m_descriptions);
++		foreach($indices as $i) {
++			if ($num > $i) {
++				$this->m_descriptions[$i] = null;
++			}
++		}
++		
++		$newDescr = array();
++		foreach ($this->m_descriptions as $d) {
++			if ($d) {
++				$newDescr[] = $d;
++			}
++		}
++		$this->m_descriptions = $newDescr;
++	}
++/*op-patch|TS|2009-06-19|end*/
++	
+ 	public function getQueryString($asvalue = false) {
+ 		$result = '';
+ 		foreach ($this->m_descriptions as $desc) {
+@@ -826,6 +845,25 @@
+ 		$description->setPrintRequests(array());
+ 	}
+ 
++/*op-patch|TS|2009-06-19|HaloACL|Semantic protection|start*/
++	public function removeDescriptions($indices) {
++		$num = count($this->m_descriptions);
++		foreach($indices as $i) {
++			if ($num > $i) {
++				$this->m_descriptions[$i] = null;
++			}
++		}
++		
++		$newDescr = array();
++		foreach ($this->m_descriptions as $d) {
++			if ($d) {
++				$newDescr[] = $d;
++			}
++		}
++		$this->m_descriptions = $newDescr;
++	}
++/*op-patch|TS|2009-06-19|end*/
++	
+ 	public function getQueryString($asvalue = false) {
+ 		if ($this->m_true) {
+ 			return '+';
+Index: extensions/SemanticMediaWiki/includes/SMW_DV_Property.php
+===================================================================
+--- extensions/SemanticMediaWiki/includes/SMW_DV_Property.php	(revision 4401)
++++ extensions/SemanticMediaWiki/includes/SMW_DV_Property.php	(working copy)
+@@ -168,6 +168,11 @@
+ 	 */
+ 	public function isShown() {
+ 		$this->unstub();
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (!$this->userCan("propertyread")) {
++			return false;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		return (($this->m_propertyid == '') ||
+ 		        (array_key_exists($this->m_propertyid, SMWPropertyvalue::$m_propertytypes) &&
+ 		         SMWPropertyvalue::$m_propertytypes[$this->m_propertyid][1]) );
+@@ -275,6 +280,33 @@
+ 	public function getDBkey() {
+ 		return $this->isVisible()?$this->m_wikipage->getDBkey():$this->m_propertyid;
+ 	}
++	
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++	/**
++	 * Checks if the current user can access the value of this property according
++	 * to the $actionID.
++	 * 
++	 * @param string $actionID
++	 * 	The ID of the action that is requested on this property:
++	 * 		propertyread, propertyformedit, propertyedit 
++	 * 
++	 * @return bool
++	 * 	<true> if the current user is authorized to access this property
++	 *  <false> otherwise
++	 *
++	 */
++	public function userCan($actionID) {
++		if ($this->m_wikipage) {
++			$t = $this->m_wikipage->getTitle();
++			global $wgUser;
++			if (!wfRunHooks('userCan', array(&$t, &$wgUser, $actionID, &$result))) {
++				return $result;
++			}
++		}
++		return true;
++	}
++/*op-patch|TS|2009-07-10|end*/
++	
+ 
+ 	/**
+ 	 * Create special highlighting for hinting at special properties.
+Index: extensions/SemanticMediaWiki/includes/SMW_DV_String.php
+===================================================================
+--- extensions/SemanticMediaWiki/includes/SMW_DV_String.php	(revision 4401)
++++ extensions/SemanticMediaWiki/includes/SMW_DV_String.php	(working copy)
+@@ -40,6 +40,12 @@
+ 
+ 	public function getShortWikiText($linked = NULL) {
+ 		$this->unstub();
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
++		
+ 		//TODO: Support linking?
+ 		return $this->m_caption;
+ 	}
+@@ -48,10 +54,20 @@
+ 	 * @todo Rather parse input to obtain properly formatted HTML.
+ 	 */
+ 	public function getShortHTMLText($linker = NULL) {
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		return smwfXMLContentEncode($this->getShortWikiText($linker));
+ 	}
+ 
+ 	public function getLongWikiText($linked = NULL) {
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		if (!$this->isValid()) {
+ 			return $this->getErrorText();
+ 		} else {
+@@ -63,6 +79,11 @@
+ 	 * @todo Rather parse input to obtain properly formatted HTML.
+ 	 */
+ 	public function getLongHTMLText($linker = NULL) {
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		if (!$this->isValid()) {
+ 			return $this->getErrorText();
+ 		} else {
+@@ -101,6 +122,11 @@
+ 	}
+ 
+ 	public function getExportData() {
++/*op-patch|TS|2009-08-07|HaloACL|Semantic protection|start*/
++		if ($this->m_property && !$this->m_property->userCan('propertyread')) {
++			return NULL;
++		}
++/*op-patch|TS|2009-08-07|end*/
+ 		if ($this->isValid()) {
+ 			$lit = new SMWExpLiteral(smwfHTMLtoUTF8($this->m_value), $this, 'http://www.w3.org/2001/XMLSchema#string');
+ 			return new SMWExpData($lit);
+Index: extensions/SemanticMediaWiki/includes/SMW_DV_Time.php
+===================================================================
+--- extensions/SemanticMediaWiki/includes/SMW_DV_Time.php	(revision 4401)
++++ extensions/SemanticMediaWiki/includes/SMW_DV_Time.php	(working copy)
+@@ -268,14 +268,29 @@
+ 
+ 	public function getShortWikiText($linked = NULL) {
+ 		$this->unstub();
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		return $this->m_caption;
+ 	}
+ 
+ 	public function getShortHTMLText($linker = NULL) {
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		return $this->getShortWikiText($linker); // should be save (based on xsdvalue)
+ 	}
+ 
+ 	public function getLongWikiText($linked = NULL) {
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		if (!$this->isValid()) {
+ 			return $this->getErrorText();
+ 		} else {
+@@ -285,6 +300,11 @@
+ 	}
+ 
+ 	public function getLongHTMLText($linker = NULL) {
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		return $this->getLongWikiText($linker);
+ 	}
+ 
+@@ -321,6 +341,11 @@
+ 	}
+ 
+ 	public function getExportData() {
++/*op-patch|TS|2009-08-07|HaloACL|Semantic protection|start*/
++		if ($this->m_property && !$this->m_property->userCan('propertyread')) {
++			return NULL;
++		}
++/*op-patch|TS|2009-08-07|end*/
+ 		if ($this->isValid()) {
+ 			$lit = new SMWExpLiteral($this->getXMLSchemaDate(), $this, 'http://www.w3.org/2001/XMLSchema#dateTime');
+ 			return new SMWExpData($lit);
+Index: extensions/SemanticMediaWiki/includes/SMW_DV_GeoCoords.php
+===================================================================
+--- extensions/SemanticMediaWiki/includes/SMW_DV_GeoCoords.php	(revision 4401)
++++ extensions/SemanticMediaWiki/includes/SMW_DV_GeoCoords.php	(working copy)
+@@ -160,6 +160,11 @@
+ 	}
+ 
+ 	public function getShortWikiText($linked = NULL) {
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		if ($this->isValid() && ($linked !== NULL) && ($linked !== false)) {
+ 			wfLoadExtensionMessages('SemanticMediaWiki');
+ 			SMWOutputs::requireHeadItem(SMW_HEADER_TOOLTIP);
+@@ -177,6 +182,11 @@
+ 	}
+ 
+ 	public function getLongWikiText($linked = NULL) {
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		if (!$this->isValid()) {
+ 			return $this->getErrorText();
+ 		} else {
+@@ -199,6 +209,11 @@
+ 	}
+ 
+ 	public function getExportData() {
++/*op-patch|TS|2009-08-07|HaloACL|Semantic protection|start*/
++		if ($this->m_property && !$this->m_property->userCan('propertyread')) {
++			return NULL;
++		}
++/*op-patch|TS|2009-08-07|end*/
+ 		if ($this->isValid()) {
+ 			$lit = new SMWExpLiteral($this->formatAngleValues(true, false) . ', ' . $this->formatAngleValues(false, false), $this, 'http://www.w3.org/2001/XMLSchema#string');
+ 			return new SMWExpData($lit);
+Index: extensions/SemanticMediaWiki/languages/SMW_Messages.php
+===================================================================
+--- extensions/SemanticMediaWiki/languages/SMW_Messages.php	(revision 4401)
++++ extensions/SemanticMediaWiki/languages/SMW_Messages.php	(working copy)
+@@ -280,7 +280,12 @@
+ 	'smw_smwadmin_installfile' => 'If you experience problems with your installation, start by checking the guidelines in the <a href="http://svn.wikimedia.org/svnroot/mediawiki/trunk/extensions/SemanticMediaWiki/INSTALL">INSTALL file</a>.',
+ 	'smw_smwadmin_smwhomepage' => 'The complete user documentation to Semantic MediaWiki is at <b><a href="http://semantic-mediawiki.org">semantic-mediawiki.org</a></b>.',
+ 	'smw_smwadmin_mediazilla' => 'Bugs can be reported to <a href="https://bugzilla.wikimedia.org/">MediaZilla</a>.',
+-	'smw_smwadmin_questions' => 'If you have further questions or suggestions, join the discussion on <a href="mailto:semediawiki-user@lists.sourceforge.net">semediawiki-user@lists.sourceforge.net</a>.'
++	'smw_smwadmin_questions' => 'If you have further questions or suggestions, join the discussion on <a href="mailto:semediawiki-user@lists.sourceforge.net">semediawiki-user@lists.sourceforge.net</a>.',
++
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++	// Messages for semantic protection
++	'smw_protected_property_error' => "The value of a protected property is hidden."
++/*op-patch|TS|2009-07-10|end*/
+ );
+ 
+ /** Message documentation (Message documentation)
+@@ -1310,6 +1315,12 @@
+ 	'smw_smwadmin_smwhomepage' => 'Die komplette Benutzerdokumentation von Semantic MediaWiki findest du auf <b><a href="http://semantic-mediawiki.org">semantic-mediawiki.org</a></b>.',
+ 	'smw_smwadmin_mediazilla' => 'Fehler können bei <a href="https://bugzilla.wikimedia.org/">MediaZilla</a> berichtet werden.',
+ 	'smw_smwadmin_questions' => 'Wenn du weitere Fragen oder Vorschläge hast, beteilige dich an der Diskussion auf <a href="mailto:semediawiki-user@lists.sourceforge.net">semediawiki-user@lists.sourceforge.net</a>.',
++
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++	// Messages for semantic protection
++	'smw_protected_property_error' => "Der Wert eines geschützten Attributs wird nicht angezeigt."
++/*op-patch|TS|2009-07-10|end*/
++
+ );
+ 
+ /** German (formal address) (Deutsch (Sie-Form))
+Index: extensions/SemanticMediaWiki/includes/SMW_DataValue.php
+===================================================================
+--- extensions/SemanticMediaWiki/includes/SMW_DataValue.php	(revision 4401)
++++ extensions/SemanticMediaWiki/includes/SMW_DataValue.php	(working copy)
+@@ -476,6 +476,11 @@
+ 	 */
+ 	public function getExportData() { // default implementation: encode values as untyped string
+ 		$this->unstub();
++/*op-patch|TS|2009-08-07|HaloACL|Semantic protection|start*/
++		if ($this->m_property && !$this->m_property->userCan('propertyread')) {
++			return NULL;
++		}
++/*op-patch|TS|2009-08-07|end*/
+ 		if ($this->isValid()) {
+ 			$lit = new SMWExpLiteral(smwfHTMLtoUTF8(implode(';',$this->getDBkeys())), $this);
+ 			return new SMWExpData($lit);
+@@ -556,7 +561,27 @@
+ 	public function getUnit() {
+ 		return ''; // empty unit
+ 	}
+-
++	
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++	/**
++	 * Checks if the property of this data value is protected. In this case a
++	 * replacement text is returned and an error message for is set.
++	 * 
++	 * @return bool / string
++	 * 	<false>, if the property is not protected or a
++	 *  caption, if it is.
++	 *
++	 */
++	public function getProtectionCaption() {
++		$prop = $this->m_property;
++		if ($prop && !$prop->userCan('propertyread')){
++			wfLoadExtensionMessages('SemanticMediaWiki');
++			$this->m_errors = array(wfMsgForContent('smw_protected_property_error'));
++			return "<nowiki>***</nowiki>";
++		}
++		return false;
++	}
++/*op-patch|TS|2009-07-10|end*/
+ }
+ 
+ 
+Index: extensions/SemanticMediaWiki/includes/articlepages/SMW_ConceptPage.php
+===================================================================
+--- extensions/SemanticMediaWiki/includes/articlepages/SMW_ConceptPage.php	(revision 4401)
++++ extensions/SemanticMediaWiki/includes/articlepages/SMW_ConceptPage.php	(working copy)
+@@ -53,6 +53,10 @@
+ 		$query->setLimit($this->limit+1);
+ 
+ 		$result = $store->getQueryResult($query);
++/*op-patch|TS|2009-06-19|HaloACL|Semantic protection|start*/
++		wfRunHooks('FilterQueryResults', array(&$result) );
++/*op-patch|TS|2009-06-19|end*/
++		
+ 		$row = $result->getNext();
+ 		while ( $row !== false ) {
+ 			$this->articles[] = end($row)->getNextObject();
+Index: extensions/SemanticMediaWiki/includes/SMW_DV_WikiPage.php
+===================================================================
+--- extensions/SemanticMediaWiki/includes/SMW_DV_WikiPage.php	(revision 4401)
++++ extensions/SemanticMediaWiki/includes/SMW_DV_WikiPage.php	(working copy)
+@@ -125,6 +125,11 @@
+ 	}
+ 
+ 	public function getShortWikiText($linked = NULL) {
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		$this->unstub();
+ 		if ( ($linked === NULL) || ($linked === false) || (!$this->isValid()) || ($this->m_caption === '') ) {
+ 			return $this->getCaption();
+@@ -136,6 +141,11 @@
+ 
+ 	public function getShortHTMLText($linker = NULL) {
+ 		$this->unstub();
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		if ( ($linker === NULL) || (!$this->isValid()) || ($this->m_caption === '') ) {
+ 			return htmlspecialchars($this->getCaption());
+ 		} else {
+@@ -154,6 +164,11 @@
+ 	 */
+ 	public function getLongWikiText($linked = NULL) {
+ 		$this->unstub();
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		if (!$this->isValid()) {
+ 			return $this->getErrorText();
+ 		}
+@@ -168,6 +183,11 @@
+ 
+ 	public function getLongHTMLText($linker = NULL) {
+ 		$this->unstub();
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		if (!$this->isValid()) {
+ 			return $this->getErrorText();
+ 		}
+@@ -218,6 +238,11 @@
+ 
+ 	public function getExportData() {
+ 		$this->unstub();
++/*op-patch|TS|2009-08-07|HaloACL|Semantic protection|start*/
++		if ($this->m_property && !$this->m_property->userCan('propertyread')) {
++			return NULL;
++		}
++/*op-patch|TS|2009-08-07|end*/
+ 		if (!$this->isValid()) return NULL;
+ 		switch ($this->getNamespace()) {
+ 			case NS_MEDIA: // special handling for linking media files directly
+Index: extensions/SemanticMediaWiki/includes/storage/SMW_SQLStore2.php
+===================================================================
+--- extensions/SemanticMediaWiki/includes/storage/SMW_SQLStore2.php	(revision 4401)
++++ extensions/SemanticMediaWiki/includes/storage/SMW_SQLStore2.php	(working copy)
+@@ -919,7 +919,17 @@
+ 		global $smwgIP;
+ 		include_once("$smwgIP/includes/storage/SMW_SQLStore2_Queries.php");
+ 		$qe = new SMWSQLStore2QueryEngine($this,wfGetDB( DB_SLAVE ));
++/*op-patch|TS|2009-06-19|HaloACL|Semantic protection|start*/
++		wfRunHooks('RewriteQuery', array(&$query) );
++/*op-patch|TS|2009-06-19|end*/
++		
+ 		$result = $qe->getQueryResult($query);
++/*op-patch|TS|2009-06-19|HaloACL|Semantic protection|start*/
++		if ($result instanceof SMWQueryResult) {
++			wfRunHooks('FilterQueryResults', array(&$result) );
++		}
++/*op-patch|TS|2009-06-19|end*/
++		
+ 		wfProfileOut('SMWSQLStore2::getQueryResult (SMW)');
+ 		return $result;
+ 	}
+Index: extensions/SemanticMediaWiki/includes/SMW_DV_NAry.php
+===================================================================
+--- extensions/SemanticMediaWiki/includes/SMW_DV_NAry.php	(revision 4401)
++++ extensions/SemanticMediaWiki/includes/SMW_DV_NAry.php	(working copy)
+@@ -101,6 +101,11 @@
+ 	protected function unstub() {}
+ 
+ 	public function getShortWikiText($linked = NULL) {
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		if ($this->m_caption !== false) {
+ 			return $this->m_caption;
+ 		}
+@@ -108,6 +113,11 @@
+ 	}
+ 
+ 	public function getShortHTMLText($linker = NULL) {
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		if ($this->m_caption !== false) {
+ 			return $this->m_caption;
+ 		}
+@@ -115,10 +125,20 @@
+ 	}
+ 
+ 	public function getLongWikiText($linked = NULL) {
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		return $this->makeOutputText(2, $linked);
+ 	}
+ 
+ 	public function getLongHTMLText($linker = NULL) {
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		return $this->makeOutputText(3, $linker);
+ 	}
+ 
+@@ -277,6 +297,11 @@
+ 	}
+ 
+ 	public function getExportData() {
++/*op-patch|TS|2009-08-07|HaloACL|Semantic protection|start*/
++		if ($this->m_property && !$this->m_property->userCan('propertyread')) {
++			return NULL;
++		}
++/*op-patch|TS|2009-08-07|end*/
+ 		if (!$this->isValid()) return NULL;
+ 
+ 		$result = new SMWExpData(new SMWExpElement('', $this)); // bnode
+Index: extensions/SemanticMediaWiki/includes/storage/SMW_QueryResult.php
+===================================================================
+--- extensions/SemanticMediaWiki/includes/storage/SMW_QueryResult.php	(revision 4401)
++++ extensions/SemanticMediaWiki/includes/storage/SMW_QueryResult.php	(working copy)
+@@ -174,6 +174,55 @@
+ 		return $result;
+ 	}
+ 
++/*op-patch|TS|2009-06-19|HaloACL|Semantic protection|start*/
++	/**
++	 * Resets the iterators of this query result.
++	 *
++	 */
++	public function resetIterator() {
++		reset($this->m_content);
++		reset($this->m_printrequests);
++
++		foreach ($this->m_content as $row) {
++			foreach ($row as $field) {
++				if ($field instanceof SMWResultArray) {
++					$field->resetIterator();
++				}
++			}
++			reset($row);
++		}
++		reset($this->m_content);
++		
++	}
++
++	/**
++	 * Creates a new query result based on $this query result. Everything
++	 * but the content of $this query result is copied into the new one.
++	 * This is useful for query result filters which copy the content only partly.
++	 *
++	 * @param SMWQueryResult $this
++	 * 		The following parts of this query result are copied into the new q.r.:
++	 * 		- print requests
++	 * 		- query, querystring
++	 * 	 	- furtherres
++	 * 	 	- extra printouts
++	 * 
++	 * @return SMWQueryResult
++	 * 		A partly copied $queryResult
++	 */
++	public function newFromQueryResult() {
++		$classname = get_class($this);
++		$qr = new $classname($this->m_printrequests, 
++	                           $this->m_query, 
++	                           $this->m_furtherres);
++		$qr->m_querystring = $this->m_querystring;
++		$qr->m_extraprintouts = $this->m_extraprintouts;
++  
++		return $qr;
++	}
++	
++/*op-patch|TS|2009-06-19|end*/
++		
+ }
+ 
+ /**
+@@ -249,5 +297,15 @@
+ 		return $this->printrequest;
+ 	}
+ 
++/*op-patch|TS|2009-06-19|HaloACL|Semantic protection|start*/
++
++	/**
++	 * Resets the iterators of this result array.
++	 *
++	 */
++	public function resetIterator() {
++		reset($this->content);
++	}
++/*op-patch|TS|2009-06-19|end*/
+ }
+ 
+Index: extensions/SemanticMediaWiki/includes/SMW_DV_Concept.php
+===================================================================
+--- extensions/SemanticMediaWiki/includes/SMW_DV_Concept.php	(revision 4401)
++++ extensions/SemanticMediaWiki/includes/SMW_DV_Concept.php	(working copy)
+@@ -47,6 +47,11 @@
+ 
+ 	public function getShortWikiText($linked = NULL) {
+ 		$this->unstub();
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		return $this->m_caption;
+ 	}
+ 
+@@ -55,6 +60,11 @@
+ 	}
+ 
+ 	public function getLongWikiText($linked = NULL) {
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		if (!$this->isValid()) {
+ 			return $this->getErrorText();
+ 		} else {
+@@ -63,6 +73,11 @@
+ 	}
+ 
+ 	public function getLongHTMLText($linker = NULL) {
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		if (!$this->isValid()) {
+ 			return $this->getErrorText();
+ 		} else {
+@@ -81,6 +96,11 @@
+ 	}
+ 
+ 	public function getExportData() {
++/*op-patch|TS|2009-08-07|HaloACL|Semantic protection|start*/
++		if ($this->m_property && !$this->m_property->userCan('propertyread')) {
++			return NULL;
++		}
++/*op-patch|TS|2009-08-07|end*/
+ 		if ($this->isValid()) {
+ 			$qp = new SMWQueryParser();
+ 			$desc = $qp->getQueryDescription($this->getWikiValue());
+Index: extensions/SemanticMediaWiki/includes/SMW_DV_URI.php
+===================================================================
+--- extensions/SemanticMediaWiki/includes/SMW_DV_URI.php	(revision 4401)
++++ extensions/SemanticMediaWiki/includes/SMW_DV_URI.php	(working copy)
+@@ -148,6 +148,11 @@
+ 
+ 	public function getShortWikiText($linked = NULL) {
+ 		$this->unstub();
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		if ( ($linked === NULL) || ($linked === false) || ($this->m_url == '') || ($this->m_caption == '') ) {
+ 			return $this->m_caption;
+ 		} else {
+@@ -157,6 +162,11 @@
+ 
+ 	public function getShortHTMLText($linker = NULL) {
+ 		$this->unstub();
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		if (($linker === NULL) || (!$this->isValid()) || ($this->m_url == '') || ($this->m_caption == '')) {
+ 			return $this->m_caption;
+ 		} else {
+@@ -165,6 +175,11 @@
+ 	}
+ 
+ 	public function getLongWikiText($linked = NULL) {
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		if (!$this->isValid()) {
+ 			return $this->getErrorText();
+ 		}
+@@ -176,6 +191,11 @@
+ 	}
+ 
+ 	public function getLongHTMLText($linker = NULL) {
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		if (!$this->isValid()) {
+ 			return $this->getErrorText();
+ 		}
+@@ -205,6 +225,11 @@
+ 	}
+ 
+ 	public function getExportData() {
++/*op-patch|TS|2009-08-07|HaloACL|Semantic protection|start*/
++		if ($this->m_property && !$this->m_property->userCan('propertyread')) {
++			return NULL;
++		}
++/*op-patch|TS|2009-08-07|end*/
+ 		if ($this->isValid()) {
+ 			$res = new SMWExpResource(str_replace('&','&amp;', $this->m_uri), $this);
+ 			return new SMWExpData($res);
+Index: extensions/SemanticMediaWiki/includes/SMW_DV_Bool.php
+===================================================================
+--- extensions/SemanticMediaWiki/includes/SMW_DV_Bool.php	(revision 4401)
++++ extensions/SemanticMediaWiki/includes/SMW_DV_Bool.php	(working copy)
+@@ -83,15 +83,31 @@
+ 
+ 	public function getShortWikiText($linked = NULL) {
+ 		$this->unstub();
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		return $this->m_caption;
+ 	}
+ 
+ 	public function getShortHTMLText($linker = NULL) {
+ 		$this->unstub();
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		return $this->m_caption;
+ 	}
+ 
+ 	public function getLongWikiText($linked = NULL) {
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
++		
+ 		if (!$this->isValid()) {
+ 			return $this->getErrorText();
+ 		} else {
+@@ -100,6 +116,11 @@
+ 	}
+ 
+ 	public function getLongHTMLText($linker = NULL) {
++/*op-patch|TS|2009-07-10|HaloACL|Semantic protection|start*/
++		if (($protected = parent::getProtectionCaption()) !== false) {
++			return $protected;
++		}
++/*op-patch|TS|2009-07-10|end*/
+ 		if (!$this->isValid()) {
+ 			return $this->getErrorText();
+ 		} else {
+@@ -127,6 +148,11 @@
+ 	}
+ 
+ 	public function getExportData() {
++/*op-patch|TS|2009-08-07|HaloACL|Semantic protection|start*/
++		if ($this->m_property && !$this->m_property->userCan('propertyread')) {
++			return NULL;
++		}
++/*op-patch|TS|2009-08-07|end*/
+ 		if ($this->isValid()) {
+ 			$xsdvalue =  $this->m_value?'true':'false';
+ 			$lit = new SMWExpLiteral($xsdvalue, $this, 'http://www.w3.org/2001/XMLSchema#boolean');
