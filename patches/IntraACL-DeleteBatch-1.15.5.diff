@@ -1,0 +1,39 @@
+IntraACL patch for MediaWiki extension DeleteBatch 1.15.5
+
+http://wiki4.intra.net/IntraACL
+http://svn.wikimedia.org/svnroot/mediawiki/tags/REL1_15_5/extensions/DeleteBatch
+
+diff -r 9adb5260a4b9 extensions/DeleteBatch/DeleteBatch.body.php
+--- extensions/DeleteBatch/DeleteBatch.body.php	Mon Feb 28 20:30:17 2011 +0300
++++ extensions/DeleteBatch/DeleteBatch.body.php	Mon Feb 28 20:34:48 2011 +0300
+@@ -250,7 +250,18 @@
+ 			return false;
+ 		}
+ 		if( !$page->exists() ) { /* no such page? */
+-				$wgOut->addWikiMsg( 'deletebatch-omitting-nonexistant', $line );
++			$wgOut->addWikiMsg( 'deletebatch-omitting-nonexistant', $line );
++			if (!$multi) {
++				if (!is_null($user)) {
++					$wgUser = $user;
++				}
++			}
++			return false;
++		}
++
++		$allowed = wfRunHooks( 'userCan', array( &$page, &$wgUser, "delete", &$result ) );
++		if( !$allowed ) {
++			$wgOut->addWikiText( wfMsg('deletebatch-permission-denied', $line) );
+ 			if( !$multi ) {
+ 				if( !is_null( $user ) ) {
+ 					$wgUser = $user;
+diff -r 9adb5260a4b9 extensions/DeleteBatch/DeleteBatch.i18n.php
+--- extensions/DeleteBatch/DeleteBatch.i18n.php	Mon Feb 28 20:30:17 2011 +0300
++++ extensions/DeleteBatch/DeleteBatch.i18n.php	Mon Feb 28 20:34:48 2011 +0300
+@@ -31,6 +31,7 @@
+ 	'deletebatch-success-subtitle' => 'for $1',
+ 	'deletebatch-omitting-nonexistant' => 'Omitting non-existing page $1.',
+ 	'deletebatch-omitting-invalid' => 'Omitting invalid page $1.',
++	'deletebatch-permission-denied' => 'Permission denied for page $1.',
+ 	'deletebatch-file-bad-format' => 'The file should be plain text',
+ 	'deletebatch-file-missing' => 'Unable to read given file',
+ 	'deletebatch-select-script' => 'delete page script',

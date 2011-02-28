@@ -1,0 +1,51 @@
+IntraACL patch for MediaWiki extension DeleteBatch 1.13.3 and 1.14.1
+
+http://wiki4.intra.net/IntraACL
+http://svn.wikimedia.org/svnroot/mediawiki/tags/REL1_13_3/extensions/DeleteBatch
+http://svn.wikimedia.org/svnroot/mediawiki/tags/REL1_14_1/extensions/DeleteBatch
+
+diff -r ef0692d273b2 extensions/DeleteBatch/DeleteBatch.body.php
+--- extensions/DeleteBatch/DeleteBatch.body.php	Mon Feb 28 20:10:45 2011 +0300
++++ extensions/DeleteBatch/DeleteBatch.body.php	Mon Feb 28 20:15:47 2011 +0300
+@@ -232,8 +232,8 @@
+ 	function deletePage($line, $reason = '', &$db, $multi = false, $linenum = 0, $user = null) {
+ 		global $wgOut, $wgUser;
+ 		$page = Title::newFromText ($line);
+-			if (is_null($page)) { /* invalid title? */
+-			   	$wgOut->addWikiText( wfMsg('deletebatch-omitting-invalid', $line) );
++		if (is_null($page)) { /* invalid title? */
++			$wgOut->addWikiText( wfMsg('deletebatch-omitting-invalid', $line) );
+ 			if (!$multi) {
+ 				if (!is_null($user)) {
+ 					$wgUser = $user;
+@@ -242,7 +242,18 @@
+ 			return false;
+ 		}
+ 		if (!$page->exists()) { /* no such page? */
+-				$wgOut->addWikiText( wfMsg('deletebatch-omitting-nonexistant', $line) );
++			$wgOut->addWikiText( wfMsg('deletebatch-omitting-nonexistant', $line) );
++			if (!$multi) {
++				if (!is_null($user)) {
++					$wgUser = $user;
++				}
++			}
++			return false;
++		}
++
++		$allowed = wfRunHooks( 'userCan', array( &$page, &$wgUser, "delete", &$result ) );
++		if( !$allowed ) {
++			$wgOut->addWikiText( wfMsg('deletebatch-permission-denied', $line) );
+ 			if (!$multi) {
+ 				if (!is_null($user)) {
+ 					$wgUser = $user;
+diff -r ef0692d273b2 extensions/DeleteBatch/DeleteBatch.i18n.php
+--- extensions/DeleteBatch/DeleteBatch.i18n.php	Mon Feb 28 20:10:45 2011 +0300
++++ extensions/DeleteBatch/DeleteBatch.i18n.php	Mon Feb 28 20:15:47 2011 +0300
+@@ -33,6 +33,7 @@
+ 	'deletebatch-link-back' => 'You can go back to the extension ',
+ 	'deletebatch-omitting-nonexistant' => 'Omitting non-existing page $1.',
+ 	'deletebatch-omitting-invalid' => 'Omitting invalid page $1.',
++	'deletebatch-permission-denied' => 'Permission denied for page $1.',
+ 	'deletebatch-file-bad-format' => 'The file should be plain text',
+ 	'deletebatch-file-missing' => 'Unable to read given file',
+ 	'deletebatch-select-script' => 'delete page script',

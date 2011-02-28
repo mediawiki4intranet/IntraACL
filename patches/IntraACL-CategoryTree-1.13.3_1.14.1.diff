@@ -1,0 +1,53 @@
+IntraACL patch for MediaWiki extension CategoryTree 1.13.3 and 1.14.1
+
+http://wiki4.intra.net/IntraACL
+http://svn.wikimedia.org/svnroot/mediawiki/tags/REL1_13_3/extensions/CategoryTree
+http://svn.wikimedia.org/svnroot/mediawiki/tags/REL1_14_1/extensions/CategoryTree
+
+diff -r ef0692d273b2 extensions/CategoryTree/CategoryTreeFunctions.php
+--- extensions/CategoryTree/CategoryTreeFunctions.php	Mon Feb 28 20:10:45 2011 +0300
++++ extensions/CategoryTree/CategoryTreeFunctions.php	Mon Feb 28 20:15:47 2011 +0300
+@@ -310,7 +310,9 @@
+ 		global $wgDBname;
+ 		$title = self::makeTitle( $category );
+ 
+-		if ( ! $title ) return false; #TODO: error message?
++/*patch|2010-04-27|IntraACL|start*/
++		if ( ! $title || method_exists($title, 'userCanReadEx') && !$title->userCanReadEx() ) return false; #TODO: error message?
++/*patch|2010-04-27|IntraACL|end*/
+ 
+ 		# Retrieve page_touched for the category
+ 		$dbkey = $title->getDBkey();
+@@ -362,7 +364,9 @@
+ 		}
+ 		$title = self::makeTitle( $category );
+ 
+-		if ( $title === false || $title === NULL ) return false;
++/*patch|2010-04-27|IntraACL|start*/
++		if ( $title === false || $title === NULL || method_exists($title, 'userCanReadEx') && !$title->userCanReadEx() ) return false;
++/*patch|2010-04-27|IntraACL|end*/
+ 
+ 		if ( isset( $attr['class'] ) ) $attr['class'] .= ' CategoryTreeTag';
+ 		else $attr['class'] = ' CategoryTreeTag';
+@@ -489,6 +493,10 @@
+ 				#TODO: translation support; ideally added to Title object
+ 				$t = Title::newFromRow( $row );
+ 			}
++/*patch|2010-04-27|IntraACL|start*/
++			if ( method_exists($t, 'userCanReadEx') && !$t->userCanReadEx() )
++				continue;
++/*patch|2010-04-27|IntraACL|end*/
+ 
+ 			$cat = NULL;
+ 
+@@ -541,6 +549,10 @@
+ 		while ( $row = $dbr->fetchObject( $res ) ) {
+ 			#TODO: translation support; ideally added to Title object
+ 			$t = Title::newFromRow( $row );
++/*patch|2010-04-27|IntraACL|start*/
++			if ( method_exists($t, 'userCanReadEx') && !$t->userCanReadEx() )
++				continue;
++/*patch|2010-04-27|IntraACL|end*/
+ 
+ 			#$trans = $title->getLocalizedText();
+ 			$trans = ''; #place holder for when translated titles are available

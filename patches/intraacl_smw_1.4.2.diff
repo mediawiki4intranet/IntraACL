@@ -1,3 +1,9 @@
+IntraACL/HaloACL patch for Semantic MediaWiki 1.4.2
+SMW protection not tested in IntraACL! Use at your own risk!
+
+http://wiki4.intra.net/IntraACL
+http://www.mediawiki.org/
+
 Index: extensions/SemanticMediaWiki/includes/SMW_DV_Number.php
 ===================================================================
 --- extensions/SemanticMediaWiki/includes/SMW_DV_Number.php	(revision 4401)
