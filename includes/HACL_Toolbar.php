@@ -496,7 +496,9 @@ class HACLToolbar
             $S = $customprot && $usedon ? "; " : "";
             // [x] Title — custom SD defined; used on Y pages
             $h = '<input type="checkbox" id="sd_emb_'.$id.'" name="sd_emb_'.$id.'"'.
-                ($link['sd_single'] ? ' value="" checked="checked" disabled="disabled"' : " value=\"$sdID-$ts\"").
+                ($link['sd_single']
+                    ? ' value="" checked="checked" disabled="disabled"'
+                    : " value=\"$sdID-$ts\" onchange=\"hacle_noall(this)\" onclick=\"hacle_noall(this)\"").
                 ($prev ? ' checked="checked"' : '').' />'.
                 ' <label for="sd_emb_'.$id.'"><a target="_blank" href="'.htmlspecialchars($href).'">'.
                 htmlspecialchars($t).'</a></label>'.$P.$customprot.$S.$usedon;
@@ -507,7 +509,7 @@ class HACLToolbar
         }
         if ($all)
         {
-            $html[] = '<div class="hacl_embed"><input type="checkbox" onchange="hacle_checkall(this, ['.
+            $html[] = '<div class="hacl_embed"><input type="checkbox" id="hacl_emb_all" onchange="hacle_checkall(this, ['.
                 implode(',',$all).'])" onclick="hacle_checkall(this, ['.implode(',',$all).'])" /> '.
                 wfMsg('hacl_toolbar_emb_all').'</div>';
         }

@@ -37,3 +37,13 @@ var hacle_checkall = function(c, ids)
       chk.checked = c;
   }
 };
+var hacle_noall = function(c)
+{
+  c = c.checked;
+  if (!c)
+  {
+    c = document.getElementById('hacl_emb_all');
+    if (c)
+      c.checked = false;
+  }
+};
