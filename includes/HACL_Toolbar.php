@@ -526,7 +526,9 @@ class HACLToolbar
     // Returns content-action for inserting into skin tabs
     static function getContentAction()
     {
-        global $wgTitle, $haclgContLang, $haclgDisableACLTab;
+        global $wgTitle, $haclgContLang, $haclgDisableACLTab, $wgUser;
+        if ($wgUser->isAnon())
+            return NULL;
         if ($wgTitle->getNamespace() == HACL_NS_ACL)
         {
             // Display the link to article or category
