@@ -1165,6 +1165,49 @@ class HACLStorageSQL {
         return $embedded;
     }
 
+    /**
+     * Select all SD pages (not only saved SDs as incorrect SDs may be not saved),
+     * with additional fields:
+     * - sd_single_id is ID of the only one included predefined right.
+     * - sd_single_title is page title of this PR.
+     * - sd_no_rights is true, if SD has no direct inline rights.
+     * I.e. when sd_no_rights is true, non-NULL sd_single_id means that SD
+     * contains only one predefined right inclusion.
+     *
+     * Partly repeated with getSDs() / getSDs2()
+     * FIXME: remove this duplication
+     */
+    public function getSDPages($types, $name, $limit)
+    {
+        global $haclgContLang;
+        $dbr = wfGetDB(DB_SLAVE);
+        $t = $types ? array_flip(explode(',', $types)) : NULL;
+        $n = str_replace(' ', '_', $n);
+        $where = array();
+        foreach ($haclgContLang->getPetAliases() as $k => $v)
+            if (!$t || array_key_exists($v, $t))
+                $where[] = 'CAST(page_title AS CHAR CHARACTER SET utf8) COLLATE utf8_unicode_ci LIKE '.$dbr->addQuotes($k.'/'.$n.'%');
+        $where = 'page_namespace='.HACL_NS_ACL.' AND ('.implode(' OR ', $where).')';
+        /* Build query */
+        $p  = $dbr->tableName('page');
+        $r  = $dbr->tableName('halo_acl_rights');
+        $rh = $dbr->tableName('halo_acl_rights_hierarchy');
+        $sql = "SELECT t.*, p2.page_title sd_single_title FROM".
+               " (SELECT p1.*,".
+               "  (SELECT COALESCE(child_id)".
+               "   FROM $rh rh WHERE rh.parent_right_id=p1.page_id HAVING COUNT(child_id)=1) sd_single_id,".
+               "  (NOT EXISTS (SELECT * FROM $r r WHERE r.origin_id=p1.page_id)) sd_no_rights".
+               "  FROM $p p1 WHERE $where".
+               "  ORDER BY p1.page_namespace, p1.page_title LIMIT $limit) t".
+               " LEFT JOIN $p p2 ON p2.page_id=t.sd_single_id AND t.sd_no_rights".
+               " ORDER BY t.page_namespace, t.page_title";
+        $res = $dbr->query($sql, __METHOD__);
+        $rows = array();
+        foreach ($res as $obj)
+            $rows[] = $obj;
+        return $rows;
+    }
+
     /***************************************************************************
      *
      * Functions for inline rights

@@ -317,30 +317,18 @@ class IntraACLSpecial extends SpecialPage
         global $wgScript, $wgTitle, $haclgHaloScriptPath, $haclgContLang, $wgUser;
         haclCheckScriptPath();
         /* Load data */
-        $dbr = wfGetDB(DB_SLAVE);
-        $t = $t ? array_flip(explode(',', $t)) : NULL;
-        $n = str_replace(' ', '_', $n);
-        $where = array();
-        foreach ($haclgContLang->getPetAliases() as $k => $v)
-            if (!$t || array_key_exists($v, $t))
-                $where[] = 'CAST(page_title AS CHAR CHARACTER SET utf8) COLLATE utf8_unicode_ci LIKE '.$dbr->addQuotes($k.'/'.$n.'%');
-        $where = 'page_namespace='.HACL_NS_ACL.' AND ('.implode(' OR ', $where).')';
-        /* Run select */
-        $res = $dbr->select('page', '*', $where, __METHOD__);
-        $sds = array();
-        foreach ($res as $r)
-            $sds[] = Title::newFromRow($r);
-        $res = NULL;
-        if (count($sds) == $limit)
+        $sdpages = HACLStorage::getDatabase()->getSDPages($t, $n, $limit);
+        if (count($sdpages) >= $limit)
         {
             /* Maximum SDs found */
-            array_pop($sds);
+            array_pop($sdpages);
             $max = true;
         }
         /* Build array for template */
         $lists = array();
-        foreach ($sds as $sd)
+        foreach ($sdpages as $r)
         {
+            $sd = Title::newFromRow($r);
             $d = array(
                 'name' => $sd->getText(),
                 'real' => $sd->getText(),
@@ -352,6 +340,17 @@ class IntraACLSpecial extends SpecialPage
                 $d['type'] = $haclgContLang->getPetAlias($d['type']);
             else
                 $d['real'] = $d['type'];
+            if ($r->sd_single_id && $r->sd_no_rights)
+            {
+                $d['single'] = Title::makeTitleSafe(HACL_NS_ACL, $r->sd_single_title);
+                list($d['singletype'], $d['singlename']) = explode('/', $d['single']->getText(), 2);
+                if ($d['singlename'])
+                    $d['singletype'] = $haclgContLang->getPetAlias($d['type']);
+                else
+                    $d['singlename'] = $d['singletype'];
+                $d['singlelink'] = $d['single']->getLocalUrl();
+                $d['singletip'] = wfMsg('hacl_acllist_hint_single', $d['real'], $d['single']->getPrefixedText());
+            }
             $lists[$d['type']][] = $d;
         }
         /* Run template */
