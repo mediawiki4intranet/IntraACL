@@ -26,3 +26,14 @@ var haclt_show = function(n, s)
   else
     t.style.display = s ? '' : 'none';
 };
+var hacle_checkall = function(c, ids)
+{
+  c = c.checked;
+  for (var id in ids)
+  {
+    ids = ids[id];
+    var chk = document.getElementById('sd_emb_'+id);
+    if (chk)
+      chk.checked = c;
+  }
+};

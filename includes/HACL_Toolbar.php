@@ -461,7 +461,7 @@ class HACLToolbar
         // Build HTML code for embedded content toolbar
         $links = array_merge($templatelinks, $imagelinks);
         $html = array();
-        $html[] = '<div class="hacl_emb_text">'.wfMsgForContent('hacl_toolbar_protect_embedded').'</div>';
+        $all = array();
         foreach ($links as $link)
         {
             $id = $link['title']->getArticleId();
@@ -495,14 +495,29 @@ class HACLToolbar
             $P = $customprot || $usedon ? " — " : "";
             $S = $customprot && $usedon ? "; " : "";
             // [x] Title — custom SD defined; used on Y pages
-            $h = '<input type="checkbox" name="sd_emb_'.$id.'"'.
+            $h = '<input type="checkbox" id="sd_emb_'.$id.'" name="sd_emb_'.$id.'"'.
                 ($link['sd_single'] ? ' value="" checked="checked" disabled="disabled"' : " value=\"$sdID-$ts\"").
                 ($prev ? ' checked="checked"' : '').' />'.
                 ' <label for="sd_emb_'.$id.'"><a target="_blank" href="'.htmlspecialchars($href).'">'.
                 htmlspecialchars($t).'</a></label>'.$P.$customprot.$S.$usedon;
             $h = '<div class="hacl_embed'.($link['sd_single'] ? '_disabled' : '').'">'.$h.'</div>';
             $html[] = $h;
+            if (!$link['sd_single'])
+                $all[] = $id;
         }
+        if ($all)
+        {
+            $html[] = '<div class="hacl_embed"><input type="checkbox" onchange="hacle_checkall(['.
+                implode(',',$all).'])" onclick="hacle_checkall(['.implode(',',$all).'])" /> '.
+                wfMsg('hacl_toolbar_emb_all').'</div>';
+        }
+        elseif ($html)
+        {
+            $html[] = '<div class="hacl_embed_disabled"><input type="checkbox" checked="checked" /> '.
+                wfMsg('hacl_toolbar_emb_all_already').'</div>';
+        }
+        if ($html)
+            array_unshift($html, '<div class="hacl_emb_text">'.wfMsgForContent('hacl_toolbar_protect_embedded').'</div>');
         $html = implode("\n", $html);
         return $html;
     }
