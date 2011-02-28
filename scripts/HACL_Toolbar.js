@@ -26,6 +26,7 @@ var haclt_show = function(n, s)
   else
     t.style.display = s ? '' : 'none';
 };
+/* Also shared with ACLEditor */
 var hacle_checkall = function(c, ids)
 {
   c = c.checked;
@@ -37,6 +38,7 @@ var hacle_checkall = function(c, ids)
       chk.checked = c;
   }
 };
+/* Also shared with ACLEditor */
 var hacle_noall = function(c)
 {
   c = c.checked;

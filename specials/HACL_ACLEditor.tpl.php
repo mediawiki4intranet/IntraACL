@@ -69,6 +69,7 @@
 <script language="JavaScript" src="<?= $haclgHaloScriptPath ?>/scripts/offsetRect.js"></script>
 <script language="JavaScript" src="<?= $haclgHaloScriptPath ?>/scripts/SHint.js"></script>
 <script language="JavaScript" src="<?= $haclgHaloScriptPath ?>/scripts/HACL_ACLEditor.js"></script>
+<script language="JavaScript" src="<?= $haclgHaloScriptPath ?>/scripts/HACL_Toolbar.js"></script>
 
 <script language="JavaScript">
 var AE;
