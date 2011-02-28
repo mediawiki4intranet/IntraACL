@@ -9,7 +9,7 @@ foreach (array('default', 'namespace', 'category', 'right', 'template', 'page', 
    <li>
     <a title="<?= htmlspecialchars($d['name']) ?>" href="<?= $d['editlink'] ?>"><?= htmlspecialchars($d['real']) ?></a>
     <?php if ($d['single']) { ?>
-     = <a title="<?= htmlspecialchars($d['singletip']) ?>" href=""><?= htmlspecialchars($d['singlename']) ?></a>
+     = <a title="<?= htmlspecialchars($d['singletip']) ?>" href="<?= $d['singlelink'] ?>"><?= htmlspecialchars($d['singlename']) ?></a>
     <?php } ?>
     &nbsp;<a title="<?= wfMsg('hacl_acllist_view') ?>" href="<?= $d['viewlink'] ?>"><img src="<?= $haclgHaloScriptPath ?>/skins/images/view.png" /></a>
     <a title="<?= wfMsg('hacl_acllist_edit') ?>" href="<?= $d['editlink'] ?>"><img src="<?= $haclgHaloScriptPath ?>/skins/images/edit.png" /></a>
