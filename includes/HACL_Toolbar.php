@@ -507,8 +507,8 @@ class HACLToolbar
         }
         if ($all)
         {
-            $html[] = '<div class="hacl_embed"><input type="checkbox" onchange="hacle_checkall(['.
-                implode(',',$all).'])" onclick="hacle_checkall(['.implode(',',$all).'])" /> '.
+            $html[] = '<div class="hacl_embed"><input type="checkbox" onchange="hacle_checkall(this, ['.
+                implode(',',$all).'])" onclick="hacle_checkall(this, ['.implode(',',$all).'])" /> '.
                 wfMsg('hacl_toolbar_emb_all').'</div>';
         }
         elseif ($html)
