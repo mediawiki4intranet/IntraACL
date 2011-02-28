@@ -515,7 +515,7 @@ class HACLToolbar
         }
         elseif ($html)
         {
-            $html[] = '<div class="hacl_embed_disabled"><input type="checkbox" checked="checked" /> '.
+            $html[] = '<div class="hacl_embed_disabled"><input type="checkbox" disabled="disabled" checked="checked" /> '.
                 wfMsg('hacl_toolbar_emb_all_already').'</div>';
         }
         if ($html)
