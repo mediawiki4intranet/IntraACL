@@ -247,7 +247,7 @@ function haclSDExists_GetEmbedded($type, $name)
         'embedded' => '',
     );
     $peID = HACLSecurityDescriptor::peIDforName($name, $type);
-    if ($peID)
+    if ($peID !== false)
     {
         if ($sdID = $st->getSDForPE($peID, $type))
         {
