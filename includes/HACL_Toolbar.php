@@ -85,7 +85,7 @@ class HACLToolbar
                 $canModify = HACLEvaluator::checkACLManager($pageSDTitle, $wgUser, HACLLanguage::RIGHT_EDIT);
                 // Check if page SD is a single predefined right inclusion
                 if ($single = $pageSD->isSinglePredefinedRightInclusion())
-                    $pageSDid = $single;
+                    $pageSDId = $single;
                 else
                 {
                     $found = true;

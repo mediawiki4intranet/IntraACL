@@ -567,7 +567,7 @@ class HACLSecurityDescriptor
     {
         $pr = $this->getPredefinedRights(false);
         if (count($pr) == 1 && !$this->mManageUsers && !$this->mManageGroups &&
-            !$this->getInlineRights())
+            !$this->getInlineRights(false))
             return $pr[0];
         return NULL;
     }
