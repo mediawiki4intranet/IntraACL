@@ -1,6 +1,8 @@
 /* styles used by IntraACL special page */
-.acle p { margin: 0 0 8px 0; }
+.acle p { margin: 0 0 8px 0; text-align: left; }
+div#content .acle p { margin: 0 0 8px 0; text-align: left; }
 p.inactive, p.inactive input, p.inactive select { color: gray; }
+#acl_pns { line-height: 2.5em; }
 .acl_pn { padding: 4px; border: 2px dashed orange; }
 .acl_info, .acle .acl_info { margin: 8px 0 0 0; color: blue; font-weight: bold; }
 .acl_error, .acle .acl_error { margin: 0; color: red; font-weight: bold; }
