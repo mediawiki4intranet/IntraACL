@@ -77,7 +77,7 @@ class HACLToolbar
         if ($title->exists())
         {
             // Check SD modification rights
-            $pageSDId = HACLSecurityDescriptor::getSDForPE($title->getArticleId(), HACLLanguage::PET_PAGE);
+            $realPageSDId = $pageSDId = HACLSecurityDescriptor::getSDForPE($title->getArticleId(), HACLLanguage::PET_PAGE);
             if ($pageSDId)
             {
                 $pageSD = HACLSecurityDescriptor::newFromId($pageSDId);
@@ -85,7 +85,10 @@ class HACLToolbar
                 $canModify = HACLEvaluator::checkACLManager($pageSDTitle, $wgUser, HACLLanguage::RIGHT_EDIT);
                 // Check if page SD is a single predefined right inclusion
                 if ($single = $pageSD->isSinglePredefinedRightInclusion())
+                {
                     $pageSDId = $single;
+                    // But don't change $realPageSDId
+                }
                 else
                 {
                     $found = true;
@@ -194,7 +197,7 @@ class HACLToolbar
             {
                 // If there were any changes in the embedded content
                 // toolbar, display it initially
-                $embeddedToolbar = self::getEmbeddedHtml($title->getArticleId(), $pageSDId);
+                $embeddedToolbar = self::getEmbeddedHtml($title->getArticleId(), $realPageSDId);
             }
             else
             {
@@ -498,8 +501,9 @@ class HACLToolbar
             $h = '<input type="checkbox" id="sd_emb_'.$id.'" name="sd_emb_'.$id.'"'.
                 ($link['sd_single']
                     ? ' value="" checked="checked" disabled="disabled"'
-                    : " value=\"$sdID-$ts\" onchange=\"hacle_noall(this)\" onclick=\"hacle_noall(this)\"").
-                ($prev ? ' checked="checked"' : '').' />'.
+                    : " value=\"$sdID-$ts\" onchange=\"hacle_noall(this)\" onclick=\"hacle_noall(this)\"".
+                      ($prev ? ' checked="checked"' : '')).
+                ' />'.
                 ' <label for="sd_emb_'.$id.'"><a target="_blank" href="'.htmlspecialchars($href).'">'.
                 htmlspecialchars($t).'</a></label>'.$P.$customprot.$S.$usedon;
             $h = '<div class="hacl_embed'.($link['sd_single'] ? '_disabled' : '').'">'.$h.'</div>';
