@@ -640,7 +640,10 @@ HACLACLEditor.prototype.init = function(aclTitle, aclType, aclExists)
 {
     if (aclTitle)
     {
-        aclTitle = aclTitle.split('/', 2);
+        // JS split() has no limit parameter
+        aclTitle = aclTitle.split('/');
+        var typ = aclTitle.shift();
+        aclTitle = [ typ, aclTitle.join('/') ];
         document.getElementById('acl_name').value = aclTitle[1];
         this.pet_prefixes[aclType] = aclTitle[0];
         var what_item = document.getElementById('acl_what_'+aclType);

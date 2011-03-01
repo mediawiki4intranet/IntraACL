@@ -664,7 +664,7 @@ class HACLSecurityDescriptor
     protected function checkIndirectManageRight($userID)
     {
         $title = Title::newFromId($this->mPEID);
-        if (HACLEvaluator::hasRight($title->getNamespace(), HACLLanguage::PET_NAMESPACE, $userID, HACLLanguage::RIGHT_MANAGE))
+        if ($title && HACLEvaluator::hasRight($title->getNamespace(), HACLLanguage::PET_NAMESPACE, $userID, HACLLanguage::RIGHT_MANAGE))
             return true;
         list($r) = HACLEvaluator::hasCategoryRight($title, $userID, HACLLanguage::RIGHT_MANAGE);
         return $r;
@@ -718,22 +718,28 @@ class HACLSecurityDescriptor
         if (in_array('sysop', $groups) || in_array('bureaucrat', $groups))
             return true;
 
-        // Check for RIGHT_MANAGE inherited from included SDs, for all except PRs
-        if ($this->mPEType != HACLLanguage::PET_RIGHT &&
-            HACLEvaluator::hasRight(
+        // Check for RIGHT_MANAGE inherited from included SDs/PRs, for all except PRs
+        if ($this->mPEType != HACLLanguage::PET_RIGHT)
+        {
+            $r = HACLEvaluator::hasRight(
                 $this->mPEID, $this->mPEType, $userID,
                 HACLLanguage::RIGHT_MANAGE,
                 // Include direct RIGHT_MANAGE only for page SDs
                 $this->mPEType == HACLLanguage::PET_PAGE ? NULL : $this->mSDID
-            ))
-            return true;
+            );
+            if ($r)
+                return true;
+        }
 
         // Check for RIGHT_MANAGE inherited from namespaces and categories
-        $etc = haclfDisableTitlePatch();
-        $r = $this->checkIndirectManageRight($userID);
-        haclfRestoreTitlePatch($etc);
-        if ($r)
-            return true;
+        if ($this->mPEType == HACLLanguage::PET_PAGE)
+        {
+            $etc = haclfDisableTitlePatch();
+            $r = $this->checkIndirectManageRight($userID);
+            haclfRestoreTitlePatch($etc);
+            if ($r)
+                return true;
+        }
 
         if ($throwException)
         {
