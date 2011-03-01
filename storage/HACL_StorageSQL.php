@@ -216,34 +216,43 @@ class HACLStorageSQL {
 
     /**
      * Retrieves all groups from the database.
-     * [starting with $prefix]
+     * [name contains $text]
+     * [name does not contain $nottext]
      * [maximum $limit]
      *
      * @return Array
      *         Array of Group Objects
      */
-    public function getGroups($prefix = NULL, $limit = NULL)
+    public function getGroups($text = NULL, $nottext = NULL, $limit = NULL, $as_object = false)
     {
         $dbr = wfGetDB(DB_SLAVE);
 
         $options = array('ORDER BY' => 'group_name');
         if ($limit !== NULL)
             $options['LIMIT'] = $limit;
-        $res = $dbr->select(
-            'halo_acl_groups', '*',
-            array($prefix === NULL ? 1 : 'group_name LIKE '.$dbr->addQuotes("%/$prefix%")),
-            __METHOD__,
-            $options
-        );
+        $where = array();
+        if (strlen($text))
+            $where[] = 'group_name LIKE '.$dbr->addQuotes("%$text%");
+        if (strlen($nottext))
+            $where[] = 'group_name NOT LIKE '.$dbr->addQuotes("%$nottext%");
+        $res = $dbr->select('halo_acl_groups', '*', $where, __METHOD__, $options);
 
         $groups = array();
-        while ($row = $dbr->fetchObject($res))
+        if ($as_object)
         {
-            $groupID = $row->group_id;
-            $groupName = $row->group_name;
-            $mgGroups = self::strToIntArray($row->mg_groups);
-            $mgUsers = self::strToIntArray($row->mg_users);
-            $groups[] = new HACLGroup($groupID, $groupName, $mgGroups, $mgUsers);
+            while ($row = $dbr->fetchObject($res))
+            {
+                $groupID = $row->group_id;
+                $groupName = $row->group_name;
+                $mgGroups = self::strToIntArray($row->mg_groups);
+                $mgUsers = self::strToIntArray($row->mg_users);
+                $groups[] = new HACLGroup($groupID, $groupName, $mgGroups, $mgUsers);
+            }
+        }
+        else
+        {
+            while ($row = $dbr->fetchRow($res))
+                $groups[] = $row;
         }
         return $groups;
     }

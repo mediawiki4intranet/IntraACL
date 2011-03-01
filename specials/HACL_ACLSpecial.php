@@ -362,24 +362,25 @@ class IntraACLSpecial extends SpecialPage
     }
 
     /* "Real" group list, loaded using AJAX */
-    static function haclGrouplist($n, $limit = 101)
+    static function haclGrouplist($n, $not_n = NULL)
     {
         global $wgScript, $haclgHaloScriptPath;
         haclCheckScriptPath();
         /* Load data */
-        $groups = HACLStorage::getDatabase()->getGroups($n, $limit);
-        if (count($groups) == $limit)
+        $groups = HACLStorage::getDatabase()->getGroups($n, $not_n);
+        if ($limit && count($groups) == $limit)
         {
             array_pop($groups);
             $max = true;
         }
         foreach ($groups as &$g)
         {
+            $gn = $g['group_name'];
             $g = array(
-                'name' => $g->getGroupName(),
-                'real' => $g->getGroupName(),
-                'editlink' => $wgScript.'?title=Special:IntraACL&action=group&group='.urlencode($g->getGroupName()),
-                'viewlink' => Title::newFromText($g->getGroupName(), HACL_NS_ACL)->getLocalUrl(),
+                'name' => $gn,
+                'real' => $gn,
+                'editlink' => $wgScript.'?title=Special:IntraACL&action=group&group='.urlencode($gn),
+                'viewlink' => Title::newFromText($gn, HACL_NS_ACL)->getLocalUrl(),
             );
             if ($p = strpos($g['real'], '/'))
                 $g['real'] = substr($g['real'], $p+1);

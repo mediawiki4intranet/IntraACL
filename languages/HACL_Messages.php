@@ -73,6 +73,7 @@ $messages['en'] = array(
     'hacl_anonymous_users'              => 'anonymous users',
     'hacl_registered_users'             => 'registered users',
     'hacl_acl_element_not_in_db'        => 'No entry has been made in the ACL database about this article. Please re-save it again with all the articles that use it.',
+    'hacl_acl_element_inconsistent'     => 'This article contains an inconsistent definition. Please re-save it.',
     'hacl_unprotectable_namespace'      => 'This namespace cannot be protected. Please contact the wiki administrator.',
     'hacl_permission_denied'            => "You are not allowed to perform the requested action on this page.\n\nReturn to [[Main Page]].",
 
@@ -223,7 +224,8 @@ If you want to protect some pages, ACL page must be named as one of: ACL:Page/*,
 
     // Group list
     'hacl_grouplist'                    => 'IntraACL Groups',
-    'hacl_grouplist_filter_name'        => 'Filter by name:',
+    'hacl_grouplist_filter_name'        => 'Name contains:',
+    'hacl_grouplist_filter_not_name'    => 'Name does not contain:',
     'hacl_grouplist_empty'              => '<span style="color:red;font-weight:bold">No matching IntraACL groups found.</span>',
     'hacl_grouplist_view'               => 'View',
     'hacl_grouplist_edit'               => 'Edit',
@@ -318,8 +320,8 @@ $messages['ru'] = array(
     'hacl_pf_predefined_rights_title'   => "===Включения прав===\n",
     'hacl_pf_group_managers_title'      => "===Могут изменять группу===\n",
     'hacl_pf_group_members_title'       => "===Члены группы===\n",
-    'hacl_assigned_user'                => 'Выданы пользователям:',
-    'hacl_assigned_groups'              => 'Выданы группам:',
+    'hacl_assigned_user'                => 'Пользователи:',
+    'hacl_assigned_groups'              => 'Группы:',
     'hacl_user_member'                  => 'Эти пользователи входят в группу:',
     'hacl_group_member'                 => 'Эти группы входят в группу:',
     'hacl_description'                  => 'Описание:',
@@ -332,6 +334,7 @@ $messages['ru'] = array(
     'hacl_anonymous_users'              => 'анонимные пользователи',
     'hacl_registered_users'             => 'зарегистрированные пользователи',
     'hacl_acl_element_not_in_db'        => 'Эта статья не сохранена в базе данных прав. Пожалуйста, пересохраните её.',
+    'hacl_acl_element_inconsistent'     => 'Это определение в БД не соответствует определению на странице. Пожалуйста, пересохраните страницу.',
     'hacl_unprotectable_namespace'      => 'Это пространство имён относится к незащищаемым. Обратитесь к администраторам MediaWiki.',
     'hacl_permission_denied'            => "Вам запрещено это действие на данной странице.\n\nВернуться на [[Заглавная страница|главную страницу]].",
 
@@ -483,7 +486,8 @@ $messages['ru'] = array(
 
     // Group list
     'hacl_grouplist'                    => 'Группы IntraACL',
-    'hacl_grouplist_filter_name'        => 'Выбор по имени:',
+    'hacl_grouplist_filter_name'        => 'Имя содержит:',
+    'hacl_grouplist_filter_not_name'    => 'Имя не содержит:',
     'hacl_grouplist_empty'              => '<span style="color:red;font-weight:bold">Подходящих групп не найдено.</span>',
     'hacl_grouplist_view'               => 'Просмотр',
     'hacl_grouplist_edit'               => 'Изменить',

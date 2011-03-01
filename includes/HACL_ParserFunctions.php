@@ -731,11 +731,11 @@ class HACLParserFunctions
         $id = $this->mTitle->getArticleId();
         if ($id)
         {
-            $msg = $this->checkConsistency();
-
             // Article does not correspond to any ACL definition
             if (!$this->mType)
                 return '';
+
+            $msg = $this->checkConsistency();
 
             if ($msg === true)
             {
@@ -743,10 +743,11 @@ class HACLParserFunctions
                 $exists = false;
                 if ($this->mType == 'group')
                 {
-                    $grp = HACLGroup::newFromId($id);
-                    $exists = !$grp;
+                    $grp = HACLGroup::newFromId($id, false);
                     if ($grp)
                     {
+                        $exists = true;
+                        // Check if definition in the DB is equal to article text
                         $consistent = $grp->checkIsEqual(
                             $this->mUserMembers, $this->mGroupMembers,
                             $this->mGroupManagerUsers, $this->mGroupManagerGroups
@@ -756,6 +757,8 @@ class HACLParserFunctions
                 else
                 {
                     $exists = HACLSecurityDescriptor::exists($id);
+                    // TODO add consistency check for security descriptors
+                    $consistent = $exists;
                 }
                 if (!$exists)
                     $msg = array(wfMsgForContent('hacl_acl_element_not_in_db'));

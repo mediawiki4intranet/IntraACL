@@ -305,7 +305,7 @@ function haclfInitContentLanguage($langcode)
  *         HACLException(HACLException::UNKNOWN_USER)
  *             ...if the user does not exist.
  */
-function haclfGetUserID($user = null)
+function haclfGetUserID($user = null, $throw_error = true)
 {
     $userID = false;
     $userName = '';
@@ -363,7 +363,7 @@ function haclfGetUserID($user = null)
         $userName = '#';
     }
 
-    if ($userID === false)
+    if ($userID === false && $throw_error)
     {
         // invalid user
         throw new HACLException(HACLException::UNKNOWN_USER, '"'.$user.'"');

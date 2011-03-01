@@ -261,50 +261,34 @@ class HACLGroup
                      'users'  => $missingUsers);
     }
 
-    // TODO обобщить код
+    /**
+     * Checks whether the user/group ID set $ids is equal to name set $names.
+     */
+    static function checkIdSet($names, $ids, $is_user = false)
+    {
+        $ids = array_flip($ids);
+        foreach ($names as $name)
+        {
+            if ($is_user)
+                list($id) = haclfGetUserID($name, false);
+            else
+                $id = HACLGroup::idForGroup($name);
+            if ($id && !array_key_exists($id, $ids))
+                return false;
+            unset($ids[$id]);
+        }
+        return !$ids;
+    }
+
+    /**
+     * Checks if the group content is equal to the sets in arguments.
+     */
     function checkIsEqual($member_users, $member_groups, $manager_users, $manager_groups)
     {
-        $ids = array_flip($this->getUsers(self::ID));
-        foreach ($member_users as $userName)
-        {
-            list($userID) = haclfGetUserID($userName);
-            if ($userID && !array_key_exists($userID, $ids))
-                return false;
-            unset($ids[$userID]);
-        }
-        if ($ids)
-            return false;
-        $ids = array_flip($this->getGroups(self::ID));
-        foreach ($member_groups as $group)
-        {
-            $groupID = HACLGroup::idForGroup($group);
-            if ($groupID && !array_key_exists($groupID, $ids))
-                return false;
-            unset($ids[$groupID]);
-        }
-        if ($ids)
-            return false;
-        $ids = array_flip($this->mManageUsers);
-        foreach ($manager_users as $userName)
-        {
-            list($userID) = haclfGetUserID($userName);
-            if ($userID && !array_key_exists($userID, $ids))
-                return false;
-            unset($ids[$userID]);
-        }
-        if ($ids)
-            return false;
-        $ids = array_flip($this->mManageGroups);
-        foreach ($manager_groups as $group)
-        {
-            $groupID = HACLGroup::idForGroup($group);
-            if ($groupID && !array_key_exists($groupID, $ids))
-                return false;
-            unset($ids[$groupID]);
-        }
-        if ($ids)
-            return false;
-        return true;
+        return self::checkIdSet($member_users, $this->getUsers(self::ID), true) &&
+            self::checkIdSet($member_groups, $this->getGroups(self::ID), false) &&
+            self::checkIdSet($manager_users, $this->mManageUsers, true) &&
+            self::checkIdSet($manager_groups, $this->mManageGroups, false);
     }
 
     /**
