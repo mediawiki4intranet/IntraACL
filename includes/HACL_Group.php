@@ -117,10 +117,10 @@ class HACLGroup
      *             ...if the requested group in the not the database.
      *
      */
-    public static function newFromName($groupName)
+    public static function newFromName($groupName, $throw_error = true)
     {
         $group = HACLStorage::getDatabase()->getGroupByName($groupName);
-        if ($group === null)
+        if ($group === null && $throw_error)
             throw new HACLGroupException(HACLGroupException::UNKNOWN_GROUP, $groupName);
         return $group;
     }
@@ -139,9 +139,9 @@ class HACLGroup
      *         HACLGroupException(HACLGroupException::INVALID_GROUP_ID)
      *             ...if the requested group in the not the database.
      */
-    public static function newFromID($groupID) {
+    public static function newFromID($groupID, $throw_error = true) {
         $group = HACLStorage::getDatabase()->getGroupByID($groupID);
-        if ($group === null) {
+        if ($group === null && $throw_error) {
             throw new HACLGroupException(HACLGroupException::INVALID_GROUP_ID, $groupID);
         }
         return $group;
@@ -259,6 +259,52 @@ class HACLGroup
         }
         return array('groups' => $missingGroups,
                      'users'  => $missingUsers);
+    }
+
+    // TODO обобщить код
+    function checkIsEqual($member_users, $member_groups, $manager_users, $manager_groups)
+    {
+        $ids = array_flip($this->getUsers(self::ID));
+        foreach ($member_users as $userName)
+        {
+            list($userID) = haclfGetUserID($userName);
+            if ($userID && !array_key_exists($userID, $ids))
+                return false;
+            unset($ids[$userID]);
+        }
+        if ($ids)
+            return false;
+        $ids = array_flip($this->getGroups(self::ID));
+        foreach ($member_groups as $group)
+        {
+            $groupID = HACLGroup::idForGroup($group);
+            if ($groupID && !array_key_exists($groupID, $ids))
+                return false;
+            unset($ids[$groupID]);
+        }
+        if ($ids)
+            return false;
+        $ids = array_flip($this->mManageUsers);
+        foreach ($manager_users as $userName)
+        {
+            list($userID) = haclfGetUserID($userName);
+            if ($userID && !array_key_exists($userID, $ids))
+                return false;
+            unset($ids[$userID]);
+        }
+        if ($ids)
+            return false;
+        $ids = array_flip($this->mManageGroups);
+        foreach ($manager_groups as $group)
+        {
+            $groupID = HACLGroup::idForGroup($group);
+            if ($groupID && !array_key_exists($groupID, $ids))
+                return false;
+            unset($ids[$groupID]);
+        }
+        if ($ids)
+            return false;
+        return true;
     }
 
     /**
@@ -450,7 +496,8 @@ class HACLGroup
      *         HACLGroupException(HACLGroupException::USER_CANT_MODIFY_GROUP)
      *
      */
-    public function addUser($user, $mgUser=null) {
+    public function addUser($user, $mgUser = NULL)
+    {
         // Check if $mgUser can modify this group.
         $this->userCanModify($mgUser, true);
         list($userID, $userName) = haclfGetUserID($user);
@@ -473,14 +520,14 @@ class HACLGroup
      *         HACLGroupException(HACLGroupException::INVALID_GROUP_ID)
      *
      */
-    public function addGroup($group, $mgUser=null) {
-    // Check if $mgUser can modifiy this group.
+    public function addGroup($group, $mgUser = NULL)
+    {
+        // Check if $mgUser can modify this group.
         $this->userCanModify($mgUser, true);
 
         $groupID = self::idForGroup($group);
         if ($groupID == 0) {
-            throw new HACLGroupException(HACLGroupException::INVALID_GROUP_ID,
-            $groupID);
+            throw new HACLGroupException(HACLGroupException::INVALID_GROUP_ID, $groupID);
         }
 
         HACLStorage::getDatabase()->addGroupToGroup($this->mGroupID, $groupID);
@@ -498,7 +545,8 @@ class HACLGroup
      *         HACLGroupException(HACLGroupException::USER_CANT_MODIFY_GROUP)
      *
      */
-    public function removeAllMembers($mgUser=null) {
+    public function removeAllMembers($mgUser = NULL)
+    {
         // Check if $mgUser can modify this group.
         $this->userCanModify($mgUser, true);
         HACLStorage::getDatabase()->removeAllMembersFromGroup($this->mGroupID);

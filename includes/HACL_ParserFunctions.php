@@ -741,17 +741,26 @@ class HACLParserFunctions
             {
                 // Check if the article is already represented in IntraACL storage
                 $exists = false;
-                switch ($this->mType)
+                if ($this->mType == 'group')
                 {
-                    case 'group':
-                        $exists = HACLGroup::exists($id);
-                        break;
-                    default:
-                        $exists = HACLSecurityDescriptor::exists($id);
-                        break;
+                    $grp = HACLGroup::newFromId($id);
+                    $exists = !$grp;
+                    if ($grp)
+                    {
+                        $consistent = $grp->checkIsEqual(
+                            $this->mUserMembers, $this->mGroupMembers,
+                            $this->mGroupManagerUsers, $this->mGroupManagerGroups
+                        );
+                    }
+                }
+                else
+                {
+                    $exists = HACLSecurityDescriptor::exists($id);
                 }
                 if (!$exists)
                     $msg = array(wfMsgForContent('hacl_acl_element_not_in_db'));
+                elseif (!$consistent)
+                    $msg = array(wfMsgForContent('hacl_acl_element_inconsistent'));
             }
 
             $html = '';
