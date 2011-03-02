@@ -93,7 +93,7 @@ class HACLEvaluator
         }
 
         $groups = $user->getGroups();
-        if (in_array('bureaucrat', $groups))
+        if ($groups && in_array('bureaucrat', $groups))
         {
             $R = array('User is a bureaucrat and can do anything.', true, true);
             goto fin;
