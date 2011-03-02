@@ -535,6 +535,23 @@ class HACLParserFunctions
     }
 
     /**
+     * NewRevisionFromEditComplete hook is used in MediaWiki 1.13
+     * as it is ran from import as well as from doEdit().
+     */
+    public static function NewRevisionFromEditComplete($article, $rev, $baseID, $user)
+    {
+        return self::updateDefinition($article);
+    }
+
+    /**
+     * ArticleEditUpdates hook is used in MediaWiki 1.14+.
+     */
+    public static function ArticleEditUpdates($article, $editInfo, $changed)
+    {
+        return self::updateDefinition($article, $editInfo->newText);
+    }
+
+    /**
      * This method is called, after an article has been saved. If the article
      * belongs to the namespace ACL (i.e. a right, SD, group)
      * its content is transferred to the database.
@@ -544,12 +561,15 @@ class HACLParserFunctions
      * @param strinf $text
      * @return true
      */
-    public static function articleSaveComplete(&$article, &$user, $text)
+    public static function updateDefinition($article, $text = NULL)
     {
         // The article is in the ACL namespace?
         $title = $article->getTitle();
         if ($title->getNamespace() == HACL_NS_ACL)
         {
+            if ($text === NULL)
+                $text = $article->getContent();
+
             //--- Remove old SD / Group ---
             self::removeOldDef($title, true);
 

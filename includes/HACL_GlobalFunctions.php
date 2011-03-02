@@ -44,8 +44,8 @@ function enableIntraACL()
 {
     global $haclgIP;
 
-    // Register messages (MW=>1.11)
-    global $wgExtensionFunctions, $wgExtensionMessagesFiles;
+    // Register messages
+    global $wgExtensionFunctions, $wgExtensionMessagesFiles, $wgVersion;
     $wgExtensionFunctions[] = 'haclfSetupExtension';
     $wgExtensionMessagesFiles['IntraACL'] = $haclgIP . '/languages/HACL_Messages.php';
 
@@ -80,11 +80,14 @@ function enableIntraACL()
         'HACLRightException'        => "$haclgIP/exceptions/HACL_RightException.php",
     );
 
-    // HACLParserFunctions hooks
+    // ACL update hooks are registered even in commandline.
     global $wgHooks;
     $wgHooks['ArticleViewHeader'][]     = 'HACLParserFunctions::articleViewHeader';
     $wgHooks['OutputPageBeforeHTML'][]  = 'HACLParserFunctions::outputPageBeforeHTML';
-    $wgHooks['ArticleSaveComplete'][]   = 'HACLParserFunctions::articleSaveComplete';
+    if ($wgVersion < '1.14')
+        $wgHooks['NewRevisionFromEditComplete'] = 'HACLParserFunctions::NewRevisionFromEditComplete';
+    else
+        $wgHooks['ArticleEditUpdates'][] = 'HACLParserFunctions::ArticleEditUpdates';
     $wgHooks['ArticleDelete'][]         = 'HACLParserFunctions::articleDelete';
     $wgHooks['ArticleUndelete'][]       = 'HACLParserFunctions::articleUndelete';
     $wgHooks['ArticleMove'][]           = 'HACLParserFunctions::articleMove';
@@ -118,7 +121,7 @@ function haclfSetupExtension()
     wfProfileIn(__FUNCTION__);
 
     global $haclgIP, $wgHooks, $wgParser, $wgExtensionCredits,
-        $wgLanguageCode, $wgVersion, $wgRequest, $wgContLang;
+        $wgLanguageCode, $wgRequest, $wgContLang;
 
     /* Title patch is disabled until full initialization of extension.
      * This was formerly done with haclfDisableTitleCheck() in the beginning
