@@ -494,7 +494,7 @@ $messages['ru'] = array(
 
     // Group editor
     'hacl_grp_creating'                 => 'Создать группу IntraACL',
-    'hacl_grp_editing'                  => 'Права группы IntraACL: $1',
+    'hacl_grp_editing'                  => 'Правка группы IntraACL: $1',
     'hacl_grp_create'                   => 'Создать группу',
     'hacl_grp_save'                     => 'Сохранить группу',
     'hacl_grp_delete'                   => 'Удалить группу',
