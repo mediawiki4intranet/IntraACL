@@ -17,7 +17,7 @@
  <?php } ?>
 <?php } elseif (!$canModify) { ?>
  <?= wfMsg('hacl_toolbar_cannot_modify') ?>
-<?php } else { ?>
+<?php } elseif ($title->exists()) { ?>
  <?= wfMsg('hacl_toolbar_no_right_templates', $quick_acl_link) ?>
 <?php } if ($globalACL) { ?>
  <div class="haclt_tip" onmouseover="haclt_show('gacl', true)" onmouseout="haclt_show('gacl', false)">
@@ -35,7 +35,8 @@
  </div>
 <?php } if ($title->exists()) { ?>
  <a style="text-decoration: none" class="haclt_title" target="_blank" href="index.php?title=Special:IntraACL&action=acl&sd=<?= urlencode($haclgContLang->getPetPrefix(HACLLanguage::PET_PAGE).'/'.$title) ?>"><img src="<?= $haclgHaloScriptPath ?>/skins/images/edit.png" width="16" height="16" alt="Edit" /> <?= wfMsg('hacl_toolbar_advanced_'.($pageSDId ? 'edit' : 'create')) ?></a>
-<?php } if (count($options) > 1 && $canModify) { ?>
- <div class="qacl"><a target="_blank" href="<?= $quick_acl_link ?>" title="<?= wfMsg('hacl_toolbar_qacl_title') ?>"><?= wfMsg('hacl_toolbar_qacl') ?></a></div>
+<?php } elseif (!$hasQuickACL) {?>
+ <?= wfMsg('hacl_toolbar_select_qacl', $quick_acl_link) ?>
 <?php } ?>
+ <div class="qacl"><a target="_blank" href="<?= $quick_acl_link ?>" title="<?= wfMsg('hacl_toolbar_qacl_title') ?>"><?= wfMsg('hacl_toolbar_qacl') ?></a></div>
 </div>

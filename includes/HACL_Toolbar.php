@@ -113,8 +113,10 @@ class HACLToolbar
         // Add Quick ACLs
         $quickacl = HACLQuickacl::newForUserId($wgUser->getId());
         $default = $quickacl->getDefaultSD_ID();
+        $hasQuickACL = false;
         foreach ($quickacl->getSDs() as $sd)
         {
+            $hasQuickACL = true;
             try
             {
                 // Check if the template is valid or corrupted by missing groups, user, ...
