@@ -28,7 +28,7 @@
   <p id="acl_pnhint" class="acl_error" style="display: none"><?= wfMsg('hacl_edit_enter_name_first') ?></p>
   <p id="acl_exists_hint" class="acl_info" style="display: none"><?= wfMsg('hacl_edit_sd_exists') ?></p>
   <p id="acl_define_rights" class="acl_error"><?= wfMsg('hacl_edit_define_rights') ?></p>
-  <p id="acl_define_manager" class="acl_error"></p>
+  <p id="acl_define_manager" class="acl_warn"></p>
  </td>
  <td style="vertical-align: top">
   <p><b><?= wfMsg('hacl_edit_modify_definition') ?></b></p>

@@ -6,6 +6,7 @@ p.inactive, p.inactive input, p.inactive select { color: gray; }
 .acl_pn { padding: 4px; border: 2px dashed orange; }
 .acl_info, .acle .acl_info { margin: 8px 0 0 0; color: blue; font-weight: bold; }
 .acl_error, .acle .acl_error { margin: 0; color: red; font-weight: bold; }
+.acl_warn, .acle .acl_warn { margin: 0; color: #FF8000; font-weight: bold; }
 .hacl_tip { border: 1px solid gray; color: gray; width: 200pt; background-color: white; font-size: 80%; max-height: 300pt; overflow-y: scroll; overflow: -moz-scrollbars-vertical; }
 .hacl_tt { padding: 3px; }
 .hacl_ti { color: black; cursor: pointer; padding: 1px 3px; }
