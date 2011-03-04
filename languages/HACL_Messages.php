@@ -125,7 +125,7 @@ If you want to protect some pages, ACL page must be named as one of: ACL:Page/*,
     'hacl_edit_include_do'              => 'Include',
     'hacl_edit_save'                    => 'Save ACL',
     'hacl_edit_create'                  => 'Create ACL',
-    'hacl_edit_delete'                  => 'Delete ACL',
+    'hacl_edit_delete'                  => 'Delete&nbsp;ACL',
     'hacl_edit_protect'                 => 'Protect:',
     'hacl_edit_define'                  => 'Define:',
 
@@ -386,7 +386,7 @@ $messages['ru'] = array(
     'hacl_edit_include_do'              => 'Включить',
     'hacl_edit_save'                    => 'Сохранить ACL',
     'hacl_edit_create'                  => 'Создать ACL',
-    'hacl_edit_delete'                  => 'Удалить ACL',
+    'hacl_edit_delete'                  => 'Удалить&nbsp;ACL',
     'hacl_edit_protect'                 => 'Защитить:',
     'hacl_edit_define'                  => 'Определить:',
 
