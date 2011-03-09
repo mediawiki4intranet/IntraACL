@@ -76,6 +76,7 @@ $messages['en'] = array(
     'hacl_acl_element_inconsistent'     => 'This article contains an inconsistent definition. Please re-save it.',
     'hacl_unprotectable_namespace'      => 'This namespace cannot be protected. Please contact the wiki administrator.',
     'hacl_permission_denied'            => "You are not allowed to perform the requested action on this page.\n\nReturn to [[Main Page]].",
+    'hacl_move_acl'                     => 'Moved page ACL',
 
     // Messages for semantic protection (properties etc.)
     'hacl_sp_query_modified'            => "- The query was modified because it contains protected properties.\n",
@@ -338,6 +339,7 @@ $messages['ru'] = array(
     'hacl_acl_element_inconsistent'     => 'Это определение в БД не соответствует определению на странице. Пожалуйста, пересохраните страницу.',
     'hacl_unprotectable_namespace'      => 'Это пространство имён относится к незащищаемым. Обратитесь к администраторам MediaWiki.',
     'hacl_permission_denied'            => "Вам запрещено это действие на данной странице.\n\nВернуться на [[Заглавная страница|главную страницу]].",
+    'hacl_move_acl'                     => 'Права перемещены со страницей',
 
     // Messages for semantic protection (properties etc.)
     'hacl_sp_query_modified'            => "- Запрос был изменён, потому что содержит защищённые от чтения свойства.\n",

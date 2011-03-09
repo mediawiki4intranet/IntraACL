@@ -642,40 +642,34 @@ class HACLParserFunctions
     }
 
     /**
-     * This method is called, when an article is moved. If the article has a
+     * This method is called, after an article is moved. If the article has a
      * security descriptor of type page or property, the SD is moved accordingly.
      *
-     * @param unknown_type $specialPage
      * @param unknown_type $oldTitle
      * @param unknown_type $newTitle
      */
-    public static function articleMove(&$specialPage, &$oldTitle, &$newTitle)
+    public static function TitleMoveComplete($oldTitle, $newTitle, $wgUser, $pageid, $redirid)
     {
+        if ($oldTitle->getNamespace() == HACL_NS_ACL)
+            return true;
         $newName = $newTitle->getFullText();
 
         // Check if the old title has an SD
-        $sd = HACLSecurityDescriptor::getSDForPE(
-            $newTitle->getArticleID(),
-            HACLLanguage::PET_PAGE);
+        $sd = HACLSecurityDescriptor::getSDForPE($pageid, HACLLanguage::PET_PAGE);
         if ($sd !== false)
         {
             // move SD for page
             $oldSD = Title::newFromID($sd);
-            $oldSD = $oldSD->getFullText();
             $newSD = HACLSecurityDescriptor::nameOfSD($newName,
                 HACLLanguage::PET_PAGE);
-
             self::move($oldSD, $newSD);
         }
 
-        $sd = HACLSecurityDescriptor::getSDForPE(
-            $newTitle->getArticleID(),
-            HACLLanguage::PET_PROPERTY);
+        $sd = HACLSecurityDescriptor::getSDForPE($pageid, HACLLanguage::PET_PROPERTY);
         if ($sd !== false)
         {
             // move SD for property
             $oldSD = Title::newFromID($sd);
-            $oldSD = $oldSD->getFullText();
             $newSD = HACLSecurityDescriptor::nameOfSD($newName,
                 HACLLanguage::PET_PROPERTY);
             self::move($oldSD, $newSD);
@@ -1435,18 +1429,15 @@ class HACLParserFunctions
      *         New name of the article
      *
      */
-    private static function move($from, $to) {
+    private static function move($from, $to)
+    {
         $etc = haclfDisableTitlePatch();
-        $from = Title::newFromText($from);
-        $to = Title::newFromText($to);
+        if (!is_object($from))
+            $from = Title::newFromText($from);
+        if (!is_object($to))
+            $to = Title::newFromText($to);
         haclfRestoreTitlePatch($etc);
-
-        $fromArticle = new Article($from);
-        $text = $fromArticle->getContent();
-        $fromArticle->doDelete("");
-
-        $toArticle = new Article($to);
-        $toArticle->doEdit($text,"");
+        $from->moveTo($to, false, wfMsg('hacl_move_acl'), false);
     }
 
     /**

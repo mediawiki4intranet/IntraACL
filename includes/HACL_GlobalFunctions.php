@@ -90,7 +90,7 @@ function enableIntraACL()
         $wgHooks['ArticleEditUpdates'][] = 'HACLParserFunctions::ArticleEditUpdates';
     $wgHooks['ArticleDelete'][]         = 'HACLParserFunctions::articleDelete';
     $wgHooks['ArticleUndelete'][]       = 'HACLParserFunctions::articleUndelete';
-    $wgHooks['ArticleMove'][]           = 'HACLParserFunctions::articleMove';
+    $wgHooks['TitleMoveComplete'][]     = 'HACLParserFunctions::TitleMoveComplete';
     $wgHooks['LanguageGetMagic'][]      = 'haclfLanguageGetMagic';
     $wgHooks['LoadExtensionSchemaUpdates'][] = 'haclfLoadExtensionSchemaUpdates';
 
