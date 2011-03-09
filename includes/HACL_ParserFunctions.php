@@ -1437,7 +1437,11 @@ class HACLParserFunctions
         if (!is_object($to))
             $to = Title::newFromText($to);
         haclfRestoreTitlePatch($etc);
-        $from->moveTo($to, false, wfMsg('hacl_move_acl'), false);
+
+        $fromA = new Article($from);
+        $toA = new Article($to);
+        $toA->doEdit($fromA->getContent(), wfMsg('hacl_move_acl'));
+        $fromA->doEdit('{{#predefined right:rights='.$to->getPrefixedText().'}}', wfMsg('hacl_move_acl_include'));
     }
 
     /**
