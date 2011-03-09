@@ -150,6 +150,7 @@ If you want to protect some pages, ACL page must be named as one of: ACL:Page/*,
     'hacl_edit_groups_affected'         => 'Groups affected:',
     'hacl_edit_no_users_affected'       => 'No users affected.',
     'hacl_edit_no_groups_affected'      => 'No groups affected.',
+    'hacl_edit_goto_group'              => 'Go to group $1 definition',
 
     'hacl_edit_user'                    => 'User',
     'hacl_edit_group'                   => 'Group',
@@ -413,6 +414,7 @@ $messages['ru'] = array(
     'hacl_edit_groups_affected'         => 'Затронутые группы:',
     'hacl_edit_no_users_affected'       => 'Нет затронутых пользователей.',
     'hacl_edit_no_groups_affected'      => 'Нет затронутых групп.',
+    'hacl_edit_goto_group'              => 'Просмотреть группу $1',
 
     'hacl_edit_user'                    => 'Пользователь',
     'hacl_edit_group'                   => 'Группа',

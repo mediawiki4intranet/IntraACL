@@ -122,7 +122,7 @@ class IntraACLSpecial extends SpecialPage
     /* Create/edit ACL definition using interactive editor */
     public function html_acl(&$q)
     {
-        global $wgOut, $wgUser, $wgScript, $haclgHaloScriptPath, $haclgContLang, $wgContLang;
+        global $wgOut, $wgUser, $wgScript, $haclgHaloScriptPath, $haclgContLang, $wgContLang, $wgScriptPath;
         $aclTitle = Title::newFromText($q['sd'], HACL_NS_ACL);
         $t = HACLEvaluator::hacl_type($aclTitle);
         if (!($q['sd'] && $aclTitle &&

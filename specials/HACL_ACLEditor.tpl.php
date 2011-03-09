@@ -40,6 +40,9 @@
     <option value="#"><?= wfMsg('hacl_edit_reg') ?></option>
    </select>
    <input type="text" id="to_name" style="width: 200px" autocomplete="off" />
+   <a id="hacl_to_goto" href="#" target="_blank" style="display: none" title="">
+    <img src="<?= $wgScriptPath ?>/skins/monobook/external.png" width="10" height="10" alt="&rarr;" />
+   </a>
   </p>
   <p>
    <input type="checkbox" id="act_all" onclick="AE.act_change(this)" onchange="AE.act_change(this)" />
@@ -83,10 +86,11 @@ exAttach(window, 'load', function()
         ' indirect_grant indirect_grant_all indirect_grant_reg edit_sd_exists edit_define_rights'.
         ' edit_define_manager edit_define_tmanager edit_ahint_all edit_ahint_manage'.
         ' edit_ahint_template edit_ahint_read edit_ahint_edit edit_ahint_create edit_ahint_delete'.
-        ' edit_ahint_move'
+        ' edit_ahint_move edit_goto_group'
     ) as $msg)
         print "        '$msg': '".addslashes(wfMsgNoTrans("hacl_$msg"))."',\n"; ?>
-        'NS_ACL': '<?= $wgContLang->getNsText(HACL_NS_ACL) ?>'
+        'NS_ACL': '<?= $wgContLang->getNsText(HACL_NS_ACL) ?>',
+        'group_prefix' : '<?= $haclgContLang->getGroupPrefix() ?>'
     };
     var petPrefixes = {
     <?php

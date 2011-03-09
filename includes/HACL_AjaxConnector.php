@@ -65,7 +65,7 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
         $r = HACLStorage::getDatabase()->getGroups($n, $limit);
         foreach ($r as $group)
         {
-            $n = $group->getGroupName();
+            $n = $group['group_name'];
             if (($p = strpos($n, '/')) !== false)
                 $n = substr($n, $p+1);
             $a[] = array($n, $n);

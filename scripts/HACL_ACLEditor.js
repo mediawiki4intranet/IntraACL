@@ -455,6 +455,15 @@ HACLACLEditor.prototype.to_type_change = function()
 HACLACLEditor.prototype.to_name_change = function()
 {
     var g_to = this.get_grant_to();
+    var goto_link = document.getElementById('hacl_to_goto');
+    if (g_to && g_to.substr(0, 6) == 'Group/')
+    {
+        goto_link.href = wgScript+'/'+this.msg.NS_ACL+':'+this.msg.group_prefix+'/'+encodeURI(g_to.substr(6));
+        goto_link.title = this.msg.edit_goto_group.replace('$1', g_to.substr(6));
+        goto_link.style.display = '';
+    }
+    else
+        goto_link.style.display = 'none';
     var act = this.all_actions.slice(0); // copy array
     act.push('manage', 'template', 'all');
     var all_direct = true, all_grp = true;
