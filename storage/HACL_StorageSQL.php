@@ -585,7 +585,7 @@ class HACLStorageSQL {
             {
                 $children[0][$obj[0]][$obj[1]] = true;
                 if ($obj[0] == 'group')
-                    getGroupMembersRecursive($obj[1], $children);
+                    self::getGroupMembersRecursive($obj[1], $children);
             }
         }
         return $children[0];
@@ -1142,16 +1142,18 @@ class HACLStorageSQL {
         $sd = $dbr->tableName('halo_acl_security_descriptors');
         $r  = $dbr->tableName('halo_acl_rights');
         $rh = $dbr->tableName('halo_acl_rights_hierarchy');
+        $rev = $dbr->tableName('revision');
         $sql_is_single = $sdID ?
                 "(SELECT 1=SUM(CASE WHEN child_id=$sdID THEN 1 ELSE 2 END)
                   FROM $rh rh WHERE rh.parent_right_id=sd.sd_id)" : "0";
-        $sql = "SELECT p1.*, p2.page_title sd_title, p2.page_touched sd_touched,
+        $sql = "SELECT p1.*, p2.page_title sd_title, rev.rev_timestamp sd_touched,
                  $sql_is_single sd_inc_single,
                  (NOT EXISTS (SELECT * FROM $r r WHERE r.origin_id=sd.sd_id)) sd_no_rights,
                  (COUNT(il2.$linksfield)) used_on_pages
                 FROM $il il1 INNER JOIN $p p1 ON $linksjoin
                 LEFT JOIN $sd sd ON sd.type='page' AND sd.pe_id=p1.page_id
                 LEFT JOIN $p p2 ON p2.page_id=sd.sd_id
+                LEFT JOIN $rev rev ON rev.rev_id=p2.page_latest
                 LEFT JOIN $il il2 ON $linksjoin2
                 WHERE il1.$linksfield=$peID
                 GROUP BY p1.page_id

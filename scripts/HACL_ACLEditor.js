@@ -248,7 +248,8 @@ HACLACLEditor.prototype.check_errors = function()
     document.getElementById('acl_define_rights').style.display = has_rights ? 'none' : '';
     var m = document.getElementById('acl_define_manager');
     m.style.display = has_managers ? 'none' : '';
-    m.innerHTML = this.msg[is_template ? 'edit_define_tmanager' : 'edit_define_manager'];
+    var man_err = { 'page' : 'edit_define_manager', 'right' : 'edit_define_tmanager' };
+    m.innerHTML = this.msg[man_err[is_template] || 'edit_define_manager_np'];
 };
 
 // fill in this.rights_direct with closure data

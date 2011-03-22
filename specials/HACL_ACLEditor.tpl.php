@@ -84,7 +84,7 @@ exAttach(window, 'load', function()
         ' start_typing_user start_typing_group start_typing_page start_typing_category'.
         ' edit_users_affected edit_groups_affected edit_no_users_affected edit_no_groups_affected'.
         ' indirect_grant indirect_grant_all indirect_grant_reg edit_sd_exists edit_define_rights'.
-        ' edit_define_manager edit_define_tmanager edit_ahint_all edit_ahint_manage'.
+        ' edit_define_manager edit_define_tmanager edit_define_manager_np edit_ahint_all edit_ahint_manage'.
         ' edit_ahint_template edit_ahint_read edit_ahint_edit edit_ahint_create edit_ahint_delete'.
         ' edit_ahint_move edit_goto_group'
     ) as $msg)

@@ -140,6 +140,7 @@ If you want to protect some pages, ACL page must be named as one of: ACL:Page/*,
     'hacl_edit_enter_name_first'        => 'Error: Enter name to save ACL!',
     'hacl_edit_define_rights'           => 'Error: ACL must include at least 1 right!',
     'hacl_edit_define_manager'          => 'Warning: If ACL does not include any manage rights, it can only be modified by administrators and users who have the right through namespace or category right.',
+    'hacl_edit_define_manager_np'       => 'Warning: If ACL does not include any manage rights, it can only be modified by administrators.',
     'hacl_edit_define_tmanager'         => 'Warning: If ACL template does not include any template manage rights, it can only be modified by administrators.',
 
     'hacl_start_typing_page'            => 'Start typing to display page list...',
@@ -288,6 +289,9 @@ If you want to protect some pages, ACL page must be named as one of: ACL:Page/*,
     'hacl_comment_protect_with'         => 'Page protected with $1.',
     'hacl_comment_unprotect'            => 'Custom page rights removed.',
     'hacl_comment_protect_embedded'     => 'Page protected with $1 as an embedded element.',
+    'hacl_embedded_error_canedit'       => 'access denied',
+    'hacl_embedded_error_invalidsd'     => 'invalid protection requested',
+    'hacl_embedded_error_midair'        => 'mid-air collision',
     'hacl_embedded_not_saved_title'     => 'Embedded content rights not saved',
     'hacl_embedded_not_saved'           => 'Rights for the following embedded (linked) elements are not saved: $1.
 
@@ -295,6 +299,7 @@ Possible reasons for this may be:
 * Access denied: You have no rights to modify rights of some of these elements.
 * Edit conflict: Security descriptor(s) for some of these elements could be modified by someone in the meantime.
 * Element deleted: Some of these elements could be deleted in the meantime.
+* Invalid protection requested: Most probably, the form was submitted incorrectly.
 
 Please review these elements, return to [[$2]] and protect them again.',
 );
@@ -404,6 +409,7 @@ $messages['ru'] = array(
     'hacl_edit_enter_name_first'        => 'Ошибка: введите имя, чтобы сохранить ACL!',
     'hacl_edit_define_rights'           => 'Ошибка: ACL должен включать хотя бы одно право!',
     'hacl_edit_define_manager'          => 'Предупреждение: если ACL не включает права изменения прав, его смогут править администраторы и участники, которым это разрешено через права на пространства имён или категории.',
+    'hacl_edit_define_manager_np'       => 'Предупреждение: если ACL не включает права изменения прав, его смогут править только администраторы.',
     'hacl_edit_define_tmanager'         => 'Предупреждение: если шаблон ACL не включает прав изменения шаблона, его смогут править только администраторы.',
 
     'hacl_start_typing_page'            => 'Начните ввод для подсказки страницы...',
@@ -554,6 +560,9 @@ $messages['ru'] = array(
     'hacl_comment_protect_with'         => 'Страница защищена $1.',
     'hacl_comment_unprotect'            => 'Особые права страницы удалены.',
     'hacl_comment_protect_embedded'     => 'Страница сочтена подстатьёй и защищена $1.',
+    'hacl_embedded_error_canedit'       => 'доступ запрещён',
+    'hacl_embedded_error_invalidsd'     => 'запрошена неверная защита',
+    'hacl_embedded_error_midair'        => 'конфликт редактирования',
     'hacl_embedded_not_saved_title'     => 'Связанное содержимое не защищено',
     'hacl_embedded_not_saved'           => 'Права для следующих связанных элементов не сохранены: $1.
 
@@ -561,6 +570,7 @@ $messages['ru'] = array(
 * Доступ запрещён: У вас нет прав для изменения защиты каких-либо из этих элементов.
 * Конфликт редактирования: Определения защиты каких-либо из этих элементов были изменены кем-то другим, пока вы редактировали статью.
 * Элемент(ы) удален(ы): Какие-либо из этих элементов могли быть удалены, пока вы редактировали статью.
+* Запрошена неверная защита: Скорее всего, была некорректно отправлена форма редактирования.
 
 Пожалуйста, рассмотрите ситуацию внимательнее, вернитесь к [[$2]] и пересохраните права.',
 );

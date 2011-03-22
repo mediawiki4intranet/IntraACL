@@ -391,19 +391,17 @@ class HACLToolbar
                     );
                     $emb_sd_article = new Article($emb_sd_title);
                 }
-                if (// Embedded content deleted
-                    !$emb_title ||
-                    // Manage access denied
-                    !$emb_sd_title->userCan('edit') ||
-                    // Invalid SD requested for protection
-                    $req_sd_id && $req_sd_id != $articleSD->getSDId() ||
-                    // SD created by someone in the meantime
-                    !$emb_sd_timestamp && $emb_sd_article->exists() ||
-                    // SD changed by someone in the meantime
+                // Check for errors:
+                // Embedded content deleted || Manage access denied
+                if (!$emb_title || !$emb_title->getArticleId() || !$emb_sd_title->userCan('edit'))
+                    $errors[] = array($emb_title, 'canedit');
+                // Invalid SD requested for protection
+                elseif ($req_sd_id && $req_sd_id != $articleSD->getSDId())
+                    $errors[] = array($emb_title, 'invalidsd');
+                // Mid-air collision: SD created/changed by someone in the meantime
+                elseif (!$emb_sd_timestamp && $emb_sd_article->exists() ||
                     $emb_sd_timestamp && $emb_sd_article->getTimestamp() > $emb_sd_timestamp)
-                {
-                    $errors[] = $emb_title;
-                }
+                    $errors[] = array($emb_title, 'midair');
                 else
                 {
                     // Save embedded element SD
@@ -421,7 +419,7 @@ class HACLToolbar
         if ($errors)
         {
             foreach ($errors as &$e)
-                $e = "[[".$e->getPrefixedText()."]]";
+                $e = "[[:".$e[0]->getPrefixedText()."]] (".wfMsg('hacl_embedded_error_'.$e[1]).")";
             $wgOut->setTitle(Title::newFromText('Special:IntraACL'));
             $wgOut->addWikiText(wfMsgNoTrans(
                 'hacl_embedded_not_saved',
