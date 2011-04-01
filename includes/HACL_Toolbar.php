@@ -575,7 +575,7 @@ class HACLToolbar
                     '/'.$wgTitle->getPrefixedText();
             $sd = Title::newFromText($sd, HACL_NS_ACL);
             // Hide ACL tab if SD does not exist and $haclgDisableACLTab is true
-            if ($haclgDisableACLTab && !$sd->exists())
+            if ($haclgDisableACLTab && (!$sd || !$sd->exists()))
                 return NULL;
             return array(
                 'class' => $sd->exists() ? false : 'new',
