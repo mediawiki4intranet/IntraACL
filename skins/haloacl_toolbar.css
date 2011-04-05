@@ -2,7 +2,7 @@
 #hacl_toolbar { border: 1px solid gray; background-color: #eee; padding: 5px; margin: 2px 0; }
 #hacl_toolbar select { vertical-align: middle; }
 #hacl_toolbar div.qacl { float: right; margin-top: 2px; }
-.haclt_title { border: 1px solid gray; background-color: white; padding: 1px 4px; }
+.haclt_title { border: 1px solid gray; background-color: white; padding: 1px 4px; cursor: pointer; }
 .haclt_tip { display: inline-block; }
 .haclt_text { position: relative; }
 .haclt_tip .x { white-space: nowrap; position: absolute; top: -1px; background-color: white; padding: 3px 5px; border: 1px solid gray; z-index: 100; }

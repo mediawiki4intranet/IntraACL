@@ -978,8 +978,8 @@ class HACLStorageSQL {
      */
     public function getSDByID($SDID)
     {
-        if (is_array($SDID) && !$SDID)
-            return array();
+        if (!$SDID)
+            return is_array($SDID) ? array() : NULL;
         $dbr = wfGetDB(DB_SLAVE);
         $res = $dbr->select(
             array('halo_acl_security_descriptors', 'page'),

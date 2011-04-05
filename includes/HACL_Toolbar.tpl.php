@@ -20,15 +20,15 @@
 <?php } elseif ($title->exists()) { ?>
  <?= wfMsg('hacl_toolbar_no_right_templates', $quick_acl_link) ?>
 <?php } if ($globalACL) { ?>
- <div class="haclt_tip" onmouseover="haclt_show('gacl', true)" onmouseout="haclt_show('gacl', false)">
-  <span class="haclt_title" id="haclt_gacl_title"><?= wfMsg('hacl_toolbar_global_acl') ?></span>
+ <div class="haclt_tip">
+  <a onclick="haclt_show('gacl')" class="haclt_title" id="haclt_gacl_title"><?= wfMsg('hacl_toolbar_global_acl') ?></a>
   <div class="haclt_text" id="haclt_gacl_text" style="display: none"><div class="x">
    <?= wfMsg('hacl_toolbar_global_acl_tip') ?><br /><?= $globalACL ?>
   </div></div>
  </div>
 <?php } if ($anyLinks || $embeddedToolbar) { ?>
- <div class="haclt_tip" onmouseover="haclt_show('emb', true)" onmouseout="haclt_show('emb', false)">
-  <span class="haclt_title" id="haclt_emb_title"><?= wfMsg('hacl_toolbar_embedded_acl') ?></span>
+ <div class="haclt_tip">
+  <a onclick="haclt_show('emb')" class="haclt_title" id="haclt_emb_title"><?= wfMsg('hacl_toolbar_embedded_acl') ?></a>
   <div class="haclt_text" id="haclt_emb_text" style="display: none"><div class="x<?= $embeddedToolbar ? ' xl' : '' ?>" id="haclt_emb">
    <?= $embeddedToolbar ? $embeddedToolbar : wfMsg('hacl_toolbar_loading') ?>
   </div></div>

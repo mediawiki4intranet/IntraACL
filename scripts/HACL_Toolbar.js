@@ -1,3 +1,4 @@
+/* Change "go to selected ACL &rarr;" link */
 var haclt_change_goto = function(e, msg)
 {
   var l = document.getElementById('hacl_toolbar_goto');
@@ -6,10 +7,13 @@ var haclt_change_goto = function(e, msg)
   l.href = t ? wgScript+'?title='+encodeURI(t) : '';
   l.title = msg.replace('$1', t);
 };
+/* Show/hide embedded content toolbar */
 var haclt_show = function(n, s)
 {
   var emb = document.getElementById('haclt_emb');
   var t = document.getElementById('haclt_'+n+'_text');
+  if (s === null || s === undefined)
+    s = t.style.display == 'none';
   if (n == 'emb' && s && emb.className != 'x xl')
   {
     t.style.display = '';
@@ -26,7 +30,8 @@ var haclt_show = function(n, s)
   else
     t.style.display = s ? '' : 'none';
 };
-/* Also shared with ACLEditor */
+/* Check all embedded content checkboxes
+   Also shared with ACLEditor */
 var hacle_checkall = function(c, ids)
 {
   c = c.checked;
@@ -38,7 +43,8 @@ var hacle_checkall = function(c, ids)
       chk.checked = c;
   }
 };
-/* Also shared with ACLEditor */
+/* Uncheck all embedded content checkboxes
+   Also shared with ACLEditor */
 var hacle_noall = function(c)
 {
   c = c.checked;
