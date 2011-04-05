@@ -1293,6 +1293,8 @@ class HACLStorageSQL {
      */
     public function rowToRight($row)
     {
+        if (!$row)
+            return NULL;
         $rightID     = $row->right_id;
         $actions     = $row->actions;
         $groups      = self::strToIntArray($row->groups);
