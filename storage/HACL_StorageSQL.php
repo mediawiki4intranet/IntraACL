@@ -1009,6 +1009,8 @@ class HACLStorageSQL {
     /* Create HACLSecurityDescriptor from DB row object */
     static function rowToSD($row)
     {
+        if (!$row)
+            return NULL;
         if (!$row->page_title)
             $row->page_title = HACLSecurityDescriptor::nameForID($sdID);
         return new HACLSecurityDescriptor(
