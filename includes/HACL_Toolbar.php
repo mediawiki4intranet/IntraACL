@@ -353,7 +353,7 @@ class HACLToolbar
         if ($isACL)
         {
             $articleSD = $st->getSDById($article->getId());
-            if ($articleSD->getPEType() != 'page')
+            if (!$articleSD || $articleSD->getPEType() != 'page')
             {
                 // This is not a page SD, do nothing.
                 return true;
