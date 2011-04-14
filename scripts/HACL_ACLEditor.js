@@ -586,7 +586,8 @@ HACLACLEditor.prototype.get_empty_hint = function()
         j = 0;
         for (var n in x)
         {
-            if (n != '*' && n != '#' && (tt == 'group') == (n.substr(0, 6) == 'Group/'))
+            if (n != '*' && n != '#' &&
+                (tt == 'group') == (n.substr(0, 6) == 'Group/'))
             {
                 n = htmlspecialchars(n.replace(/^User:|^Group\//, ''));
                 involved.push('<div id="hi_'+(++j)+'" class="hacl_ti" title="'+n+'">'+n+'</div>');

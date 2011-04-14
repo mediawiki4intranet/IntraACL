@@ -294,7 +294,6 @@ ok:
     public static function hasRight($titleID, $type, $userID, $actionID, $originNE = NULL)
     {
         // retrieve all appropriate rights from the database
-        global $wgUser;
         $rights = HACLStorage::getDatabase()->getRights($titleID, $type, $actionID, $originNE);
 
         // Check for all rights, if they are granted for the given user

@@ -293,7 +293,7 @@ class IntraACLSpecial extends SpecialPage
                 $members[] = 'User:'.$u['user_name'];
             /* get group names */
             foreach ($st->getGroupNames($r->getGroups()) as $g)
-                $members[] = 'Group/'.$g['group_name'];
+                $members[] = $g['group_name'];
             /* merge into result */
             foreach ($members as $m)
                 foreach ($actions as $a)
