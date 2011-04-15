@@ -314,6 +314,8 @@ class IntraACLSpecial extends SpecialPage
                 foreach ($acts as $a => $true)
                     $res[$m][$a] = true;
         }
+        /* Sort members */
+        asort($res);
         return $res;
     }
 

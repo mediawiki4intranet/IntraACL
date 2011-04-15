@@ -229,6 +229,7 @@ function haclGroupClosure($groups, $predefined = '')
                 $members[$k][] = 'User:'.$u['user_name'];
             foreach ($st->getGroupNames(@array_keys($m['group'])) as $g)
                 $members[$k][] = $g['group_name'];
+            sort($members[$k]);
         }
     }
     $rights = array();

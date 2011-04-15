@@ -361,7 +361,7 @@ ok:
      * @return bool
      *         true
      */
-     public static function onEditFilter($editor, $text, $section, &$error) {
+    public static function onEditFilter($editor, $text, $section, &$error) {
         global $wgParser, $wgUser;
         $article = $editor->mArticle;
         $options = new ParserOptions;
