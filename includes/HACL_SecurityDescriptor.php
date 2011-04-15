@@ -87,9 +87,6 @@ class HACLSecurityDescriptor
      *         internally stored as user IDs. Invalid values cause an exception.
      * @throws
      *         HACLSDException(HACLSDException::NO_PE_ID)
-     *         HACLSDException(HACLSDException::UNKNOWN_GROUP)
-     *         HACLException(HACLException::UNKNOWN_USER)
-     *
      */
     function __construct($SDID, $SDName, $peID, $peType, $manageGroups, $manageUsers)
     {
@@ -108,7 +105,6 @@ class HACLSecurityDescriptor
         $this->mPEType = $peType;
         if ($peType == HACLLanguage::PET_RIGHT)
             $this->mPEID = 0;
-
         $this->setManageGroups($manageGroups);
         $this->setManageUsers($manageUsers);
     }
@@ -195,12 +191,11 @@ class HACLSecurityDescriptor
      *         HACLSDException(HACLSDException::UNKNOWN_SD)
      *             ...if the requested SD in the not the database.
      */
-    public static function newFromID($SDID)
+    public static function newFromID($SDID, $throwError = true)
     {
         $sd = HACLStorage::getDatabase()->getSDByID($SDID);
-        if ($sd === null) {
+        if (!$sd && $throwError)
             throw new HACLSDException(HACLSDException::UNKNOWN_SD, $SDID);
-        }
         return $sd;
     }
 
@@ -282,37 +277,37 @@ class HACLSecurityDescriptor
      * afterwards to persists the changes in the database.
      *
      * @param mixed string|array(mixed int|string|User) $manageUsers
-     *         If a single string is given, it contains a comma-separated list of
-     *         user names.
-     *         If an array is given, it can contain user-objects, names of users or
-     *      IDs of a users. If <null> or empty, the currently logged in user is
-     *      assumed.
-     *      There are two special user names:
-     *             '*' - anonymous user (ID:0)
-     *            '#' - all registered users (ID: -1)
-     * @throws
-     *         HACLException(HACLException::UNKNOWN_USER)
-     *             ...if a user does not exist.
+     *        If a single string is given, it contains a comma-separated list of
+     *        user names.
+     *        If an array is given, it can contain user-objects, names of users or
+     *        IDs of a users. If <null> or empty, the currently logged in user is
+     *        assumed.
+     *        There are two special user names:
+     *        '*' - anonymous user (ID:0)
+     *        '#' - all registered users (ID: -1)
      */
-    public function setManageUsers($manageUsers) {
-        if (!empty($manageUsers) && is_string($manageUsers)) {
+    public function setManageUsers($manageUsers)
+    {
+        if (!empty($manageUsers) && is_string($manageUsers))
+        {
             // Managing users are given as comma separated string
             // Split into an array
             $manageUsers = explode(',', $manageUsers);
         }
-        if (is_array($manageUsers)) {
+        if (is_array($manageUsers))
+        {
             $this->mManageUsers = $manageUsers;
-            for ($i = 0; $i < count($manageUsers); ++$i) {
+            for ($i = 0; $i < count($manageUsers); ++$i)
+            {
                 $mu = $manageUsers[$i];
-                if (is_string($mu)) {
+                if (is_string($mu))
                     $mu = trim($mu);
-                }
-                $uid = haclfGetUserID($mu);
+                $uid = haclfGetUserID($mu, false);
                 $this->mManageUsers[$i] = $uid[0];
             }
-        } else {
-            $this->mManageUsers = array();
         }
+        else
+            $this->mManageUsers = array();
     }
 
     /**
@@ -324,33 +319,29 @@ class HACLSecurityDescriptor
      *         group names.
      *         If an array is given, it can contain IDs (int), names (string) or
      *      objects (HACLGroup) for the group
-     * @throws
-     *         HACLException(HACLException::UNKNOWN_USER)
-     *             ...if a user does not exist.
      */
-    public function setManageGroups($manageGroups) {
-        if (!empty($manageGroups) && is_string($manageGroups)) {
+    public function setManageGroups($manageGroups)
+    {
+        if (!empty($manageGroups) && is_string($manageGroups))
+        {
             // Managing groups are given as comma separated string
             // Split into an array
             $manageGroups = explode(',', $manageGroups);
         }
-        if (is_array($manageGroups)) {
+        if (is_array($manageGroups))
+        {
             $this->mManageGroups = $manageGroups;
-            for ($i = 0; $i < count($manageGroups); ++$i) {
+            for ($i = 0; $i < count($manageGroups); ++$i)
+            {
                 $mg = $manageGroups[$i];
-                if (is_string($mg)) {
+                if (is_string($mg))
                     $mg = trim($mg);
-                }
-                $gid = HACLGroup::idForGroup($mg);
-                if (!$gid) {
-                    throw new HACLGroupException(HACLGroupException::UNKNOWN_GROUP, $mg);
-                }
-                $this->mManageGroups[$i] = (int) $gid;
+                if ($gid = HACLGroup::idForGroup($mg))
+                    $this->mManageGroups[$i] = $gid;
             }
-        } else {
-            $this->mManageGroups = array();
         }
-
+        else
+            $this->mManageGroups = array();
     }
 
     /**
@@ -500,8 +491,8 @@ class HACLSecurityDescriptor
      *     HACLSDException(HACLSDException::USER_CANT_MODIFY_SD)
      *
      */
-    public function removeAllRights($user = null) {
-        $this->userCanModify($user, true);
+    public function removeAllRights($user = NULL)
+    {
         return HACLStorage::getDatabase()->deleteSD($this->mSDID, true);
     }
 
@@ -757,19 +748,17 @@ class HACLSecurityDescriptor
      * If the SD already exists and the given user has the right to modify the
      * SD, the SDs definition is changed.
      *
-     * @param User/string $user
+     * @param  User/string $user
      *         User-object or name of the user who wants to save this SD. If this
      *         value is empty or <null>, the current user is assumed.
      *
      * @throws
      *         HACLSDException(HACLSDException::NO_SD_ID)
-     *         HACLException(HACLException::UNKNOWN_USER)
-     *         HACLSDException(HACLSDException::USER_CANT_MODIFY_SD)
      *         Exception (on failure in database level)
      */
     public function save($user = null)
     {
-        // Get the page ID of the article that defines the SD
+        // Check that SD refers to some page ID
         if ($this->mSDID == 0)
             throw new HACLSDException(HACLSDException::NO_SD_ID, $this->mSDName);
         HACLStorage::getDatabase()->saveSD($this);
@@ -781,13 +770,9 @@ class HACLSecurityDescriptor
      * @param User/string/int $user
      *         User-object, name of a user or ID of a user who wants to delete this
      *         SD. If <null>, the currently logged in user is assumed.
-     *
-     * @throws
-     *     HACLSDException(HACLSDException::USER_CANT_MODIFY_SD)
      */
-    public function delete($user = null)
+    public function delete($user = NULL)
     {
-        $this->userCanModify($user, true);
         return HACLStorage::getDatabase()->deleteSD($this->mSDID);
     }
 

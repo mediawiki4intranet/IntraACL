@@ -578,17 +578,19 @@ class HACLParserFunctions
             else
             {
                 // It is a right or security descriptor
-                $sd = HACLSecurityDescriptor::newFromID($title->getArticleId());
-                // Check access
-                if (!$sd->userCanModify())
-                    return true;
-                // remove all current rights, however the right remains in
-                // the hierarchy of rights, as it might be "revived"
-                $sd->removeAllRights();
-                // The empty right article can now be changed by everyone
-                $sd->setManageGroups(NULL);
-                $sd->setManageUsers('*,#');
-                $sd->save();
+                if ($sd = HACLSecurityDescriptor::newFromID($title->getArticleId(), false))
+                {
+                    // Check access
+                    if (!$sd->userCanModify())
+                        return true;
+                    // remove all current rights, however the right remains in
+                    // the hierarchy of rights, as it might be "revived"
+                    $sd->removeAllRights();
+                    // The empty right article can now be changed by everyone
+                    $sd->setManageGroups(NULL);
+                    $sd->setManageUsers('*,#');
+                    $sd->save();
+                }
             }
 
             //--- Create an instance for parsing this article
@@ -646,12 +648,14 @@ class HACLParserFunctions
             else
             {
                 // It is a right or security descriptor
-                $sd = HACLSecurityDescriptor::newFromID($id);
-                // Check access
-                if (!$sd->userCanModify())
-                    return false;
-                // Delete SD permanently
-                $sd->delete();
+                if ($sd = HACLSecurityDescriptor::newFromID($id, false))
+                {
+                    // Check access
+                    if (!$sd->userCanModify())
+                        return false;
+                    // Delete SD permanently
+                    $sd->delete();
+                }
             }
         }
         else
