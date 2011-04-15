@@ -446,9 +446,8 @@ class HACLSecurityDescriptor
      *         SD. If <null> (default), the currently logged in user is assumed.
      *
      * @throws
-     *         HACLSDException(HACLSDException::USER_CANT_MODIFY_SD)
      *         Exception
-     *         ...in case of database failure
+     *         ... in case of database failure
      *         HACLSDException(HACLSDException::CANNOT_ADD_SD)
      *         ... if an SD is added to an SD or PR
      */
@@ -456,9 +455,6 @@ class HACLSecurityDescriptor
     {
         if (empty($rights))
             return;
-
-        // Can the user modify this SD/PR
-        $this->userCanModify($user, true);
 
         // Update the hierarchy of SDs/PRs
         foreach ($rights as $r)
@@ -479,20 +475,16 @@ class HACLSecurityDescriptor
      * @param User/string/int $user
      *         User-object, name of a user or ID of a user who wants to delete this
      *         SD. If <null> (default), the currently logged in user is assumed.
-     *
-     * @throws
-     *     HACLSDException(HACLSDException::USER_CANT_MODIFY_SD)
      */
-    public function addInlineRights($rights, $user = null) {
-        if (empty($rights)) {
+    public function addInlineRights($rights, $user = null)
+    {
+        if (empty($rights))
             return;
-        }
-        $this->userCanModify($user, true);
-        foreach ($rights as $r) {
+        foreach ($rights as $r)
+        {
             $r->setOriginID($this->mSDID);
             $r->save();
         }
-
         $this->materializeRightsHierarchy();
     }
 
@@ -690,10 +682,13 @@ class HACLSecurityDescriptor
      * @throws
      *         HACLException(HACLException::UNKNOWN_USER)
      *         If requested: HACLSDException(HACLSDException::USER_CANT_MODIFY_SD)
-     *
      */
-    public function userCanModify($user, $throwException = false)
+    public function userCanModify($user = false, $throwException = false)
     {
+        global $wgUser;
+        if (!$user)
+            $user = $wgUser;
+
         // Get the ID of the user who wants to add/modify the SD
         list($userID, $userName) = haclfGetUserID($user);
 
@@ -762,7 +757,6 @@ class HACLSecurityDescriptor
      * If the SD already exists and the given user has the right to modify the
      * SD, the SDs definition is changed.
      *
-     *
      * @param User/string $user
      *         User-object or name of the user who wants to save this SD. If this
      *         value is empty or <null>, the current user is assumed.
@@ -772,16 +766,12 @@ class HACLSecurityDescriptor
      *         HACLException(HACLException::UNKNOWN_USER)
      *         HACLSDException(HACLSDException::USER_CANT_MODIFY_SD)
      *         Exception (on failure in database level)
-     *
      */
     public function save($user = null)
     {
         // Get the page ID of the article that defines the SD
         if ($this->mSDID == 0)
             throw new HACLSDException(HACLSDException::NO_SD_ID, $this->mSDName);
-
-        $this->userCanModify($user, true);
-
         HACLStorage::getDatabase()->saveSD($this);
     }
 
@@ -794,7 +784,6 @@ class HACLSecurityDescriptor
      *
      * @throws
      *     HACLSDException(HACLSDException::USER_CANT_MODIFY_SD)
-     *
      */
     public function delete($user = null)
     {

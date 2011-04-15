@@ -558,20 +558,38 @@ class HACLParserFunctions
      *
      * @param Article $article
      * @param User $user
-     * @param strinf $text
+     * @param string $text
      * @return true
      */
     public static function updateDefinition($article, $text = NULL)
     {
         // The article is in the ACL namespace?
         $title = $article->getTitle();
-        if ($title->getNamespace() == HACL_NS_ACL)
+        if (($title->getNamespace() == HACL_NS_ACL) &&
+            ($type = HACLEvaluator::hacl_type($title)))
         {
+            //--- Get article content, if not yet ---
             if ($text === NULL)
                 $text = $article->getContent();
 
             //--- Remove old SD / Group ---
-            self::removeOldDef($title, true);
+            if ($type == 'group')
+                self::removeGroup($title);
+            else
+            {
+                // It is a right or security descriptor
+                $sd = HACLSecurityDescriptor::newFromID($title->getArticleId());
+                // Check access
+                if (!$sd->userCanModify())
+                    return true;
+                // remove all current rights, however the right remains in
+                // the hierarchy of rights, as it might be "revived"
+                $sd->removeAllRights();
+                // The empty right article can now be changed by everyone
+                $sd->setManageGroups(NULL);
+                $sd->setManageUsers('*,#');
+                $sd->save();
+            }
 
             //--- Create an instance for parsing this article
             self::$mInstance = new self($title);
@@ -591,7 +609,6 @@ class HACLParserFunctions
             //--- Destroy instance ---
             self::$mInstance = NULL;
         }
-
         return true;
     }
 
@@ -620,10 +637,22 @@ class HACLParserFunctions
     {
         // The article is in the ACL namespace?
         $title = $article->getTitle();
-        if ($title->getNamespace() == HACL_NS_ACL)
+        if (($title->getNamespace() == HACL_NS_ACL) &&
+            ($type = HACLEvaluator::hacl_type($title)))
         {
             //--- Remove old SD / Group ---
-            self::removeOldDef($title, false);
+            if ($type == 'group')
+                self::removeGroup($title);
+            else
+            {
+                // It is a right or security descriptor
+                $sd = HACLSecurityDescriptor::newFromID($id);
+                // Check access
+                if (!$sd->userCanModify())
+                    return false;
+                // Delete SD permanently
+                $sd->delete();
+            }
         }
         else
         {
@@ -680,50 +709,20 @@ class HACLParserFunctions
 
     //--- Private methods ---
 
-    // Check if there is a corresponding definition in the ACL database and remove it.
-    private static function removeOldDef($title, $for_update = false)
+    private static function removeGroup($title)
     {
-        $id = $title->getArticleId();
         try
         {
-            switch (HACLEvaluator::hacl_type($title))
-            {
-                case 'group':
-                    $group = HACLGroup::newFromID($id);
-                    // It is a group
-                    // => remove all current members, however the group remains in the
-                    //    hierarchy of groups, as it might be "revived"
-                    $group->removeAllMembers();
-                    // The empty group article can now be changed by everyone
-                    $group->setManageGroups(NULL);
-                    $group->setManageUsers('*,#');
-                    $group->save();
-                    break;
-                default:
-                    $sd = HACLSecurityDescriptor::newFromID($id);
-                    // It is a right or security descriptor
-                    if ($for_update)
-                    {
-                        // remove all current rights, however the right remains in
-                        // the hierarchy of rights, as it might be "revived"
-                        $sd->removeAllRights();
-                        // The empty right article can now be changed by everyone
-                        $sd->setManageGroups(null);
-                        $sd->setManageUsers('*,#');
-                        $sd->save();
-                    }
-                    else
-                    {
-                        // delete SD permanently
-                        $sd->delete();
-                    }
-                    break;
-            }
-        }
-        catch (Exception $e)
-        {
-            // Just ignore any exceptions
-        }
+            $group = HACLGroup::newFromID($title->getArticleId());
+            // It is a group
+            // => remove all current members, however the group remains in the
+            //    hierarchy of groups, as it might be "revived"
+            $group->removeAllMembers();
+            // The empty group article can now be changed by everyone
+            $group->setManageGroups(NULL);
+            $group->setManageUsers('*,#');
+            $group->save();
+        } catch(Exception $e) {}
     }
 
     /* Parse wikitext inside a separate parser to overcome its non-reenterability */
@@ -815,7 +814,10 @@ class HACLParserFunctions
     {
         // Check if all definitions for ACL are valid and consistent.
         if ($this->checkConsistency() !== true)
+        {
+            wfDebug(__METHOD__." found inconsistency, not saving\n");
             return NULL;
+        }
 
         switch ($this->mType)
         {
@@ -844,6 +846,7 @@ class HACLParserFunctions
     private function saveGroup()
     {
         $t = $this->mTitle;
+        wfDebug(__METHOD__." Saving group: $t\n");
         // group does not exist yet
         $group = new HACLGroup($t->getArticleID(), $t->getText(),
             $this->mGroupManagerGroups,
@@ -872,6 +875,7 @@ class HACLParserFunctions
     private function saveSecurityDescriptor($isRight)
     {
         $t = $this->mTitle;
+        wfDebug(__METHOD__." Saving SD: $t\n");
         try
         {
             $sd = HACLSecurityDescriptor::newFromID($t->getArticleID());
