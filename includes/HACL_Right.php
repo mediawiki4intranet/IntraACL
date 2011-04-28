@@ -280,28 +280,27 @@ class HACLRight
      *             ...if the right is not granted and an exception is requested
      *
      */
-    public function grantedForUser($user, $throwException = false) {
+    public function grantedForUser($user, $throwException = false)
+    {
         // Get the ID of the user who wants to get this right
         list($userID, $userName) = haclfGetUserID($user);
         // Check if the right is directly granted for the user
-        if (in_array($userID, $this->mUsers)) {
+        if (in_array($userID, $this->mUsers))
             return true;
-        }
 
         // Check if this right is granted to registered users (ID = -1)
-        if ($userID > 0 && in_array(-1, $this->mUsers)) {
+        if ($userID > 0 && in_array(-1, $this->mUsers) || in_array(0, $this->mUsers))
             return true;
-        }
 
         // Check if the user belongs to a group that gets this right
         $db = HACLStorage::getDatabase();
-        foreach ($this->mGroups as $groupID) {
-            if ($db->hasGroupMember($groupID, $userID, HACLGroup::USER, true)) {
+        foreach ($this->mGroups as $groupID)
+            if ($db->hasGroupMember($groupID, $userID, HACLGroup::USER, true))
                 return true;
-            }
-        }
-        if ($throwException) {
-            if (empty($userName)) {
+        if ($throwException)
+        {
+            if (empty($userName))
+            {
                 // only user id is given => retrieve the name of the user
                 $user = User::newFromId($userID);
                 $userName = ($user) ? $user->getId() : "(User-ID: $userID)";
@@ -439,8 +438,6 @@ class HACLRight
     protected function completeActions($actions)
     {
         // Complete the hierarchy of rights
-        if ($actions & (HACLLanguage::RIGHT_CREATE | HACLLanguage::RIGHT_DELETE))
-            $actions |= HACLLanguage::RIGHT_READ | HACLLanguage::RIGHT_EDIT;
         if ($actions & HACLLanguage::RIGHT_EDIT)
             $actions |= HACLLanguage::RIGHT_READ;
         return $actions;

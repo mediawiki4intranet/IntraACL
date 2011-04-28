@@ -298,7 +298,7 @@ function haclfInitContentLanguage($langcode)
  *         User-object, name of a user or ID of a user. If <null> (which is the
  *      default), the currently logged in user is assumed.
  *      There are two special user names:
- *             '*' - anonymous user (ID:0)
+ *            '*' - anonymous user (ID: 0)
  *            '#' - all registered users (ID: -1)
  * @return array(int,string)
  *         (Database-)ID of the given user and his name. For the sake of

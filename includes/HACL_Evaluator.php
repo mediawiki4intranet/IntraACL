@@ -215,6 +215,13 @@ class HACLEvaluator
         haclfRestoreTitlePatch($etc);
         $result = $R[1];
         self::finishLog($R[0], $R[1], $R[2]);
+
+        // If the user has no read access to a non-existing page,
+        // but has the right to create it - allow him to "read" it,
+        // because Wiki needs it to show the creation form.
+        if ($actionID == HACLLanguage::RIGHT_READ && !$result && !$R[2] && !$articleID)
+            $R[2] = self::userCan($title, $user, 'create', $result);
+
         return $R[2];
     }
 
