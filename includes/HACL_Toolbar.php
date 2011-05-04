@@ -46,7 +46,7 @@ class HACLToolbar
      * ACL templates are detected using HACLSecurityDescriptor::isSinglePredefinedRightInclusion()
      * So if ACL:Page/XXX is really the inclusion of a single right template, it will be detected.
      */
-    static function get($title)
+    static function get($title, $nonreadable)
     {
         global $wgUser, $wgRequest, $haclgContLang, $wgContLang,
             $haclgIP, $haclgHaloScriptPath, $wgScriptPath, $wgOut,
@@ -229,6 +229,75 @@ class HACLToolbar
         $html = ob_get_contents();
         ob_end_clean();
         return $html;
+    }
+
+    // The only case when the user can create an article non-readable to himself
+    //  is when he has create, but no read access to the namespace.
+    // The only case when he can correct it by changing saved text
+    //  is when he has read access to some category.
+    // Warn him about it.
+    public static function warnNonReadableCreate($editpage)
+    {
+        global $haclgOpenWikiAccess, $wgUser, $wgOut;
+        $g = $wgUser->getGroups();
+        if (!$editpage->eNonReadable &&
+            !$editpage->mTitle->getArticleId() &&
+            (!$g || !in_array('bureaucrat', $g)))
+        {
+            list($r, $sd) = HACLEvaluator::checkNamespaceRight(
+                $editpage->mTitle->getNamespace(),
+                $wgUser->getId(), HACLLanguage::RIGHT_READ
+            );
+            if (!($sd ? $r : $haclgOpenWikiAccess))
+                $editpage->eNonReadable = true;
+        }
+        if ($editpage->eNonReadable)
+        {
+            /* Lookup readable categories */
+            $st = HACLStorage::getDatabase();
+            $groups = $wgUser->getId() ? $st->getGroupsOfMember('user', $wgUser->getId()) : NULL;
+            list($uid) = haclfGetUserID($wgUser);
+            $pe = $st->lookupRights($uid, $groups, HACLLanguage::RIGHT_READ, 'category');
+            foreach ($pe as &$c)
+                $c = Title::newFromId($c[1])->getPrefixedText();
+            if ($pe)
+                $wgOut->addWikiText(wfMsgNoTrans('hacl_nonreadable_create', '[['.implode(']], [[', $pe).']]'));
+            else
+                $wgOut->addWikiText(wfMsgNoTrans('hacl_nonreadable_create_nocat'));
+        }
+        return true;
+    }
+
+    // Related to warnNonReadableCreate, checks if the user is creating
+    // a non-readable page without checking the "force" checkbox
+    public static function attemptNonReadableCreate($editpage)
+    {
+        global $haclgOpenWikiAccess, $wgUser, $wgParser, $wgRequest, $wgOut;
+        $g = $wgUser->getGroups();
+        if (!$editpage->mTitle->getArticleId() && (!$g || !in_array('bureaucrat', $g)))
+        {
+            list($r, $sd) = HACLEvaluator::checkNamespaceRight(
+                $editpage->mTitle->getNamespace(),
+                $wgUser->getId(), HACLLanguage::RIGHT_READ
+            );
+            if (!($sd ? $r : $haclgOpenWikiAccess))
+            {
+                $editpage->eNonReadable = true;
+                $options = ParserOptions::newFromUser($wgUser);
+                $text = $wgParser->preSaveTransform($editpage->textbox1, $editpage->mTitle, $wgUser, $options, false);
+                $parserOutput = $wgParser->parse($text, $editpage->mTitle, $options);
+                $categories = $parserOutput->getCategoryLinks();
+                foreach ($categories as &$cat)
+                    $cat = "Category:$cat";
+                list($r, $sd) = HACLEvaluator::hasCategoryRight($categories, $wgUser->getId(), HACLLanguage::RIGHT_READ);
+                if ((!$r || !$sd) && !$wgRequest->getBool('hacl_nonreadable_create'))
+                {
+                    $editpage->showEditForm();
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /**

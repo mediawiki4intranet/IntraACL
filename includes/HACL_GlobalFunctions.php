@@ -129,7 +129,11 @@ function haclfSetupExtension()
      * But this does not allow changing $haclgEnableTitlePatch after enabling IntraACL.
      */
     if ($_SERVER['SERVER_NAME'])
+    {
         define('HACL_HALOACL_VERSION', '1.0');
+        $wgHooks['EditPage::showEditForm:initial'][] = 'HACLToolbar::warnNonReadableCreate';
+        $wgHooks['EditPage::attemptSave'][] = 'HACLToolbar::attemptNonReadableCreate';
+    }
     else
     {
         // Also disable security checks in console mode
@@ -147,10 +151,10 @@ function haclfSetupExtension()
     wfLoadExtensionMessages('IntraACL');
 
     // ArticleSaveComplete_SaveSD hooks must come before articleSaveComplete_SaveEmbedded hook
-    $wgHooks['ArticleSaveComplete'][]  = 'HACLToolbar::articleSaveComplete_SaveSD';
-    $wgHooks['ArticleSaveComplete'][]  = 'HACLToolbar::articleSaveComplete_SaveEmbedded';
-    $wgHooks['IsFileCacheable'][]      = 'haclfIsFileCacheable';
-    $wgHooks['PageRenderingHash'][]    = 'haclfPageRenderingHash';
+    $wgHooks['ArticleSaveComplete'][]   = 'HACLToolbar::articleSaveComplete_SaveSD';
+    $wgHooks['ArticleSaveComplete'][]   = 'HACLToolbar::articleSaveComplete_SaveEmbedded';
+    $wgHooks['IsFileCacheable'][]       = 'haclfIsFileCacheable';
+    $wgHooks['PageRenderingHash'][]     = 'haclfPageRenderingHash';
 
     global $haclgProtectProperties;
     if ($haclgProtectProperties === true)
@@ -164,9 +168,11 @@ function haclfSetupExtension()
 
     //-- Hooks for ACL toolbar --
     $wgHooks['EditPage::showEditForm:fields'][] = 'haclfAddToolbarForEditPage';
-    $wgHooks['sfEditPageBeforeForm'][] = 'haclfAddToolbarForSemanticForms';
     $wgHooks['SkinTemplateContentActions'][] = 'HACLToolbar::SkinTemplateContentActions';
     $wgHooks['SkinTemplateNavigation'][] = 'HACLToolbar::SkinTemplateNavigation';
+
+    //-- Hooks for SMW interface (not checked and disabled)
+    //$wgHooks['sfEditPageBeforeForm'][] = 'haclfAddToolbarForSemanticForms';
 
     //-- includes for Ajax calls --
     global $wgUseAjax, $wgRequest;
@@ -480,25 +486,14 @@ function haclfArticleID($articleName, $defaultNS = NS_MAIN)
 }
 
 /**
- * This function is called from the hook 'EditPageBeforeEditButtons'. It adds the
- * ACL toolbar to edited pages.
+ * This function is called from the hook 'EditPage::showEditForm:fields'.
+ * It adds the ACL toolbar to edited pages.
  */
-function haclfAddToolbarForEditPage($content_actions)
+function haclfAddToolbarForEditPage($editpage, $out)
 {
-    if ($content_actions->mArticle->mTitle->mNamespace == HACL_NS_ACL)
-        return $content_actions;
-    global $wgOut;
-    $wgOut->addHTML(HACLToolbar::get($content_actions->mTitle));
-    return true;
-}
-
-/**
- * This function is called from the hook 'EditPageBeforeEditButtons'. It adds the
- * ACL toolbar to a semantic form.
- */
-function haclfAddToolbarForSemanticForms($pageTitle, &$html)
-{
-    $html = HACLToolbar::get($pageTitle);
+    if ($editpage->mTitle->mNamespace == HACL_NS_ACL)
+        return true;
+    $out->addHTML(HACLToolbar::get($editpage->mTitle, $editpage->eNonReadable));
     return true;
 }
 

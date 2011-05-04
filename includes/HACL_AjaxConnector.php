@@ -250,7 +250,7 @@ function haclSDExists_GetEmbedded($type, $name)
     $peID = HACLSecurityDescriptor::peIDforName($name, $type);
     if ($peID !== false)
     {
-        if ($sdID = $st->getSDForPE($peID, $type))
+        if ($sdID = HACLSecurityDescriptor::getSDForPE($peID, $type))
         {
             // FIXME returns true only for correct SD definitions
             $data['exists'] = true;

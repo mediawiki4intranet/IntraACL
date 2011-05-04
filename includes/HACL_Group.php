@@ -404,26 +404,28 @@ class HACLGroup
      *         HACLException(HACLException::UNKNOWN_USER)
      *             ...if a user does not exist.
      */
-    public function setManageUsers($manageUsers) {
-        if (!empty($manageUsers) && is_string($manageUsers)) {
-        // Managing users are given as comma separated string
-        // Split into an array
+    public function setManageUsers($manageUsers)
+    {
+        if (!empty($manageUsers) && is_string($manageUsers))
+        {
+            // Managing users are given as comma separated string
+            // Split into an array
             $manageUsers = explode(',', $manageUsers);
         }
-        if (is_array($manageUsers)) {
+        if (is_array($manageUsers))
+        {
             $this->mManageUsers = $manageUsers;
-            for ($i = 0; $i < count($manageUsers); ++$i) {
+            for ($i = 0; $i < count($manageUsers); ++$i)
+            {
                 $mu = $manageUsers[$i];
-                if (is_string($mu)) {
+                if (is_string($mu))
                     $mu = trim($mu);
-                }
                 $uid = haclfGetUserID($mu);
                 $this->mManageUsers[$i] = $uid[0];
             }
-        } else {
-            $this->mManageUsers = array();
         }
-
+        else
+            $this->mManageUsers = array();
     }
 
     /**
@@ -439,29 +441,30 @@ class HACLGroup
      *         HACLException(HACLException::UNKNOWN_USER)
      *             ...if a user does not exist.
      */
-    public function setManageGroups($manageGroups) {
-        if (!empty($manageGroups) && is_string($manageGroups)) {
-        // Managing groups are given as comma separated string
-        // Split into an array
+    public function setManageGroups($manageGroups)
+    {
+        if (!empty($manageGroups) && is_string($manageGroups))
+        {
+            // Managing groups are given as comma separated string
+            // Split into an array
             $manageGroups = explode(',', $manageGroups);
         }
-        if (is_array($manageGroups)) {
+        if (is_array($manageGroups))
+        {
             $this->mManageGroups = $manageGroups;
-            for ($i = 0; $i < count($manageGroups); ++$i) {
+            for ($i = 0; $i < count($manageGroups); ++$i)
+            {
                 $mg = $manageGroups[$i];
-                if (is_string($mg)) {
+                if (is_string($mg))
                     $mg = trim($mg);
-                }
                 $gid = self::idForGroup($mg);
-                if (!$gid) {
+                if (!$gid)
                     throw new HACLGroupException(HACLGroupException::UNKNOWN_GROUP, $mg);
-                }
                 $this->mManageGroups[$i] = (int) $gid;
             }
-        } else {
-            $this->mManageGroups = array();
         }
-
+        else
+            $this->mManageGroups = array();
     }
 
     /**
@@ -510,9 +513,8 @@ class HACLGroup
         $this->userCanModify($mgUser, true);
 
         $groupID = self::idForGroup($group);
-        if ($groupID == 0) {
+        if ($groupID == 0)
             throw new HACLGroupException(HACLGroupException::INVALID_GROUP_ID, $groupID);
-        }
 
         HACLStorage::getDatabase()->addGroupToGroup($this->mGroupID, $groupID);
     }
@@ -552,7 +554,8 @@ class HACLGroup
      *         HACLGroupException(HACLGroupException::USER_CANT_MODIFY_GROUP)
      *
      */
-    public function removeUser($user, $mgUser=null) {
+    public function removeUser($user, $mgUser = NULL)
+    {
         // Check if $mgUser can modify this group.
         $this->userCanModify($mgUser, true);
         list($userID, $userName) = haclfGetUserID($user);
@@ -575,15 +578,14 @@ class HACLGroup
      *         HACLGroupException(HACLGroupException::INVALID_GROUP_ID)
      *
      */
-    public function removeGroup($group, $mgUser=null) {
+    public function removeGroup($group, $mgUser = NULL)
+    {
         // Check if $mgUser can modify this group.
         $this->userCanModify($mgUser, true);
 
         $groupID = self::idForGroup($group);
-        if ($groupID == 0) {
-            throw new HACLGroupException(HACLGroupException::INVALID_GROUP_ID,
-            $groupID);
-        }
+        if ($groupID == 0)
+            throw new HACLGroupException(HACLGroupException::INVALID_GROUP_ID, $groupID);
 
         HACLStorage::getDatabase()->removeGroupFromGroup($this->mGroupID, $groupID);
     }
@@ -600,30 +602,21 @@ class HACLGroup
      *         List of all direct users in this group.
      *
      */
-    public function getUsers($mode) {
-    // retrieve the IDs of all users in this group
+    public function getUsers($mode)
+    {
+        // retrieve the IDs of all users in this group
         $users = HACLStorage::getDatabase()->getMembersOfGroup($this->mGroupID, self::USER);
 
-        if ($mode === self::ID) {
+        if ($mode === self::ID)
             return $users;
-        }
-        for ($i = 0; $i < count($users); ++$i) {
-            if ($mode === self::NAME) {
+        for ($i = 0; $i < count($users); ++$i)
+        {
+            if ($mode === self::NAME)
                 $users[$i] = User::whoIs($users[$i]);
-            } else if ($mode === self::OBJECT) {
-                    $users[$i] = User::newFromId($users[$i]);
-                }
+            elseif ($mode === self::OBJECT)
+                $users[$i] = User::newFromId($users[$i]);
         }
         return $users;
-    }
-
-    /**
-     * Returns all groups a user is member of.
-     *
-     *
-     */
-    public function getGroupsOfMember($userId) {
-        return HACLStorage::getDatabase()->getGroupsOfMember($userId);
     }
 
     /**
@@ -638,22 +631,20 @@ class HACLGroup
      *         List of all direct groups in this group.
      *
      */
-    public function getGroups($mode) {
-    // retrieve the IDs of all groups in this group
+    public function getGroups($mode)
+    {
+        // retrieve the IDs of all groups in this group
         $groups = HACLStorage::getDatabase()->getMembersOfGroup($this->mGroupID, self::GROUP);
-
-        if ($mode === self::ID) {
+        if ($mode === self::ID)
             return $groups;
-        }
-        for ($i = 0; $i < count($groups); ++$i) {
-            if ($mode === self::NAME) {
+        for ($i = 0; $i < count($groups); ++$i)
+        {
+            if ($mode === self::NAME)
                 $groups[$i] = self::nameForID($groups[$i]);
-            } else if ($mode === self::OBJECT) {
-                    $groups[$i] = self::newFromID($groups[$i]);
-                }
+            elseif ($mode === self::OBJECT)
+                $groups[$i] = self::newFromID($groups[$i]);
         }
         return $groups;
-
     }
 
     /**

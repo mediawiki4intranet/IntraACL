@@ -570,7 +570,7 @@ ok:
      *             <false>, if not
      *
      */
-    private static function checkNamespaceRight($nsID, $userID, $actionID)
+    public static function checkNamespaceRight($nsID, $userID, $actionID)
     {
         $hasSD = HACLSecurityDescriptor::getSDForPE($nsID, HACLLanguage::PET_NAMESPACE) !== false;
         if (!$hasSD)

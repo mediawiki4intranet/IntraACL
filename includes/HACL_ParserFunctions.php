@@ -1295,49 +1295,45 @@ class HACLParserFunctions
      * @return string
      *         A formatted wikitext with users and groups
      */
-    private function showAssignees($users, $groups, $isAssignedTo = true) {
+    private function showAssignees($users, $groups, $isAssignedTo = true)
+    {
         $text = "";
-        if (count($users) > 0) {
+        if ($users)
+        {
             global $wgContLang;
             $userNS = $wgContLang->getNsText(NS_USER);
-
             $text .= $isAssignedTo
-            ? ':;'.wfMsgForContent('hacl_assigned_user')
-            : ':;'.wfMsgForContent('hacl_user_member');
-            $first = true;
-            foreach ($users as $u) {
-                if (!$first) {
-                    $text .= ', ';
-                } else {
-                    $first = false;
-                }
-                if ($u == '*') {
-                    $text .= wfMsgForContent('hacl_anonymous_users');
-                } else if ($u == '#') {
-                    $text .= wfMsgForContent('hacl_registered_users');
-                } else {
-                    $text .= "[[$userNS:$u|$u]]";
-                }
+                ? ':;'.wfMsgForContent('hacl_assigned_user')
+                : ':;'.wfMsgForContent('hacl_user_member');
+            foreach ($users as &$u)
+            {
+                if ($u == '*')
+                    $u = wfMsgForContent('hacl_all_users');
+                elseif ($u == '#')
+                    $u = wfMsgForContent('hacl_registered_users');
+                else
+                    $u = "[[$userNS:$u|$u]]";
             }
+            $text .= implode(', ', $users);
             $text .= "\n";
         }
-        if (count($groups) > 0) {
+        if ($groups)
+        {
             global $wgContLang;
             $aclNS = $wgContLang->getNsText(HACL_NS_ACL);
             $text .= $isAssignedTo
-            ? ':;'.wfMsgForContent('hacl_assigned_groups')
-            : ':;'.wfMsgForContent('hacl_group_member');
+                ? ':;'.wfMsgForContent('hacl_assigned_groups')
+                : ':;'.wfMsgForContent('hacl_group_member');
             $first = true;
-            foreach ($groups as $g) {
-                if (!$first) {
+            foreach ($groups as $g)
+            {
+                if (!$first)
                     $text .= ', ';
-                } else {
+                else
                     $first = false;
-                }
                 $text .= "[[$aclNS:$g|$g]]";
             }
             $text .= "\n";
-
         }
         return $text;
     }

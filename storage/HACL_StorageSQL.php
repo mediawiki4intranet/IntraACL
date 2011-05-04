@@ -390,7 +390,6 @@ class HACLStorageSQL {
         $dbw->delete('halo_acl_group_members', array('parent_group_id' => $groupID), __METHOD__);
     }
 
-
     /**
      * Removes the group with the ID $childGroupID from the group with the ID
      * $parentGroupID.
@@ -420,60 +419,61 @@ class HACLStorageSQL {
      *         List of IDs of all direct users or groups in this group.
      *
      */
-    public function getMembersOfGroup($groupID, $memberType) {
+    public function getMembersOfGroup($groupID, $memberType)
+    {
         $dbr = wfGetDB( DB_SLAVE );
         $res = $dbr->select('halo_acl_group_members', 'child_id', array(
             'parent_group_id' => $groupID,
             'child_type'      => $memberType), __METHOD__);
 
         $members = array();
-        while ($row = $dbr->fetchObject($res)) {
+        while ($row = $dbr->fetchObject($res))
             $members[] = (int) $row->child_id;
-        }
 
         $dbr->freeResult($res);
 
         return $members;
-
     }
 
     /**
      * Returns all groups the user is member of
      *
-     * @param string $memberType
-     *         'user' => ask for all user IDs
-     *         'group' => ask for all group IDs
-     * @return array(int)
-     *         List of IDs of all direct users or groups in this group.
-     *
+     * @param  string $memberType: 'user' or 'group'
+     * @param  int $memberID: ID of asked user or group
+     * @param  boolean $recurse: recursive or no
+     * @return array(int): parent group IDs
      */
-    public function getGroupsOfMember($userID) {
+    public function getGroupsOfMember($memberType, $memberID, $recurse = true)
+    {
+        $dbr = wfGetDB(DB_SLAVE);
 
-        $dbr = wfGetDB( DB_SLAVE );
-        $ut = $dbr->tableName('user');
-        $gt = $dbr->tableName('halo_acl_groups');
-        $gmt = $dbr->tableName('halo_acl_group_members');
-        $sql = "SELECT DISTINCT user_id, group_id, group_name
-                FROM user
-                LEFT JOIN $gmt ON $gmt.child_id = user.user_id
-                LEFT JOIN $gt ON $gt.group_id = $gmt.parent_group_id
-                WHERE user.user_id = $userID";
+        $type = $memberType;
+        $ids = $memberID;
+        $groups = array();
+        if ($memberType == 'group')
+            $groups[$memberID] = true;
+        do
+        {
+            $res = $dbr->select('halo_acl_group_members', 'parent_group_id', array(
+                'child_type' => $type,
+                'child_id'   => $ids,
+            ), __METHOD__);
+            $type = 'group';
+            $ids = array();
+            foreach ($res as $row)
+            {
+                $id = $row->parent_group_id;
+                if (!$groups[$id])
+                {
+                    $ids[] = $id;
+                    $groups[$id] = true;
+                }
+            }
+        } while ($recurse && $ids);
+        if ($memberType == 'group')
+            unset($groups[$memberID]);
 
-        $res = $dbr->query($sql, __METHOD__);
-
-        $curGroupArray = array();
-        while ($row = $dbr->fetchObject($res)) {
-            $curGroupArray[] = array(
-                'id' => $row->group_id,
-                'name' => $row->group_name
-            );
-        }
-
-        $dbr->freeResult($res);
-
-        return $curGroupArray;
-
-
+        return array_keys($groups);
     }
 
     /**
@@ -1315,6 +1315,39 @@ class HACLStorageSQL {
         $dbr->freeResult($res);
 
         return $rights;
+    }
+
+    /**
+     * Reverse-lookup for rights. Determines for which protected elements
+     * action $actionID is granted to one of users $users or one of groups $groups,
+     * without expanding groups.
+     */
+    public function lookupRights($users, $groups, $actionID, $pe_type)
+    {
+        $dbr = wfGetDB(DB_SLAVE);
+        $tp = $dbr->tableName('halo_acl_pe_rights');
+        $tr = $dbr->tableName('halo_acl_rights');
+        if ($users !== NULL && !is_array($users))
+            $users = array($users);
+        if ($groups && !is_array($groups))
+            $groups = array($groups);
+        $where = array();
+        if ($users)
+            $where[] = "r.users REGEXP ".$dbr->addQuotes('(,|^)('.implode('|', $users).')(,|$)');
+        if ($groups)
+            $where[] = "r.groups REGEXP ".$dbr->addQuotes('(,|^)('.implode('|', $groups).')(,|$)');
+        $where = $where ? array(implode(' OR ', $where)) : array();
+        $where[] = 'p.right_id=r.right_id';
+        $where[] = '(r.actions&'.intval($actionID).')!=0';
+        if ($pe_type)
+            $where[] = 'p.type='.$dbr->addQuotes($pe_type);
+        $where = implode(' AND ', $where);
+        $sql = "SELECT p.type, p.pe_id FROM $tp p, $tr r WHERE $where GROUP BY p.type, p.pe_id";
+        $res = $dbr->query($sql, __METHOD__);
+        $r = array();
+        foreach ($res as $row)
+            $r[] = array($row->type, $row->pe_id);
+        return $r;
     }
 
     /**

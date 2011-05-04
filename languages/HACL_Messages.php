@@ -70,7 +70,7 @@ $messages['en'] = array(
     'hacl_definitions_will_not_be_saved' => '(The definitions in this article will not be saved and they will not be taken to effect due to the following errors.)',
     'hacl_will_not_work_as_expected'    => '(Because of the following warnings, the definition will not work as expected.)',
     'hacl_errors_in_definition'         => 'The definitions in this article have errors. Please refer to the details below!',
-    'hacl_anonymous_users'              => 'anonymous users',
+    'hacl_all_users'                    => 'all users',
     'hacl_registered_users'             => 'registered users',
     'hacl_acl_element_not_in_db'        => 'No entry has been made in the ACL database about this article. Please re-save it again with all the articles that use it.',
     'hacl_acl_element_inconsistent'     => 'This article contains an inconsistent definition. Please re-save it.',
@@ -78,6 +78,22 @@ $messages['en'] = array(
     'hacl_permission_denied'            => "You are not allowed to perform the requested action on this page.\n\nReturn to [[Main Page]].",
     'hacl_move_acl'                     => 'ACL moved with the article',
     'hacl_move_acl_include'             => 'Include move target rights (protect RC)',
+
+    'hacl_nonreadable_create'           =>
+'<div style="border: 0.2em solid red; padding: 0 0.5em 0.5em">
+\'\'\'<span style="color: red">Warning!</span>\'\'\'
+You have no read access to the namespace inside which you are creating this article.
+* Either include the article into one of categories readable by you (<nowiki>$1</nowiki>)
+* Or check "\'\'\'Create a non-readable article\'\'\'"
+</div>',
+
+    'hacl_nonreadable_create_nocat'     =>
+'<div style="border: 0.2em solid red; padding: 0 0.5em 0.5em">
+\'\'\'<span style="color: red">Warning!</span>\'\'\'
+You have no read access to the namespace inside which you are creating this article.
+Please check "\'\'\'Create a non-readable article\'\'\'" to confirm your intention,
+because there also is no categories readable for you.
+</div>',
 
     // Messages for semantic protection (properties etc.)
     'hacl_sp_query_modified'            => "- The query was modified because it contains protected properties.\n",
@@ -340,7 +356,7 @@ $messages['ru'] = array(
     'hacl_definitions_will_not_be_saved' => '(Определение на данной странице не будет сохранено и не будет работать из-за следующих ошибок:)',
     'hacl_will_not_work_as_expected'    => '(Следующие ошибки некритичны, но из-за них определение может не работать так, как задумано:)',
     'hacl_errors_in_definition'         => 'Определение на данной странице содержит ошибки, обратите внимание на подробности ниже!',
-    'hacl_anonymous_users'              => 'анонимные пользователи',
+    'hacl_all_users'                    => 'все пользователи',
     'hacl_registered_users'             => 'зарегистрированные пользователи',
     'hacl_acl_element_not_in_db'        => 'Эта статья не сохранена в базе данных прав. Пожалуйста, пересохраните её.',
     'hacl_acl_element_inconsistent'     => 'Это определение в БД не соответствует определению на странице. Пожалуйста, пересохраните страницу.',
@@ -348,6 +364,22 @@ $messages['ru'] = array(
     'hacl_permission_denied'            => "Вам запрещено это действие на данной странице.\n\nВернуться на [[Заглавная страница|главную страницу]].",
     'hacl_move_acl'                     => 'Права перемещены вместе со страницей',
     'hacl_move_acl_include'             => 'Включение прав перемещённой страницы (защита RC)',
+
+    'hacl_nonreadable_create'           =>
+'<div style="border: 0.2em solid red; padding: 0 0.5em 0.5em">
+\'\'\'<span style="color: red">Внимание!</span>\'\'\'
+Вы создаёте статью в пространстве имён, на чтение которого не имеете доступа.
+* Либо включите статью в одну из категорий, к которым имеете доступ на чтение (<nowiki>$1</nowiki>)
+* Либо отметьте флажок "\'\'\'Создать нечитаемую статью\'\'\'"
+</div>',
+
+    'hacl_nonreadable_create_nocat'     =>
+'<div style="border: 0.2em solid red; padding: 0 0.5em 0.5em">
+\'\'\'<span style="color: red">Внимание!</span>\'\'\'
+Вы создаёте статью в пространстве имён, на чтение которого не имеете доступа.
+Отметьте флажок "\'\'\'Создать нечитаемую статью\'\'\'" для подтверждения своих намерений,
+так как категорий, доступных вам для чтения, нет.
+</div>',
 
     // Messages for semantic protection (properties etc.)
     'hacl_sp_query_modified'            => "- Запрос был изменён, потому что содержит защищённые от чтения свойства.\n",

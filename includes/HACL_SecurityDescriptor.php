@@ -264,11 +264,6 @@ class HACLSecurityDescriptor
      */
     public static function getSDForPE($peID, $peType)
     {
-        // FIXME Add SD caching here:
-        //static $cache = array();
-        //if ($sd = self::$cache['sd_for_pe']["$peID/$peType"])
-        //    return $sd;
-        //return self::$cache['sd_for_pe']["$peID/$peType"] =
         return HACLStorage::getDatabase()->getSDForPE($peID, $peType);
     }
 
