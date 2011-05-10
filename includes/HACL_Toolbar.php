@@ -284,7 +284,8 @@ class HACLToolbar
             {
                 $editpage->eNonReadable = true;
                 $options = ParserOptions::newFromUser($wgUser);
-                $text = $wgParser->preSaveTransform($editpage->textbox1, $editpage->mTitle, $wgUser, $options, false);
+                // clearState = true when not cleared yet
+                $text = $wgParser->preSaveTransform($editpage->textbox1, $editpage->mTitle, $wgUser, $options, !$wgParser->mStripState);
                 $parserOutput = $wgParser->parse($text, $editpage->mTitle, $options);
                 $categories = $parserOutput->getCategoryLinks();
                 foreach ($categories as &$cat)
