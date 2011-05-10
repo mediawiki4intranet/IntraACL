@@ -1336,7 +1336,7 @@ class HACLStorageSQL {
             $where[] = "r.users REGEXP ".$dbr->addQuotes('(,|^)('.implode('|', $users).')(,|$)');
         if ($groups)
             $where[] = "r.groups REGEXP ".$dbr->addQuotes('(,|^)('.implode('|', $groups).')(,|$)');
-        $where = $where ? array(implode(' OR ', $where)) : array();
+        $where = $where ? array('('.implode(' OR ', $where).')') : array();
         $where[] = 'p.right_id=r.right_id';
         $where[] = '(r.actions&'.intval($actionID).')!=0';
         if ($pe_type)
