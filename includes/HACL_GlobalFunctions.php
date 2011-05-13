@@ -85,7 +85,7 @@ function enableIntraACL()
     $wgHooks['ArticleViewHeader'][]     = 'HACLParserFunctions::articleViewHeader';
     $wgHooks['OutputPageBeforeHTML'][]  = 'HACLParserFunctions::outputPageBeforeHTML';
     if ($wgVersion < '1.14')
-        $wgHooks['NewRevisionFromEditComplete'] = 'HACLParserFunctions::NewRevisionFromEditComplete';
+        $wgHooks['NewRevisionFromEditComplete'][] = 'HACLParserFunctions::NewRevisionFromEditComplete';
     else
         $wgHooks['ArticleEditUpdates'][] = 'HACLParserFunctions::ArticleEditUpdates';
     $wgHooks['ArticleDelete'][]         = 'HACLParserFunctions::articleDelete';
