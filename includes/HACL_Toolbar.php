@@ -253,18 +253,57 @@ class HACLToolbar
         }
         if ($editpage->eNonReadable)
         {
-            /* Lookup readable categories */
-            $st = HACLStorage::getDatabase();
-            $groups = $wgUser->getId() ? $st->getGroupsOfMember('user', $wgUser->getId()) : NULL;
-            list($uid) = haclfGetUserID($wgUser);
-            $pe = $st->lookupRights($uid, $groups, HACLLanguage::RIGHT_READ, 'category');
-            foreach ($pe as &$c)
-                $c = Title::newFromId($c[1])->getPrefixedText();
+            $pe = self::getReadableCategories();
             if ($pe)
                 $wgOut->addWikiText(wfMsgNoTrans('hacl_nonreadable_create', '[['.implode(']], [[', $pe).']]'));
             else
                 $wgOut->addWikiText(wfMsgNoTrans('hacl_nonreadable_create_nocat'));
         }
+        return true;
+    }
+
+    // Get categories which are granted readable for current user
+    public static function getReadableCategories()
+    {
+        global $wgUser;
+        /* Lookup readable categories */
+        $st = HACLStorage::getDatabase();
+        $groups = $wgUser->getId() ? $st->getGroupsOfMember('user', $wgUser->getId()) : NULL;
+        list($uid) = haclfGetUserID($wgUser);
+        $pe = $st->lookupRights($uid, $groups, HACLLanguage::RIGHT_READ, 'category');
+        foreach ($pe as &$c)
+            $c = Title::newFromId($c[1])->getPrefixedText();
+        return $pe;
+    }
+
+    // Similar to warnNonReadableCreate, but warns about non-readable file uploads
+    public static function warnNonReadableUpload($upload)
+    {
+        global $haclgOpenWikiAccess, $wgUser, $wgOut;
+        $g = $wgUser->getGroups();
+        if (!$g || !in_array('bureaucrat', $g))
+        {
+            list($r, $sd) = HACLEvaluator::checkNamespaceRight(
+                NS_FILE, $wgUser->getId(), HACLLanguage::RIGHT_READ
+            );
+            if (!($sd ? $r : $haclgOpenWikiAccess))
+            {
+                $pe = self::getReadableCategories();
+                if ($pe)
+                    $t = wfMsgNoTrans('hacl_nonreadable_upload', '[['.implode(']], [[', $pe).']]');
+                else
+                    $t = wfMsgNoTrans('hacl_nonreadable_upload_nocat');
+                $upload->uploadFormTextTop .= $t;
+            }
+        }
+        return true;
+    }
+
+    // Hack into FUCKING object-oriented HTMLForm code of SpecialUpload
+    public static function nonReadableUploadTexttopOptions(&$descriptor)
+    {
+        $descriptor['UploadFormTextTop']['rawrow'] = true;
+        $descriptor['UploadFormTextTop']['default'] = '<tr><td colspan="2">'.$descriptor['UploadFormTextTop']['default'].'</td></tr>';
         return true;
     }
 

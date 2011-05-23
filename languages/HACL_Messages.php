@@ -95,6 +95,18 @@ Please check "\'\'\'Create a non-readable article\'\'\'" to confirm your intenti
 because there also is no categories readable for you.
 </div>',
 
+    'hacl_nonreadable_upload'           => '<div style="border: 0.2em solid red; padding: 0.2em 0.5em 0.5em; display: inline-block">
+<span style="color: red; font-weight: bold">Warning!</span>
+You have no read access to the File namespace.
+Please, add one of the following categories to the description, or you will <b>not</b> be able to view the file after uploading:<br />
+<i>$1</i>
+</div>',
+
+    'hacl_nonreadable_upload_nocat'     => '<div style="border: 0.2em solid red; padding: 0.2em 0.5em 0.5em; display: inline-block">
+<span style="color: red; font-weight: bold">Warning!</span>
+You have no read access to the File namespace. You will <b>not</b> be able to view the file after uploading!
+</div>',
+
     // Messages for semantic protection (properties etc.)
     'hacl_sp_query_modified'            => "- The query was modified because it contains protected properties.\n",
     'hacl_sp_empty_query'               => "- Your query consists only of protected properties. It was not executed.\n",
@@ -379,6 +391,18 @@ $messages['ru'] = array(
 Вы создаёте статью в пространстве имён, на чтение которого не имеете доступа.
 Отметьте флажок "\'\'\'Создать нечитаемую статью\'\'\'" для подтверждения своих намерений,
 так как категорий, доступных вам для чтения, нет.
+</div>',
+
+    'hacl_nonreadable_upload'           => '<div style="border: 0.2em solid red; padding: 0.2em 0.5em 0.5em; display: inline-block">
+<span style="color: red; font-weight: bold">Внимание!</span>
+У вас нет доступа на чтение пространства имён Файл.
+Вы <b>не сможете</b> просмотреть файл после загрузки, если не добавите в описание одну из категорий:<br />
+<i>$1</i>
+</div>',
+
+    'hacl_nonreadable_upload_nocat'     => '<div style="border: 0.2em solid red; padding: 0.2em 0.5em 0.5em; display: inline-block">
+<span style="color: red; font-weight: bold">Внимание!</span>
+У вас доступа на чтение пространства имён Файл. Вы <b>не сможете</b> просмотреть файл после загрузки!
 </div>',
 
     // Messages for semantic protection (properties etc.)

@@ -132,6 +132,8 @@ function haclfSetupExtension()
     {
         define('HACL_HALOACL_VERSION', '1.0');
         $wgHooks['EditPage::showEditForm:initial'][] = 'HACLToolbar::warnNonReadableCreate';
+        $wgHooks['UploadForm:initial'][] = 'HACLToolbar::warnNonReadableUpload';
+        $wgHooks['UploadFormInitDescriptor'][] = 'HACLToolbar::nonReadableUploadTexttopOptions';
         $wgHooks['EditPage::attemptSave'][] = 'HACLToolbar::attemptNonReadableCreate';
     }
     else
