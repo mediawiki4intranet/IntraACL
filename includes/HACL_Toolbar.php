@@ -302,8 +302,11 @@ class HACLToolbar
     // Hack into FUCKING object-oriented HTMLForm code of SpecialUpload
     public static function nonReadableUploadTexttopOptions(&$descriptor)
     {
-        $descriptor['UploadFormTextTop']['rawrow'] = true;
-        $descriptor['UploadFormTextTop']['default'] = '<tr><td colspan="2">'.$descriptor['UploadFormTextTop']['default'].'</td></tr>';
+        if ($descriptor['UploadFormTextTop'])
+        {
+            $descriptor['UploadFormTextTop']['rawrow'] = true;
+            $descriptor['UploadFormTextTop']['default'] = '<tr><td colspan="2">'.$descriptor['UploadFormTextTop']['default'].'</td></tr>';
+        }
         return true;
     }
 
