@@ -633,7 +633,10 @@ ok:
                     $title = Title::newFromText($name);
                     $articleID = haclfArticleID($title);
                     $R = self::hasSD($title, $articleID, $userID, HACLLanguage::RIGHT_MANAGE);
-                    return is_array($R) && $R[1] || !$R;
+                    if (!is_array($R))
+                        die('IntraACL internal error: HACLEvaluator::hasSD returned non-array value');
+                    // If there is no SD, allow action by default
+                    return $R[1] || !$R[2];
                 }
                 else
                 {

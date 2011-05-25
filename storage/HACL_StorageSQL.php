@@ -533,7 +533,7 @@ class HACLStorageSQL {
     public function getGroupMembersRecursive($groupID, $children = array())
     {
         $dbr = wfGetDB(DB_SLAVE);
-        do
+        while ($groupID)
         {
             $r = $dbr->select('halo_acl_group_members',
                 'child_type, child_id',
@@ -549,7 +549,7 @@ class HACLStorageSQL {
                         $groupID[] = $obj[1];
                 }
             }
-        } while($groupID);
+        }
         return $children;
     }
 
