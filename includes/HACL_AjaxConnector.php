@@ -51,7 +51,7 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
     {
         $r = $dbr->select(
             'user', 'user_name, user_real_name',
-            array('user_name LIKE '.$dbr->addQuotes($n.'%').' OR user_real_name LIKE '.$dbr->addQuotes($n.'%')),
+            array('user_name LIKE '.$dbr->addQuotes('%'.$n.'%').' OR user_real_name LIKE '.$dbr->addQuotes('%'.$n.'%')),
             __METHOD__,
             array('ORDER BY' => 'user_name', 'LIMIT' => $limit)
         );
