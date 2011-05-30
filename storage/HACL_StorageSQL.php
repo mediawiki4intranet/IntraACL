@@ -765,16 +765,16 @@ class HACLStorageSQL {
      *         Exception
      *         ... on database failure
      */
-    public function setInlineRightsForProtectedElements($inlineRights, $securityDescriptors)
+    public function setInlineRightsForProtectedElements($ir_ids, $sd_ids)
     {
         $dbw = wfGetDB(DB_MASTER);
-        foreach ($securityDescriptors as $sd)
+        foreach ($sd_ids as $sd)
         {
             // retrieve the protected element and its type
             $obj = $dbw->selectRow('halo_acl_security_descriptors', 'pe_id, type', array('sd_id' => $sd), __METHOD__);
             if (!$obj)
                 continue;
-            foreach ($inlineRights as $ir)
+            foreach ($ir_ids as $ir)
             {
                 $dbw->replace('halo_acl_pe_rights', NULL, array(
                     'pe_id'    => $obj->pe_id,
@@ -801,7 +801,7 @@ class HACLStorageSQL {
     {
         if (empty($sdIDs))
             return array();
-        $dbr = wfGetDB( DB_SLAVE );
+        $dbr = wfGetDB(DB_SLAVE);
         $res = $dbr->select(
             'halo_acl_rights', '*',
             array('origin_id' => $sdIDs), __METHOD__
@@ -881,10 +881,9 @@ class HACLStorageSQL {
     {
         $dbr = wfGetDB(DB_SLAVE);
 
-        $parentIDs = array($prID => true);
+        $result = array($prID => true);
         $childIDs = array($prID);
-        $exclude = array();
-        while (true)
+        while ($childIDs)
         {
             $res = $dbr->select(
                 'halo_acl_rights_hierarchy', 'parent_right_id',
@@ -892,37 +891,18 @@ class HACLStorageSQL {
                 array('DISTINCT')
             );
             $childIDs = array();
-            while ($row = $dbr->fetchObject($res))
+            foreach ($res as $row)
             {
                 $prid = (int)$row->parent_right_id;
-                $parentIDs[$prid] = true;
-                if (!$exclude[$prid])
+                if (!$result[$prid])
                 {
                     $childIDs[] = $prid;
-                    $exclude[$prid] = true;
+                    $result[$prid] = true;
                 }
-            }
-            $dbr->freeResult($res);
-            if (empty($childIDs))
-            {
-                // No further children found
-                break;
             }
         }
 
-        // $parentIDs now contains all SDs/PRs that include $prID
-        // => select only the SDs
-
-        $sdIDs = array();
-        if (!$parentIDs)
-            return array();
-        $res = $dbr->select('halo_acl_security_descriptors', 'sd_id',
-            array("type != 'right'", 'sd_id' => array_keys($parentIDs)), __METHOD__);
-        while ($row = $dbr->fetchObject($res))
-            $sdIDs[] = (int)$row->sd_id;
-        $dbr->freeResult($res);
-
-        return $sdIDs;
+        return array_keys($result);
     }
 
     /**
@@ -1001,16 +981,14 @@ class HACLStorageSQL {
      */
     public function deleteSD($SDID, $rightsOnly = false)
     {
-        $dbw = wfGetDB( DB_MASTER );
+        $dbw = wfGetDB(DB_MASTER);
+        wfDebug("-- deleteSD $SDID $rightsOnly\n");
 
         // Delete all inline rights that are defined by the SD (and the
         // references to them)
-        $res = $dbw->select('halo_acl_rights', 'right_id', array('origin_id' => $SDID), __METHOD__);
-
-        while ($row = $dbw->fetchObject($res)) {
-            $this->deleteRight($row->right_id);
-        }
-        $dbw->freeResult($res);
+        $irs = $this->getInlineRightsOfSDs($SDID);
+        foreach ($irs as $ir)
+            $this->deleteRight($ir);
 
         // Remove all inline rights from the hierarchy below $SDID from their
         // protected elements. This may remove too many rights => the parents
@@ -1018,10 +996,12 @@ class HACLStorageSQL {
         $prs = $this->getPredefinedRightsOfSD($SDID, true);
         $irs = $this->getInlineRightsOfSDs($prs);
 
-        if (!empty($irs)) {
-            $sds = $this->getSDsIncludingPR($SDID);
-            $sds[] = $SDID;
-            foreach ($sds as $sd) {
+        $parents = $this->getSDsIncludingPR($SDID);
+        if (!empty($irs))
+        {
+            $sds = $parents;
+            foreach ($sds as $sd)
+            {
                 // retrieve the protected element and its type
                 $obj = $dbw->selectRow('halo_acl_security_descriptors', 'pe_id, type',
                     array('sd_id' => $sd), __METHOD__);
@@ -1035,30 +1015,24 @@ class HACLStorageSQL {
             }
         }
 
-        // Get all direct parents of $SDID
-        $res = $dbw->select('halo_acl_rights_hierarchy', 'parent_right_id',
-            array('child_id' => $SDID), __METHOD__);
-        $parents = array();
-        while ($row = $dbw->fetchObject($res))
-            $parents[] = $row->parent_right_id;
-        $dbw->freeResult($res);
-
         // Delete the SD from the hierarchy of rights in halo_acl_rights_hierarchy
-        //if (!$rightsOnly) {
+        //if (!$rightsOnly)
         //    $dbw->delete('halo_acl_rights_hierarchy', array('child_id' => $SDID));
-        //}
         $dbw->delete('halo_acl_rights_hierarchy', array('parent_right_id' => $SDID), __METHOD__);
 
         // Rematerialize the rights of the parents of $SDID
-        foreach ($parents as $p) {
-            $sd = HACLSecurityDescriptor::newFromID($p);
-            $sd->materializeRightsHierarchy();
+        foreach ($parents as $p)
+        {
+            if ($p != $SDID)
+            {
+                $sd = HACLSecurityDescriptor::newFromID($p);
+                $sd->materializeRightsHierarchy();
+            }
         }
 
-        // Delete the SD from the definition of SDs in halo_acl_security_descriptors
-        if (!$rightsOnly) {
+        // Delete definition of SD from halo_acl_security_descriptors
+        if (!$rightsOnly)
             $dbw->delete('halo_acl_security_descriptors', array('sd_id' => $SDID), __METHOD__);
-        }
     }
 
     /**

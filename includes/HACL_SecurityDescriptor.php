@@ -504,18 +504,19 @@ class HACLSecurityDescriptor
      *
      */
     // FIXME add caching
-    public function getInlineRights($recursively = true) {
-        if ($recursively) {
+    public function getInlineRights($recursively = true)
+    {
+        if ($recursively)
+        {
             // find all derived inline rights as well
             // => first, find all derived predefined rights
             $sdIDs = self::getPredefinedRights(true);
             $sdIDs[] = $this->getSDID();
-        } else {
-            $sdIDs = array($this->getSDID());
         }
-        // Get all direct rights of this SD
+        else
+            $sdIDs = array($this->getSDID());
+        // Get all direct rights of this SDs
         $ir = HACLStorage::getDatabase()->getInlineRightsOfSDs($sdIDs);
-
         return $ir;
     }
 
@@ -751,7 +752,7 @@ class HACLSecurityDescriptor
      *         HACLSDException(HACLSDException::NO_SD_ID)
      *         Exception (on failure in database level)
      */
-    public function save($user = null)
+    public function save()
     {
         // Check that SD refers to some page ID
         if ($this->mSDID == 0)
@@ -766,7 +767,7 @@ class HACLSecurityDescriptor
      *         User-object, name of a user or ID of a user who wants to delete this
      *         SD. If <null>, the currently logged in user is assumed.
      */
-    public function delete($user = NULL)
+    public function delete()
     {
         return HACLStorage::getDatabase()->deleteSD($this->mSDID);
     }

@@ -619,9 +619,8 @@ class HACLParserFunctions
     {
         if ($title->getNamespace() == HACL_NS_ACL)
         {
-            global $wgUser;
             $article = new Article($title);
-            self::articleSaveComplete($article, $wgUser, $article->getContent());
+            self::updateDefinition($article);
         }
         return true;
     }
@@ -692,6 +691,7 @@ class HACLParserFunctions
         if ($sd !== false)
         {
             // move SD for page
+            wfDebug("Move SD for page: ID=$sd, pageid=$pageid\n");
             $oldSD = Title::newFromID($sd);
             $newSD = HACLSecurityDescriptor::nameOfSD($newName,
                 HACLLanguage::PET_PAGE);
@@ -702,6 +702,7 @@ class HACLParserFunctions
         if ($sd !== false)
         {
             // move SD for property
+            wfDebug("Move SD for property: ID=$sd, pageid=$pageid\n");
             $oldSD = Title::newFromID($sd);
             $newSD = HACLSecurityDescriptor::nameOfSD($newName,
                 HACLLanguage::PET_PROPERTY);
@@ -890,6 +891,7 @@ class HACLParserFunctions
         {
         }
 
+        wfDebug(__METHOD__." Saving SD: $t --\n");
         try
         {
             list($pe, $peType) = HACLSecurityDescriptor::nameOfPE($t->getText());
@@ -1407,34 +1409,37 @@ class HACLParserFunctions
      * @return string
      *         A formatted wikitext with all rights.
      */
-    private function showRights($rights, $addACLNS = true) {
+    private function showRights($rights, $addACLNS = true)
+    {
         $text = "";
         global $wgContLang;
         $aclNS = $wgContLang->getNsText(HACL_NS_ACL);
-
-        foreach ($rights as $r) {
+        foreach ($rights as $r)
+        {
             // Rights can be given without the namespace "ACL". However, the
             // right should be linked correctly. So if the namespace is missing,
             // the link is adapted.
-            if (strpos($r, $aclNS) === false && $addACLNS) {
+            if (strpos($r, $aclNS) === false && $addACLNS)
                 $r = "$aclNS:$r|$r";
-            }
             $text .= '*[['.$r."]]\n";
         }
         return $text;
     }
 
     /**
-     * Moves the article with the name $from to the location $to.
+     * Moves the SD content from $from to $to, and overwrites
+     * the source article with single PR inclusion of target to protect
+     * old revisions of source article.
+     * We must use Title::moveTo() here to preserve the ID of old SD...
      *
      * @param string $from
-     *         Original name of the article.
+     *        Original name of the SD article.
      * @param string $to
-     *         New name of the article
-     *
+     *        New name of the SD article.
      */
     private static function move($from, $to)
     {
+        wfDebug(__METHOD__.": move SD requested from $from to $to\n");
         $etc = haclfDisableTitlePatch();
         if (!is_object($from))
             $from = Title::newFromText($from);
@@ -1442,9 +1447,8 @@ class HACLParserFunctions
             $to = Title::newFromText($to);
         haclfRestoreTitlePatch($etc);
 
+        $from->moveTo($to, false, wfMsg('hacl_move_acl'), true);
         $fromA = new Article($from);
-        $toA = new Article($to);
-        $toA->doEdit($fromA->getContent(), wfMsg('hacl_move_acl'));
         $fromA->doEdit('{{#predefined right:rights='.$to->getPrefixedText().'}}', wfMsg('hacl_move_acl_include'));
     }
 
@@ -1458,11 +1462,11 @@ class HACLParserFunctions
      * @return string
      *         The fingerprint
      */
-    private static function makeFingerprint($functionName, $params) {
+    private static function makeFingerprint($functionName, $params)
+    {
         $fingerprint = "$functionName";
-        foreach ($params as $k => $v) {
+        foreach ($params as $k => $v)
             $fingerprint .= $k.$v;
-        }
         return $fingerprint;
     }
 }
