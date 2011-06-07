@@ -647,11 +647,14 @@ class HACLParserFunctions
             else
             {
                 // It is a right or security descriptor
-                if ($sd = HACLSecurityDescriptor::newFromID($id, false))
+                if ($sd = HACLSecurityDescriptor::newFromID($title->getId(), false))
                 {
                     // Check access
                     if (!$sd->userCanModify())
+                    {
+                        wfDebug(__METHOD__.": INCONSISTENCY! Article '$title' deleted, but corresponding SD remains, userCanModify() = false\n");
                         return false;
+                    }
                     // Delete SD permanently
                     $sd->delete();
                 }
