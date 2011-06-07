@@ -663,14 +663,23 @@ class HACLParserFunctions
         else
         {
             // If a protected article is deleted, its SD will be deleted as well
-            $sd = HACLSecurityDescriptor::getSDForPE(
+            $sdID = HACLSecurityDescriptor::getSDForPE(
                 $article->getTitle()->getArticleID(),
                 HACLLanguage::PET_PAGE);
-            if ($sd)
+            if ($sdID)
             {
-                $t = Title::newFromID($sd);
-                $a = new Article($t);
-                $a->doDelete("");
+                $t = Title::newFromID($sdID);
+                if ($t)
+                {
+                    $a = new Article($t);
+                    $a->doDelete("");
+                }
+                else
+                {
+                    // Article is already deleted somehow, but SD remains (DB inconsistency), delete it
+                    if ($sd = HACLSecurityDescriptor::newFromID($sd, false))
+                        $sd->delete();
+                }
             }
         }
         return true;
