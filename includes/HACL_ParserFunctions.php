@@ -647,7 +647,7 @@ class HACLParserFunctions
             else
             {
                 // It is a right or security descriptor
-                if ($sd = HACLSecurityDescriptor::newFromID($title->getId(), false))
+                if ($sd = HACLSecurityDescriptor::newFromID($title->getArticleId(), false))
                 {
                     // Check access
                     if (!$sd->userCanModify())
