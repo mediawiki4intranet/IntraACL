@@ -150,9 +150,6 @@ class HACLEvaluator
                 $R = array('Can\'t move or delete non-existing article.', true, true);
                 goto fin;
             }
-            // TODO Add support for the right to create an article inside given category
-            //      I.e. create it from category page. But this would also require a check
-            //      to force adding this category to article source.
             // Check if the title belongs to a namespace with an SD
             list($r, $sd) = self::checkNamespaceRight($title->getNamespace(), $userID, $actionID);
             $R = array('Checked namespace access right.', $r, $sd);

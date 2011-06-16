@@ -416,8 +416,8 @@ class HACLToolbar
         // Check SD modification rights
         if ($pageSD)
         {
-            list($r, $sd) = HACLEvaluator::checkACLManager(Title::newFromId($pageSD), $wgUser, 'edit');
-            if (!$r)
+            $allowed = HACLEvaluator::checkACLManager(Title::newFromId($pageSD), $wgUser, 'edit');
+            if (!$allowed)
                 return true;
         }
 

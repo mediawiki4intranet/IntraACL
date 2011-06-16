@@ -563,7 +563,7 @@ class HACLParserFunctions
      */
     public static function updateDefinition($article, $text = NULL)
     {
-        // The article is in the ACL namespace?
+        // Is the article in the ACL namespace?
         $title = $article->getTitle();
         if (($title->getNamespace() == HACL_NS_ACL) &&
             ($type = HACLEvaluator::hacl_type($title)))
@@ -571,6 +571,20 @@ class HACLParserFunctions
             //--- Get article content, if not yet ---
             if ($text === NULL)
                 $text = $article->getContent();
+
+            //--- Create an instance for parsing this article
+            self::$mInstance = new self($title);
+
+            //--- Find parser functions inside $text ---
+            self::parse($text, $title);
+
+            //--- Check if the definition is empty ---
+            if (self::$mInstance->checkEmptiness())
+            {
+                wfDebug(__METHOD__.": '$title' definition is empty, removing from DB\n");
+                self::removeDef($title);
+                return true;
+            }
 
             //--- Remove old SD / Group ---
             if ($type == 'group')
@@ -593,12 +607,6 @@ class HACLParserFunctions
                 }
             }
 
-            //--- Create an instance for parsing this article
-            self::$mInstance = new self($title);
-
-            //--- Find parser functions inside $text ---
-            self::parse($text, $title);
-
             //--- Try to store the definition in the database ---
             if (self::$mInstance->saveDefinition() !== NULL)
             {
@@ -606,6 +614,11 @@ class HACLParserFunctions
                 // generated when the article is displayed for the first time after
                 // saving.
                 $title->invalidateCache();
+            }
+            elseif ($type != 'group')
+            {
+                // Error during saving SD, remove it completely instead of leaving in incorrect state.
+                $sd->delete();
             }
 
             //--- Destroy instance ---
@@ -625,6 +638,30 @@ class HACLParserFunctions
         return true;
     }
 
+    /* Remove definition completely (used with article delete or clear) */
+    public static function removeDef($title)
+    {
+        //--- Remove old SD / Group ---
+        $type = HACLEvaluator::hacl_type($title);
+        if ($type == 'group')
+            self::removeGroup($title);
+        elseif ($type)
+        {
+            // It is a right or security descriptor
+            if ($sd = HACLSecurityDescriptor::newFromID($title->getArticleId(), false))
+            {
+                // Check access
+                if (!$sd->userCanModify())
+                {
+                    wfDebug(__METHOD__.": INCONSISTENCY! Article '$title' deleted, but corresponding SD remains, because userCanModify() = false\n");
+                    return false;
+                }
+                // Delete SD permanently
+                $sd->delete();
+            }
+        }
+    }
+
     /**
      * This method is called, when an article is deleted. If the article
      * belongs to the namespace ACL (i.e. a right, SD, group)
@@ -638,27 +675,10 @@ class HACLParserFunctions
     {
         // The article is in the ACL namespace?
         $title = $article->getTitle();
-        if (($title->getNamespace() == HACL_NS_ACL) &&
-            ($type = HACLEvaluator::hacl_type($title)))
+        if ($title->getNamespace() == HACL_NS_ACL)
         {
-            //--- Remove old SD / Group ---
-            if ($type == 'group')
-                self::removeGroup($title);
-            else
-            {
-                // It is a right or security descriptor
-                if ($sd = HACLSecurityDescriptor::newFromID($title->getArticleId(), false))
-                {
-                    // Check access
-                    if (!$sd->userCanModify())
-                    {
-                        wfDebug(__METHOD__.": INCONSISTENCY! Article '$title' deleted, but corresponding SD remains, userCanModify() = false\n");
-                        return false;
-                    }
-                    // Delete SD permanently
-                    $sd->delete();
-                }
-            }
+            // Remove definition
+            self::removeDef($title);
         }
         else
         {
@@ -759,15 +779,25 @@ class HACLParserFunctions
         if ($this->mTitle->getNamespace() != HACL_NS_ACL)
             return '';
         $id = $this->mTitle->getArticleId();
-        if ($id)
+        $msg = array();
+        if ($id && !$this->mType)
         {
-            // Article does not correspond to any ACL definition
-            if (!$this->mType)
-                return '';
+            // Warning: Article does not correspond to any ACL definition
+            // FIXME add the list of valid prefixes into warning text
+            $msg[] = wfMsgForContent('hacl_invalid_prefix');
+        }
+        elseif ($id)
+        {
+            $msg = $this->checkEmptiness();
 
-            $msg = $this->checkConsistency();
+            // Check for invalid parser functions
+            $ivpf = $this->findInvalidParserFunctions($this->mType);
+            $msg = array_merge($msg, $ivpf);
 
-            if ($msg === true)
+            if (!$this->mDefinitionValid)
+                $msg[] = wfMsgForContent('hacl_errors_in_definition');
+
+            if (!$msg)
             {
                 // Check if the article is already represented in IntraACL storage
                 $exists = false;
@@ -777,7 +807,7 @@ class HACLParserFunctions
                     if ($grp)
                     {
                         $exists = true;
-                        // Check if definition in the DB is equal to article text
+                        // Check consistency: is the definition in the DB equal to article text?
                         $consistent = $grp->checkIsEqual(
                             $this->mUserMembers, $this->mGroupMembers,
                             $this->mGroupManagerUsers, $this->mGroupManagerGroups
@@ -790,24 +820,28 @@ class HACLParserFunctions
                     // TODO add consistency check for security descriptors
                     $consistent = $exists;
                 }
+
                 if (!$exists)
                     $msg = array(wfMsgForContent('hacl_acl_element_not_in_db'));
                 elseif (!$consistent)
                     $msg = array(wfMsgForContent('hacl_acl_element_inconsistent'));
             }
-
-            $html = '';
-            if ($msg !== true)
-            {
-                $html .= wfMsgForContent('hacl_consistency_errors');
-                $html .= wfMsgForContent('hacl_definitions_will_not_be_saved');
-                $html .= "<ul>";
-                foreach ($msg as $m)
-                    $html .= "<li>$m</li>";
-                $html .= "</ul>";
-            }
         }
 
+        // Merge errors into HTML text
+        $html = '';
+        if ($msg)
+        {
+            $html .= wfMsgForContent('hacl_consistency_errors');
+            $html .= wfMsgForContent('hacl_definitions_will_not_be_saved');
+            $html .= "<ul>";
+            foreach ($msg as $m)
+                $html .= "<li>$m</li>";
+            $html .= "</ul>";
+        }
+
+        // Add "Create/edit with IntraACL editor" link
+        // TODO do not display it when the user has no rights to change ACL
         $html .= wfMsgForContent($id ? 'hacl_edit_with_special' : 'hacl_create_with_special',
             Title::newFromText('Special:IntraACL')->getLocalUrl(array(
                 'action' => ($this->mType == 'group' ? 'group' : 'acl'),
@@ -829,13 +863,6 @@ class HACLParserFunctions
      */
     private function saveDefinition()
     {
-        // Check if all definitions for ACL are valid and consistent.
-        if ($this->checkConsistency() !== true)
-        {
-            wfDebug(__METHOD__." found inconsistency, not saving\n");
-            return NULL;
-        }
-
         switch ($this->mType)
         {
             case 'group':
@@ -930,36 +957,21 @@ class HACLParserFunctions
     }
 
     /**
-     * Checks the consistency of all used parser functions in the current article.
-     * The following conditions must be met:
+     * Checks the definition for emptiness.
      *
      * Groups:
      *  - must have members (users or groups)
-     *  - must have managers (users or groups)
-     *
-     * Predefined Rights:
-     *  - must have managers (users or groups)
-     *  - must have inline or predefined rights
-     *
-     * Security Descriptors:
-     *  - must have managers (users or groups)
+     * Predefined Rights and Security Descriptors:
      *  - must have inline or predefined rights
      *  - a namespace can only be protected if it is not member of $haclgUnprotectableNamespaces
      *
-     * @return array(string)|bool
-     *         An array of error messages of <true>, if the parser functions are
-     *         consistent.
-     *
+     * @return array(string)
+     *         An array of error messages or an empty array, if the definition is correct.
      */
-    private function checkConsistency()
+    private function checkEmptiness()
     {
-        global $haclgContLang;
+        global $haclgContLang, $wgContLang;
         $msg = array();
-
-        // The namespace must be ACL
-        if ($this->mTitle->getNamespace() != HACL_NS_ACL)
-            $msg[] = wfMsgForContent('hacl_wrong_namespace');
-
         // Check if the definition of a group is complete and valid
         if ($this->mType == 'group')
         {
@@ -967,14 +979,9 @@ class HACLParserFunctions
             if (count($this->mGroupMembers) == 0 &&
                 count($this->mUserMembers) == 0)
                 $msg[] = wfMsgForContent('hacl_group_must_have_members');
-            // check for managers
-            if (count($this->mGroupManagerGroups) == 0 &&
-                count($this->mGroupManagerUsers) == 0)
-                $msg[] = wfMsgForContent('hacl_group_must_have_managers');
         }
-
         // Check if the definition of a right or security descriptor is complete and valid
-        if ($this->mType == 'right' || $this->mType == 'sd')
+        elseif ($this->mType == 'right' || $this->mType == 'sd')
         {
             // check for inline or predefined rights
             if (!$this->mInlineRights &&
@@ -982,18 +989,7 @@ class HACLParserFunctions
                 !$this->mPropertyRights)
                 $msg[] = wfMsgForContent('hacl_right_must_have_rights');
         }
-
-        // Check for invalid parser functions
-        $ivpf = $this->findInvalidParserFunctions($this->mType);
-        $msg = array_merge($msg, $ivpf);
-
-        if (!$this->mType)
-        {
-            // No known prefix matched - this is really not a error, but a warning
-            // FIXME add the list of valid prefixes into warning text
-            $msg[] = wfMsgForContent('hacl_invalid_prefix');
-        }
-
+        // Additional checks for SDs
         if ($this->mType == 'sd')
         {
             $sdName = $this->mTitle->getFullText();
@@ -1001,22 +997,18 @@ class HACLParserFunctions
             // Check if the protected element for a security descriptor does exist
             if (HACLSecurityDescriptor::peIDforName($pe, $peType) === false)
                 $msg[] = wfMsgForContent('hacl_pe_not_exists', $this->mTitle->getText());
-            global $haclgUnprotectableNamespaces;
-            // a namespace can only be protected if it is not member of
-            // $haclgUnprotectableNamespaces
-            if ($haclgUnprotectableNamespaces &&
+            global $haclgUnprotectableNamespaceIds;
+            // a namespace can only be protected if it is not member of $haclgUnprotectableNamespaces
+            // (transformed into $haclgUnprotectableNamespaceIds on extension init)
+            if ($haclgUnprotectableNamespaceIds &&
                 $peType == HACLLanguage::PET_NAMESPACE &&
-                in_array($pe, $haclgUnprotectableNamespaces))
+                $haclgUnprotectableNamespaceIds[$wgLang->getNsIndex($pe)])
             {
                 // This namespace can not be protected
                 $msg[] = wfMsgForContent('hacl_unprotectable_namespace');
             }
         }
-
-        if (!$msg && !$this->mDefinitionValid)
-            $msg[] = wfMsgForContent('hacl_errors_in_definition');
-
-        return !$msg ? true : $msg;
+        return $msg;
     }
 
     /**

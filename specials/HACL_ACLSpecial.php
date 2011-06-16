@@ -348,7 +348,7 @@ class IntraACLSpecial extends SpecialPage
                 $d['type'] = $haclgContLang->getPetAlias($d['type']);
             else
                 $d['real'] = $d['type'];
-            if ($r->sd_single_id && $r->sd_no_rights)
+            if ($r->sd_single_title)
             {
                 $d['single'] = Title::makeTitleSafe(HACL_NS_ACL, $r->sd_single_title);
                 list($d['singletype'], $d['singlename']) = explode('/', $d['single']->getText(), 2);

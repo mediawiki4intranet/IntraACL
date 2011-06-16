@@ -121,7 +121,7 @@ function haclfSetupExtension()
     wfProfileIn(__FUNCTION__);
 
     global $haclgIP, $wgHooks, $wgParser, $wgExtensionCredits,
-        $wgLanguageCode, $wgRequest, $wgContLang;
+        $wgLanguageCode, $wgRequest, $wgContLang, $haclgUnprotectableNamespaces, $haclgUnprotectableNamespaceIds;
 
     /* Title patch is disabled until full initialization of extension.
      * This was formerly done with haclfDisableTitleCheck() in the beginning
@@ -143,6 +143,15 @@ function haclfSetupExtension()
         print '** WARNING: IntraACL security checks are disabled because
 ** $_SERVER[SERVER_NAME] is empty, which probably means we are in console
 ';
+    }
+
+    //--- Transform config (unprotectable namespace names to ids) ---
+    $haclgUnprotectableNamespaceIds = array();
+    foreach ($haclgUnprotectableNamespaces as $ns)
+    {
+        $ns = $wgContLang->getNsIndex($ns);
+        if ($ns !== false)
+            $haclgUnprotectableNamespaceIds[$ns] = true;
     }
 
     //--- Register hooks ---

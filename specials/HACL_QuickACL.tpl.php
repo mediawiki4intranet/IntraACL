@@ -38,10 +38,14 @@
     </td>
    </tr>
   <?php } ?>
+  <tr>
+   <td></td>
+   <td style="text-align: center"><input type="radio" name="qa_default" id="qd_clear" value="" <?= !$quickacl->default_sd_id ? ' checked="checked"' : '' ?> /></td>
+   <td style="text-align: center" colspan="2"><?= wfMsg('hacl_qacl_empty_default') ?></td>
+  </tr>
  </table>
  <p>
   <input type="submit" value="<?= wfMsg('hacl_qacl_save') ?>" style="font-weight: bold" />
-  <input type="button" value="<?= wfMsg('hacl_qacl_clear_default') ?>" onclick="clear_default()" />
  </p>
 </form>
 <script language="JavaScript">

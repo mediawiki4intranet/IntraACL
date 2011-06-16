@@ -108,7 +108,7 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
     elseif ($t == 'namespace')
     {
         $ip = 'ti_';
-        global $wgCanonicalNamespaceNames, $wgContLang;
+        global $wgCanonicalNamespaceNames, $wgContLang, $haclgUnprotectableNamespaceIds;
         $ns = $wgCanonicalNamespaceNames;
         $ns[0] = 'Main';
         ksort($ns);
@@ -122,9 +122,13 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
             $name = str_replace('_', ' ', $wgContLang->getNsText($k));
             if (!$name)
                 $name = $v;
-            if ($k >= 0 && (mb_strtolower(mb_substr($v, 0, $nl)) == $n ||
-                mb_strtolower(mb_substr($name, 0, $nl)) == $n))
+            if ($k >= 0 && (!$nl ||
+                mb_strtolower(mb_substr($v, 0, $nl)) == $n ||
+                mb_strtolower(mb_substr($name, 0, $nl)) == $n) &&
+                !$haclgUnprotectableNamespaceIds[$k])
+            {
                 $a[] = array($name, $v);
+            }
         }
     }
     // Categories
