@@ -399,24 +399,38 @@ class HACLToolbar
             $selectedSD = NULL;
 
         // Check if current SD must be modified
+        $st = HACLStorage::getDatabase();
         if ($article->exists())
-            $pageSD = HACLSecurityDescriptor::getSDForPE($article->getId(), HACLLanguage::PET_PAGE);
-        if (!$selectedSD && !$pageSD ||
-            $selectedSD && $pageSD && $pageSD == $selectedSD)
+        {
+            $pageSDId = HACLSecurityDescriptor::getSDForPE($article->getId(), HACLLanguage::PET_PAGE);
+            if ($pageSDId && $selectedSD)
+            {
+                // Check if page's SD ID passed as selected
+                if ($selectedSD == $pageSDId)
+                    return true;
+                // Check if page's SD is single inclusion and it is passed as selected
+                $pageSD = $st->getSDbyId($pageSDId);
+                if (($single = $pageSD->isSinglePredefinedRightInclusion()) &&
+                    $selectedSD == $single)
+                    return true;
+            }
+        }
+        // Check if no protection selected and no protection exists
+        if (!$selectedSD && !$pageSDId)
             return true;
 
         // Check if other SD is a predefined right
         if ($selectedSD)
         {
-            $sd = HACLStorage::getDatabase()->getSDByID($selectedSD);
+            $sd = $st->getSDByID($selectedSD);
             if ($sd->getPEType() != HACLLanguage::PET_RIGHT)
                 return true;
         }
 
         // Check SD modification rights
-        if ($pageSD)
+        if ($pageSDId)
         {
-            $allowed = HACLEvaluator::checkACLManager(Title::newFromId($pageSD), $wgUser, 'edit');
+            $allowed = HACLEvaluator::checkACLManager(Title::newFromId($pageSDId), $wgUser, 'edit');
             if (!$allowed)
                 return true;
         }
@@ -435,7 +449,7 @@ class HACLToolbar
             $pf = $haclgContLang->getParserFunction(HACLLanguage::PF_PREDEFINED_RIGHT);
             $pfp = $haclgContLang->getParserFunctionParameter(HACLLanguage::PFP_RIGHTS);
             $content = '{{#'.$pf.': '.$pfp.' = '.$selectedSDTitle->getText().'}}';
-            $newSDArticle->doEdit($content, wfMsg('hacl_comment_protect_with', $selectedSDTitle->getFullText()), EDIT_NEW);
+            $newSDArticle->doEdit($content, wfMsg('hacl_comment_protect_with', $selectedSDTitle->getFullText()));
         }
         // Remove page SD
         else
