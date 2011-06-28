@@ -95,12 +95,12 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
         );
         while ($row = $r->fetchRow())
         {
-            $t = Title::newFromText($row[0], $row[1]);
+            $title = Title::newFromText($row[0], $row[1]);
             // Filter unreadable
-            if ($t->userCanRead())
+            if ($title->userCanRead())
             {
-                $t = $t->getPrefixedText();
-                $a[] = array($t, $t);
+                $title = $title->getPrefixedText();
+                $a[] = array($title, $title);
             }
         }
     }
@@ -146,12 +146,12 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
         );
         while ($row = $r->fetchRow())
         {
-            $t = Title::newFromText($row[0], NS_CATEGORY);
+            $title = Title::newFromText($row[0], NS_CATEGORY);
             // Filter unreadable
-            if ($t->userCanRead())
+            if ($title->userCanRead())
             {
-                $t = $t->getText();
-                $a[] = array($t, $t);
+                $title = $title->getText();
+                $a[] = array($title, $title);
             }
         }
     }
