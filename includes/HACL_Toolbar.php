@@ -271,9 +271,11 @@ class HACLToolbar
         $groups = $wgUser->getId() ? $st->getGroupsOfMember('user', $wgUser->getId()) : NULL;
         list($uid) = haclfGetUserID($wgUser);
         $pe = $st->lookupRights($uid, $groups, HACLLanguage::RIGHT_READ, 'category');
-        foreach ($pe as &$c)
-            $c = Title::newFromId($c[1])->getPrefixedText();
-        return $pe;
+        $names = array();
+        foreach ($pe as $c)
+            if ($t = Title::newFromId($c[1]))
+                $names[] = $t->getPrefixedText();
+        return $names;
     }
 
     // Similar to warnNonReadableCreate, but warns about non-readable file uploads
