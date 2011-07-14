@@ -1131,7 +1131,7 @@ class HACLStorageSQL {
         global $haclgContLang;
         $dbr = wfGetDB(DB_SLAVE);
         $t = $types ? array_flip(explode(',', $types)) : NULL;
-        $n = str_replace(' ', '_', $n);
+        $n = str_replace(' ', '_', $name);
         $where = array();
         foreach ($haclgContLang->getPetAliases() as $k => $v)
             if (!$t || array_key_exists($v, $t))
