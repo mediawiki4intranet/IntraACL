@@ -101,13 +101,7 @@ class HACLToolbar
                 }
             }
             // Get categories which have SDs and to which belongs this article (for hint)
-            foreach ($title->getParentCategories() as $p => $true)
-            {
-                list($unused, $cat) = explode(':', $p, 2);
-                $id = Title::makeTitle(NS_CATEGORY, $cat)->getArticleId();
-                if ($sdid = HACLSecurityDescriptor::getSDForPE($id, HACLLanguage::PET_CATEGORY))
-                    $globalACL[] = Title::newFromId($sdid);
-            }
+            $globalACL = array_merge($globalACL, HACLStorage::getDatabase()->getParentCategorySDs($title));
         }
 
         // Add Quick ACLs

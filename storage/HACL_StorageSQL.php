@@ -1325,6 +1325,51 @@ class HACLStorageSQL {
     }
 
     /**
+     * Retrieve the category SDs of categories $title belongs to,
+     * including parent ones.
+     */
+    public function getParentCategorySDs($title)
+    {
+        $id = $title->getArticleId();
+        if (!$id)
+            return array();
+        // First retrieve IDs of categories which have corresponding page
+        $dbr = wfGetDB(DB_SLAVE);
+        $catids = array();
+        $ids = array($id => true);
+        while ($ids)
+        {
+            $res = $dbr->select(
+                array('categorylinks', 'page'), 'page_id',
+                array(
+                    'cl_from' => array_keys($ids),
+                    'page_namespace' => NS_CATEGORY,
+                    'page_title=cl_to',
+                ), __METHOD__
+            );
+            $ids = array();
+            foreach ($res as $row)
+            {
+                $row = $row->page_id;
+                if (!$catids[$row])
+                    $ids[$row] = $catids[$row] = true;
+            }
+        }
+        // Then retrieve their SDs if they exist
+        if (!$catids)
+            return array();
+        $res = $dbr->select(
+            array('page', 'halo_acl_security_descriptors'), 'page.*',
+            array('page_id=sd_id', 'pe_id' => array_keys($catids), 'type' => HACLLanguage::PET_CATEGORY),
+            __METHOD__
+        );
+        $prot = array();
+        foreach ($res as $row)
+            $prot[] = Title::newFromRow($row);
+        return $prot;
+    }
+
+    /**
      * Deletes the inline right with the ID $rightID from the database. All
      * references to the right (from protected elements) are deleted as well.
      *
@@ -1476,35 +1521,6 @@ class HACLStorageSQL {
             }
         }
         return (count($intValues) > 0 ? $intValues : NULL);
-    }
-
-    /**
-     * Returns all Articles names and ids
-     *
-     * @param string $subName
-     * @return array(int, string)
-     *         List of IDs of all direct users or groups in this group.
-     *
-     */
-    public function getArticles($subName, $noACLs = false, $type = NULL) {
-        global $haclgNamespaceIndex;
-        $dbr = wfGetDB( DB_SLAVE );
-
-        $where = array('lower(page_title) LIKE lower('.$dbr->addQuotes("%$subName%").')');
-        if ($type == "property")
-            $where['page_namespace'] = SMW_NS_PROPERTY;
-        elseif ($type == "category")
-            $where['page_namespace'] = NS_CATEGORY;
-        if ($noACLs)
-            $where[] = 'page_namespace != '.$haclgNamespaceIndex;
-
-        $res = $dbr->select('page', 'page_id, page_title', $where, __METHOD__, array('ORDER BY' => 'page_title'));
-        $articleArray = array();
-        while ($row = $dbr->fetchObject($res)) {
-            $articleArray[] = array('id' => $row->page_id, 'name' => $row->page_title);
-        }
-        $dbr->freeResult($res);
-        return $articleArray;
     }
 
     /***************************************************************************
