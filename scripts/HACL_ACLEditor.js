@@ -134,8 +134,11 @@ HACLACLEditor.prototype.ajax_sd_exists = function(request)
 HACLACLEditor.prototype.include_acl = function()
 {
     var inc = document.getElementById('inc_acl').value;
-    this.predef_included[inc] = true;
-    this.save_sd();
+    if (inc)
+    {
+        this.predef_included[inc] = true;
+        this.save_sd();
+    }
 };
 
 // parse PF parameter text into array of comma separated values
