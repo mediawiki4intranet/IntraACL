@@ -30,6 +30,18 @@ var haclt_show = function(n, s)
   else
     t.style.display = s ? '' : 'none';
 };
+/* Append category 'cat' text into wpTextbox1 if upl==false, or wpUploadDescription if upl==true */
+var haclt_addcat = function(cat, upl)
+{
+  if (cat)
+  {
+    if (wikEd && wikEd.useWikEd)
+      wikEd.UpdateTextarea();
+    document.getElementById(upl ? 'wpUploadDescription' : 'wpTextbox1').value += '\n[['+cat+']]\n';
+    if (wikEd && wikEd.useWikEd)
+      wikEd.UpdateFrame();
+  }
+};
 /* Check all embedded content checkboxes
    Also shared with ACLEditor */
 var hacle_checkall = function(c, ids)

@@ -1370,6 +1370,38 @@ class HACLStorageSQL {
     }
 
     /**
+     * Get Title objects for child categories, recursively, including initial $categories
+     * $categories: array(Title) - Title objects of parent categories
+     */
+    public function getAllChildrenCategories($categories)
+    {
+        if (!$categories)
+            return array();
+        $dbr = wfGetDB(DB_SLAVE);
+        $cats = array();
+        foreach ($categories as $c)
+            $cats[$c->getDBkey()] = $c;
+        $categories = array_keys($cats);
+        // Get subcategories
+        while ($categories)
+        {
+            $res = $dbr->select(array('page', 'categorylinks'), 'page.*',
+                array('cl_from=page_id', 'cl_to' => $categories, 'page_namespace' => NS_CATEGORY),
+                __METHOD__);
+            $categories = array();
+            foreach ($res as $row)
+            {
+                if (!$cats[$row->page_title])
+                {
+                    $categories[] = $row->page_title;
+                    $cats[$row->page_title] = Title::newFromRow($row);
+                }
+            }
+        }
+        return array_values($cats);
+    }
+
+    /**
      * Deletes the inline right with the ID $rightID from the database. All
      * references to the right (from protected elements) are deleted as well.
      *

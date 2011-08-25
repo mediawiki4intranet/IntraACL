@@ -81,30 +81,29 @@ $messages['en'] = array(
 
     'hacl_nonreadable_create'           =>
 '<div style="border: 0.2em solid red; padding: 0 0.5em 0.5em">
-\'\'\'<span style="color: red">Warning!</span>\'\'\'
+<span style="color: red; font-weight: bold">Warning!</span>
 You have no read access to the namespace inside which you are creating this article.
-* Either include the article into one of categories readable by you (<nowiki>$1</nowiki>)
-* Or check "\'\'\'Create a non-readable article\'\'\'"
+<ul><li>Either include the article into one of categories readable by you: $1</li>
+<li>Or check "<b>Create a non-readable article</b>"</li></ul>
 </div>',
 
     'hacl_nonreadable_create_nocat'     =>
 '<div style="border: 0.2em solid red; padding: 0 0.5em 0.5em">
-\'\'\'<span style="color: red">Warning!</span>\'\'\'
+<span style="color: red; font-weight: bold">Warning!</span>
 You have no read access to the namespace inside which you are creating this article.
-Please check "\'\'\'Create a non-readable article\'\'\'" to confirm your intention,
-because there also is no categories readable for you.
+Please check "<b>Create a non-readable article</b>" to confirm your intention,
+because there also are no categories readable for you.
 </div>',
 
-    'hacl_nonreadable_upload'           => '<div style="border: 0.2em solid red; padding: 0.2em 0.5em 0.5em; display: inline-block">
+    'hacl_nonreadable_upload'           => '<div style="border: 0.2em solid red; padding: 0.2em 0.5em 0.5em; display: inline-block; width: 50%">
 <span style="color: red; font-weight: bold">Warning!</span>
-You have no read access to the File namespace.
-Please, add one of the following categories to the description, or you will <b>not</b> be able to view the file after uploading:<br />
-<i>$1</i>
+You have no read access to the <tt>File</tt> namespace.<br />
+Please, add one of the following categories to the description, or you will <b>not</b> be able to view the file after uploading:&nbsp;$1
 </div>',
 
-    'hacl_nonreadable_upload_nocat'     => '<div style="border: 0.2em solid red; padding: 0.2em 0.5em 0.5em; display: inline-block">
+    'hacl_nonreadable_upload_nocat'     => '<div style="border: 0.2em solid red; padding: 0.2em 0.5em 0.5em; display: inline-block; width: 50%">
 <span style="color: red; font-weight: bold">Warning!</span>
-You have no read access to the File namespace. You will <b>not</b> be able to view the file after uploading!
+You have no read access to the <tt>File</tt> namespace. You will <b>not</b> be able to view the file after uploading!
 </div>',
 
     // Messages for semantic protection (properties etc.)
@@ -379,28 +378,27 @@ $messages['ru'] = array(
 
     'hacl_nonreadable_create'           =>
 '<div style="border: 0.2em solid red; padding: 0 0.5em 0.5em">
-\'\'\'<span style="color: red">Внимание!</span>\'\'\'
+<span style="color: red; font-weight: bold">Внимание!</span>
 Вы создаёте статью в пространстве имён, на чтение которого не имеете доступа.
-* Либо включите статью в одну из категорий, к которым имеете доступ на чтение (<nowiki>$1</nowiki>)
-* Либо отметьте флажок "\'\'\'Создать нечитаемую статью\'\'\'"
+<ul><li>Либо включите статью в одну из категорий, к которым имеете доступ на чтение: $1</li>
+<li>Либо отметьте флажок "<b>Создать нечитаемую статью</b>"</li></ul>
 </div>',
 
     'hacl_nonreadable_create_nocat'     =>
 '<div style="border: 0.2em solid red; padding: 0 0.5em 0.5em">
-\'\'\'<span style="color: red">Внимание!</span>\'\'\'
+<span style="color: red; font-weight: bold">Внимание!</span>
 Вы создаёте статью в пространстве имён, на чтение которого не имеете доступа.
-Отметьте флажок "\'\'\'Создать нечитаемую статью\'\'\'" для подтверждения своих намерений,
+Отметьте флажок "<b>Создать нечитаемую статью</b>" для подтверждения своих намерений,
 так как категорий, доступных вам для чтения, нет.
 </div>',
 
-    'hacl_nonreadable_upload'           => '<div style="border: 0.2em solid red; padding: 0.2em 0.5em 0.5em; display: inline-block">
+    'hacl_nonreadable_upload'           => '<div style="border: 0.2em solid red; padding: 0.2em 0.5em 0.5em; display: inline-block; width: 50%">
 <span style="color: red; font-weight: bold">Внимание!</span>
-У вас нет доступа на чтение пространства имён Файл.
-Вы <b>не сможете</b> просмотреть файл после загрузки, если не добавите в описание одну из категорий:<br />
-<i>$1</i>
+У вас нет доступа на чтение пространства имён <tt>Файл</tt>.<br />
+Вы <b>не сможете</b> просмотреть файл после загрузки, если не добавите в описание одну из категорий:&nbsp;$1
 </div>',
 
-    'hacl_nonreadable_upload_nocat'     => '<div style="border: 0.2em solid red; padding: 0.2em 0.5em 0.5em; display: inline-block">
+    'hacl_nonreadable_upload_nocat'     => '<div style="border: 0.2em solid red; padding: 0.2em 0.5em 0.5em; display: inline-block; width: 50%">
 <span style="color: red; font-weight: bold">Внимание!</span>
 У вас доступа на чтение пространства имён Файл. Вы <b>не сможете</b> просмотреть файл после загрузки!
 </div>',
