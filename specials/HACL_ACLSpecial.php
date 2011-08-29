@@ -111,6 +111,32 @@ class IntraACLSpecial extends SpecialPage
     public function html_acllist(&$q)
     {
         global $wgOut, $wgUser, $wgScript, $haclgHaloScriptPath, $haclgContLang;
+        $limit = intval($q['limit']) > 0 ? intval($q['limit']) : 100;
+        if ($q['types'])
+        {
+            $types = array_flip(explode(',', $q['types']));
+            foreach ($types as $k => &$i)
+                $i = true;
+            unset($i);
+        }
+        else
+        {
+            $types = array();
+            foreach ($this->aclTargetTypes as $k => $a)
+                foreach ($a as $v => $t)
+                    $types[$v] = true;
+        }
+        $types['all'] = true;
+        foreach ($this->aclTargetTypes as $k => $a)
+        {
+            $types[$k] = true;
+            foreach ($a as $v => $t)
+            {
+                $types[$k] = $types[$k] && $types[$v];
+                $types['all'] = $types['all'] && $types[$v];
+            }
+        }
+        // Run template
         ob_start();
         require(dirname(__FILE__).'/HACL_ACLList.tpl.php');
         $html = ob_get_contents();
@@ -320,19 +346,13 @@ class IntraACLSpecial extends SpecialPage
     }
 
     /* "Real" ACL list, loaded using AJAX */
-    static function haclAcllist($t, $n, $limit = 101)
+    static function haclAcllist($t, $n, $offset = 0, $limit = 10)
     {
         global $wgScript, $wgTitle, $haclgHaloScriptPath, $haclgContLang, $wgUser;
         haclCheckScriptPath();
-        /* Load data */
-        $sdpages = HACLStorage::getDatabase()->getSDPages($t, $n, $limit);
-        if (count($sdpages) >= $limit)
-        {
-            /* Maximum SDs found */
-            array_pop($sdpages);
-            $max = true;
-        }
-        /* Build array for template */
+        // Load data
+        $sdpages = HACLStorage::getDatabase()->getSDPages($t, $n, $offset, $limit, $total);
+        // Build SD data for template
         $lists = array();
         foreach ($sdpages as $r)
         {
@@ -348,9 +368,10 @@ class IntraACLSpecial extends SpecialPage
                 $d['type'] = $haclgContLang->getPetAlias($d['type']);
             else
                 $d['real'] = $d['type'];
+            // Single SD inclusion
             if ($r->sd_single_title)
             {
-                $d['single'] = Title::makeTitleSafe(HACL_NS_ACL, $r->sd_single_title);
+                $d['single'] = $r->sd_single_title;
                 list($d['singletype'], $d['singlename']) = explode('/', $d['single']->getText(), 2);
                 if ($d['singlename'])
                     $d['singletype'] = $haclgContLang->getPetAlias($d['type']);
@@ -361,7 +382,17 @@ class IntraACLSpecial extends SpecialPage
             }
             $lists[$d['type']][] = $d;
         }
-        /* Run template */
+        // Next and previous page links
+        $pageurl = Title::makeTitleSafe(NS_SPECIAL, 'IntraACL')->getLocalUrl(array(
+            'types' => $t,
+            'filter' => $n,
+            'limit' => $limit,
+        ));
+        if ($total > $limit+$offset)
+            $nextpage = $pageurl.'&offset='.intval($offset+$limit);
+        if ($offset >= $limit)
+            $prevpage = $pageurl.'&offset='.intval($offset-$limit);
+        // Run template
         ob_start();
         require(dirname(__FILE__).'/HACL_ACLListContents.tpl.php');
         $html = ob_get_contents();
@@ -376,11 +407,6 @@ class IntraACLSpecial extends SpecialPage
         haclCheckScriptPath();
         /* Load data */
         $groups = HACLStorage::getDatabase()->getGroups($n, $not_n);
-        if ($limit && count($groups) == $limit)
-        {
-            array_pop($groups);
-            $max = true;
-        }
         foreach ($groups as &$g)
         {
             $gn = $g['group_name'];

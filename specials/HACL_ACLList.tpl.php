@@ -2,22 +2,28 @@
 
 <div style="float: left; margin: 0 8px">
 <p><b><?= wfMsg('hacl_acllist_filter_name') ?></b></p>
-<p><input type="text" id="acl_filter" onchange="change_filter()" onkeyup="change_filter()" style="width: 400px" /></p>
+<p><input type="text" id="acl_filter" value="<?= htmlspecialchars($q['filter']) ?>" onchange="change_filter()" onkeyup="change_filter()" style="width: 400px" /></p>
 
 <p><b><?= wfMsg('hacl_acllist_filter_type') ?></b></p>
-<p><input type="checkbox" id="atg_all" checked="checked" onclick="change_filter(this)" onchange="change_filter(this)" /> <label for="atg_all"><?= wfMsg('hacl_acllist_typegroup_all') ?></label></p>
+<p><input type="checkbox" id="atg_all" <?= $types['all'] ? ' checked="checked"' : '' ?> onclick="change_filter(this)" onchange="change_filter(this)" /> <label for="atg_all"><?= wfMsg('hacl_acllist_typegroup_all') ?></label></p>
 <ul>
 <?php foreach($this->aclTargetTypes as $t => $l) { ?>
  <li>
-  <input type="checkbox" id="atg_<?= $t ?>" checked="checked" onclick="change_filter(this)" onchange="change_filter(this)" /> <label for="atg_<?= $t ?>"><?= wfMsg('hacl_acllist_typegroup_'.$t) ?></label>
+  <input type="checkbox" id="atg_<?= $t ?>" <?= $types[$t] ? ' checked="checked"' : '' ?> onclick="change_filter(this)" onchange="change_filter(this)" /> <label for="atg_<?= $t ?>"><?= wfMsg('hacl_acllist_typegroup_'.$t) ?></label>
   <ul>
   <?php foreach($l as $k => $true) { ?>
-   <li><input type="checkbox" id="at_<?= $k ?>" checked="checked" onclick="change_filter(this)" onchange="change_filter(this)" /> <label for="at_<?= $k ?>"><?= wfMsg('hacl_acllist_type_'.$k) ?></label></li>
+   <li><input type="checkbox" id="at_<?= $k ?>" <?= $types[$k] ? ' checked="checked"' : '' ?> onclick="change_filter(this)" onchange="change_filter(this)" /> <label for="at_<?= $k ?>"><?= wfMsg('hacl_acllist_type_'.$k) ?></label></li>
   <? } ?>
   </ul>
  </li>
 <? } ?>
 </ul>
+
+<p><b><?= wfMsg('hacl_acllist_perpage') ?></b> <input type="text" id="perPage" value="<?= $limit ?>" onchange="change_filter()" /></p>
+
+<input type="hidden" id="acl_page" value="<?= intval($q['offset']/$limit) ?>" />
+<p id="resultPagesP" style="display: none"><b><?= wfMsg('hacl_acllist_result_page') ?></b> <span id="resultPages"></span></p>
+
 </div>
 
 <div style="clear: both"></div>
@@ -36,6 +42,11 @@ print "var aclTypeGroups = { 'all' : {'".implode("':1,'", array_keys($all))."':1
 ?>
 function change_filter(chk)
 {
+    document.getElementById('acl_page').value = 0;
+    reload_acl(chk);
+}
+function reload_acl(chk)
+{
     if (chk)
     {
         if (chk.id.substr(0, 4) == 'atg_')
@@ -53,13 +64,46 @@ function change_filter(chk)
         }
     }
     var types = [];
+    var th = {};
     for (var i in aclTypeGroups)
         for (var j in aclTypeGroups[i])
-            if (document.getElementById('at_'+j).checked)
-                types.push(j);
-    sajax_do_call('haclAcllist', [ types.join(','), document.getElementById('acl_filter').value ],
-        function(request) { document.getElementById('acl_list').innerHTML = request.responseText; }
+            if (document.getElementById('at_'+j).checked && !th[j])
+                th[j] = true, types.push(j);
+    var pg = document.getElementById('acl_page').value;
+    var limit = parseInt(document.getElementById('perPage').value);
+    if (!limit || limit != limit)
+        limit = 100;
+    sajax_do_call(
+        'haclAcllist',
+        [ types.join(','), document.getElementById('acl_filter').value, pg*limit, limit ],
+        function(request)
+        {
+            document.getElementById('acl_list').innerHTML = request.responseText;
+            var tp = document.getElementById('totalPages');
+            if (!tp)
+                return;
+            var totalPages = parseInt(tp.value);
+            document.getElementById('resultPagesP').style.display = totalPages <= 1 ? 'none' : '';
+            if (totalPages > 1)
+            {
+                var e = '';
+                var p = document.getElementById('pageUrl').value;
+                for (var i = 0; i < totalPages; i++)
+                {
+                    if (i == pg)
+                        e += ' <b>'+(i+1)+'</b>';
+                    else
+                        e += ' <a href="'+p+'&offset='+(limit*i)+'" onclick="change_page('+i+');return false;">'+(i+1)+'</a>';
+                }
+                document.getElementById('resultPages').innerHTML = e;
+            }
+        }
     );
 }
-exAttach(window, 'load', function() { change_filter() });
+function change_page(n)
+{
+    document.getElementById('acl_page').value = n;
+    reload_acl();
+}
+exAttach(window, 'load', function() { reload_acl() });
 </script>

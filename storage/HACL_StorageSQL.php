@@ -1126,7 +1126,7 @@ class HACLStorageSQL {
      * Partly repeated with getSDs() / getSDs2()
      * FIXME: remove this duplication
      */
-    public function getSDPages($types, $name, $limit)
+    public function getSDPages($types, $name, $offset, $limit, &$total)
     {
         global $haclgContLang;
         $dbr = wfGetDB(DB_SLAVE);
@@ -1137,23 +1137,35 @@ class HACLStorageSQL {
             if (!$t || array_key_exists($v, $t))
                 $where[] = 'CAST(page_title AS CHAR CHARACTER SET utf8) COLLATE utf8_unicode_ci LIKE '.$dbr->addQuotes($k.'/'.$n.'%');
         $where = 'page_namespace='.HACL_NS_ACL.' AND ('.implode(' OR ', $where).')';
-        /* Build query */
-        $p  = $dbr->tableName('page');
-        $r  = $dbr->tableName('halo_acl_rights');
-        $rh = $dbr->tableName('halo_acl_rights_hierarchy');
-        $sql = "SELECT t.*, p2.page_title sd_single_title FROM".
-               " (SELECT p1.*,".
-               "  (SELECT COALESCE(child_id)".
-               "   FROM $rh rh WHERE rh.parent_right_id=p1.page_id HAVING COUNT(child_id)=1) sd_single_id,".
-               "  (NOT EXISTS (SELECT * FROM $r r WHERE r.origin_id=p1.page_id)) sd_no_rights".
-               "  FROM $p p1 WHERE $where".
-               "  ORDER BY p1.page_namespace, p1.page_title LIMIT $limit) t".
-               " LEFT JOIN $p p2 ON p2.page_id=t.sd_single_id AND t.sd_no_rights".
-               " ORDER BY t.page_namespace, t.page_title";
-        $res = $dbr->query($sql, __METHOD__);
+        // Select SDs
+        $res = $dbr->select('page', '*', $where, __METHOD__, array(
+            'SQL_CALC_FOUND_ROWS',
+            'ORDER BY' => 'page_title',
+            'OFFSET' => $offset,
+            'LIMIT' => $limit,
+        ));
         $rows = array();
-        foreach ($res as $obj)
-            $rows[] = $obj;
+        foreach ($res as $row)
+            $rows[$row->page_id] = $row;
+        if (!$rows)
+            return $rows;
+        // Select total page count
+        $res = $dbr->query('SELECT FOUND_ROWS()', __METHOD__);
+        $total = $res->fetchRow();
+        $total = $total[0];
+        // Select single-inclusion information
+        $res = $dbr->select(array('halo_acl_rights_hierarchy', 'halo_acl_rights', 'page'),
+            'parent_right_id, page.*',
+            array('origin_id IS NULL', 'parent_right_id' => array_keys($rows)),
+            __METHOD__,
+            array('GROUP BY' => 'parent_right_id', 'HAVING' => 'COUNT(child_id)=1'),
+            array(
+                'halo_acl_rights' => array('LEFT JOIN', array('origin_id=parent_right_id')),
+                'page' => array('INNER JOIN', array('page_id=child_id'))
+            )
+        );
+        foreach ($res as $row)
+            $rows[$row->parent_right_id]->sd_single_title = Title::newFromRow($row);
         return $rows;
     }
 

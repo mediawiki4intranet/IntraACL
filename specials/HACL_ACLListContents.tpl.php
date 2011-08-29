@@ -1,5 +1,9 @@
+<input type="hidden" id="totalPages" value="<?= ceil($total/$limit) ?>" />
+<input type="hidden" id="pageUrl" value="<?= $pageurl ?>" />
 <?php if (!$lists) { ?>
 <?= wfMsg('hacl_acllist_empty') ?>
+<?php } if ($prevpage) { ?>
+<p><a href="<?= $prevpage ?>" onclick="change_page(<?= intval($offset/$limit-1) ?>); return false;"><?= wfMsg('hacl_acllist_prev') ?></a></p>
 <?php }
 foreach (array('default', 'namespace', 'category', 'right', 'template', 'page', 'property') as $k) {
  if ($lists[$k]) { ?>
@@ -18,6 +22,6 @@ foreach (array('default', 'namespace', 'category', 'right', 'template', 'page', 
  </ul>
  <?php }
 }
-if ($max) { ?>
- <p>...</p>
-<?php } ?>
+if ($nextpage) { ?>
+<p><a href="<?= $nextpage ?>" onclick="change_page(<?= intval(1+$offset/$limit) ?>); return false;"><?= wfMsg('hacl_acllist_next') ?></a></p>
+<?php }
