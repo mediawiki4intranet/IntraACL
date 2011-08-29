@@ -222,6 +222,10 @@ class HACLEvaluator
         return $R[2];
     }
 
+    // Checks if user $userID can do action $actionID on article $articleID (or $title)
+    // Check sequence: page rights -> category rights -> namespace rights
+    // I.e. page overrides category, category overrides namespace
+    // Categories do not override each other and child categories of each other
     public static function hasSD($title, $articleID, $userID, $actionID)
     {
         $hasSD = false;
@@ -236,8 +240,7 @@ class HACLEvaluator
             {
                 $r = self::hasRight($articleID, HACLLanguage::PET_PAGE, $userID, $actionID);
                 $msg[] = ($r ? 'Access allowed by' : 'Found') . ' page SD.';
-                if ($r)
-                    goto ok;
+                goto ok;
             }
 
             // If the page is a category page, check the category right
@@ -249,8 +252,7 @@ class HACLEvaluator
                 {
                     $r = self::hasRight($articleID, HACLLanguage::PET_CATEGORY, $userID, $actionID);
                     $msg[] = ($r ? 'Access allowed by' : 'Found') . ' category SD for category page.';
-                    if ($r)
-                        goto ok;
+                    goto ok;
                 }
             }
 
@@ -260,8 +262,7 @@ class HACLEvaluator
             if ($sd)
             {
                 $msg[] = ($r ? 'Access allowed by' : 'Found') . ' category SD.';
-                if ($r)
-                    goto ok;
+                goto ok;
             }
         }
 
@@ -271,8 +272,7 @@ class HACLEvaluator
         if ($sd)
         {
             $msg[] = ($r ? 'Access allowed by' : 'Found') . ' namespace SD.';
-            if ($r)
-                goto ok;
+            goto ok;
         }
 
 ok:
