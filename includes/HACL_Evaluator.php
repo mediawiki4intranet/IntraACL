@@ -31,7 +31,7 @@ if (!defined('MEDIAWIKI'))
  * It implements the function "userCan" that is called from MW for granting or
  * denying access to articles.
  *
- * WARNING: Now, members of "bureaucrat" Wiki group (not IntraACL group) can always do anything.
+ * WARNING: Now, members of "bureaucrat" and "sysop" Wiki groups (not IntraACL group) can always do anything.
  *
  * @author Thomas Schweitzer
  */
@@ -93,9 +93,9 @@ class HACLEvaluator
         }
 
         $groups = $user->getGroups();
-        if ($groups && in_array('bureaucrat', $groups))
+        if ($groups && (in_array('bureaucrat', $groups) || in_array('sysop', $groups)))
         {
-            $R = array('User is a bureaucrat and can do anything.', true, true);
+            $R = array('User is a bureaucrat/sysop and can do anything.', true, true);
             goto fin;
         }
 
@@ -194,7 +194,7 @@ class HACLEvaluator
 
     fin:
         // Articles with no SD are not protected if $haclgOpenWikiAccess is
-        // true. Otherwise access is denied for non-bureaucrats.
+        // true. Otherwise access is denied for non-bureaucrats/sysops.
         if ($R[0] && (!$R[1] || !$R[2]))
             $R[0] .= ' ';
         if (!$R[2])

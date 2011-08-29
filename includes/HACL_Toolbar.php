@@ -99,8 +99,11 @@ class HACLToolbar
                     );
                 }
             }
-            // Get categories which have SDs and to which belongs this article (for hint)
-            $globalACL = array_merge($globalACL, HACLStorage::getDatabase()->getParentCategorySDs($title));
+            else
+            {
+                // Get categories which have SDs and to which belongs this article (for hint)
+                $globalACL = array_merge($globalACL, HACLStorage::getDatabase()->getParentCategorySDs($title));
+            }
         }
 
         // Add Quick ACLs
@@ -162,7 +165,8 @@ class HACLToolbar
                 $selectedIndex = $i;
 
         // Check if page namespace has an ACL (for hint)
-        if ($sdid = HACLSecurityDescriptor::getSDForPE($title->getNamespace(), HACLLanguage::PET_NAMESPACE))
+        if (!$pageSDid && !$globalACL &&
+            ($sdid = HACLSecurityDescriptor::getSDForPE($title->getNamespace(), HACLLanguage::PET_NAMESPACE)))
             $globalACL[] = Title::newFromId($sdid);
 
         if ($globalACL)
@@ -243,7 +247,7 @@ class HACLToolbar
         $g = $wgUser->getGroups();
         if (!$editpage->eNonReadable &&
             !$editpage->mTitle->getArticleId() &&
-            (!$g || !in_array('bureaucrat', $g)))
+            (!$g || !in_array('bureaucrat', $g) && !in_array('sysop', $g)))
         {
             list($r, $sd) = HACLEvaluator::checkNamespaceRight(
                 $editpage->mTitle->getNamespace(),
@@ -307,7 +311,7 @@ class HACLToolbar
     {
         global $haclgOpenWikiAccess, $wgUser, $wgOut;
         $g = $wgUser->getGroups();
-        if (!$g || !in_array('bureaucrat', $g))
+        if (!$g || !in_array('bureaucrat', $g) && !in_array('sysop', $g))
         {
             list($r, $sd) = HACLEvaluator::checkNamespaceRight(
                 NS_FILE, $wgUser->getId(), HACLLanguage::RIGHT_READ
@@ -334,7 +338,7 @@ class HACLToolbar
     {
         global $haclgOpenWikiAccess, $wgUser, $wgParser, $wgRequest, $wgOut;
         $g = $wgUser->getGroups();
-        if (!$editpage->mTitle->getArticleId() && (!$g || !in_array('bureaucrat', $g)))
+        if (!$editpage->mTitle->getArticleId() && (!$g || !in_array('bureaucrat', $g) && !in_array('sysop', $g)))
         {
             list($r, $sd) = HACLEvaluator::checkNamespaceRight(
                 $editpage->mTitle->getNamespace(),

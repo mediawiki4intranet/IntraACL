@@ -124,10 +124,6 @@ if ($haclgEncryptionKey === NULL)
 if (!$haclgNamespaceIndex)
     $haclgNamespaceIndex = 102;
 
-// mediawiki-groups that may change Quick ACL of other users
-if ($haclCrossTemplateAccess === NULL)
-    $haclCrossTemplateAccess = array('bureaucrat');
-
 // add rights that are newly available with the haloACL
 $wgAvailableRights[] = 'propertyread';
 $wgAvailableRights[] = 'propertyformedit';
