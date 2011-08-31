@@ -36,13 +36,13 @@ define('HACL_STORE_SQL', 'HaclStoreSQL');
 
 # This is the path to your installation of IntraACL as seen on your
 # local filesystem. Used against some PHP file path issues.
-if (!$haclgIP)
+if (!isset($haclgIP))
     $haclgIP = $IP . '/extensions/IntraACL';
 
 # This is the path to your installation of IntraACL as seen from the
 # web. Change it if required ($wgScriptPath is the path to the base directory
 # of your wiki). No final slash.
-if (!$haclgHaloScriptPath)
+if (!isset($haclgHaloScriptPath))
     $haclgHaloScriptPath = 'extensions/IntraACL';
 
 # Set this variable to false to disable the patch that checks all titles
@@ -51,7 +51,7 @@ if (!$haclgHaloScriptPath)
 # created. If a title can not be accessed, a replacement title called "Permission
 # denied" is returned. This is the best and securest way of protecting an article,
 # however, it slows down things a bit.
-if ($haclgEnableTitleCheck === NULL)
+if (!isset($haclgEnableTitleCheck))
     $haclgEnableTitleCheck = false;
 
 # This variable controls the behaviour of unreadable articles included into other
@@ -59,7 +59,7 @@ if ($haclgEnableTitleCheck === NULL)
 # inside MediaWiki: namespace (i.e. localisation message). When it is set to an
 # empty string, nothing is displayed in place of protected inclusion. When it is
 # set to boolean FALSE, inclusion directive is shown instead of article content.
-if ($haclgInclusionDeniedMessage === NULL)
+if (!isset($haclgInclusionDeniedMessage))
     $haclgInclusionDeniedMessage = 'haloacl-inclusion-denied';
 
 # This flag applies to articles that have or inherit no security descriptor.
@@ -73,7 +73,7 @@ if ($haclgInclusionDeniedMessage === NULL)
 # false
 #    If it is <false>, no access is granted at all. Only the latest author of an
 #    article can create a security descriptor.
-if ($haclgOpenWikiAccess === NULL)
+if (!isset($haclgOpenWikiAccess))
     $haclgOpenWikiAccess = true;
 
 # This flag controls Semantic MediaWiki property protection.
@@ -83,7 +83,7 @@ if ($haclgOpenWikiAccess === NULL)
 # false
 #    If it is <false>, semantic properties are not protected even if they have
 #     security descriptors.
-if ($haclgProtectProperties === NULL)
+if (!isset($haclgProtectProperties))
     $haclgProtectProperties = false;
 
 # By design several databases can be connected to IntraACL. However, now there
@@ -91,21 +91,21 @@ if ($haclgProtectProperties === NULL)
 # specify which store will actually be used.
 # Possible values:
 # - HACL_STORE_SQL
-if ($haclgBaseStore === NULL)
+if (!isset($haclgBaseStore))
     $haclgBaseStore = HACL_STORE_SQL;
 
 # Values of this array are treated as language-dependent names of namespaces which
 # can not be protected by IntraACL.
-if ($haclgUnprotectableNamespaces === NULL)
+if (!isset($haclgUnprotectableNamespaces))
     $haclgUnprotectableNamespaces = array();
 
 # If this is true, "ACL" tab will be hidden for unprotected pages.
-if ($haclgDisableACLTab === NULL)
+if (!isset($haclgDisableACLTab))
     $haclgDisableACLTab = false;
 
 # If $haclgEvaluatorLog is <true>, you can specify the URL-parameter "hacllog=true".
 # In this case IntraACL echos the reason why actions are permitted or prohibited.
-if ($haclgEvaluatorLog === NULL)
+if (!isset($haclgEvaluatorLog))
     $haclgEvaluatorLog = true;
 
 # This key is used for protected properties in Semantic Forms. SF has to embed
@@ -113,7 +113,7 @@ if ($haclgEvaluatorLog === NULL)
 # and not visible to the user (i.e. user has no right to read.) The values of
 # all protected fields are encrypted with the given key.
 # YOU SHOULD CHANGE THIS KEY AND KEEP IT SECRET.
-if ($haclgEncryptionKey === NULL)
+if (!isset($haclgEncryptionKey))
     $haclgEncryptionKey = "Es war einmal ein Hase.";
 
 # If you already have custom namespaces on your site, insert
@@ -121,7 +121,7 @@ if ($haclgEncryptionKey === NULL)
 # into your LocalSettings.php *before* including this file. The number ??? must
 # be the smallest even namespace number that is not in use yet. However, it
 # must not be smaller than 100.
-if (!$haclgNamespaceIndex)
+if (!isset($haclgNamespaceIndex))
     $haclgNamespaceIndex = 102;
 
 // add rights that are newly available with the haloACL
