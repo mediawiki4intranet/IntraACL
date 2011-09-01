@@ -140,6 +140,7 @@ class HACLSecurityDescriptor
      */
     public static function peIDforName($peName, $peType)
     {
+        $ns = NS_MAIN;
         if ($peType === HACLLanguage::PET_NAMESPACE)
         {
             // $peName is a namespace => get its ID
@@ -152,8 +153,10 @@ class HACLSecurityDescriptor
         }
         elseif ($peType === HACLLanguage::PET_RIGHT)
             return 0;
+        elseif ($peType === HACLLanguage::PET_CATEGORY)
+            $ns = NS_CATEGORY;
         // return the page id
-        $id = haclfArticleID($peName);
+        $id = haclfArticleID($peName, $ns);
         return $id == 0 ? false : $id;
     }
 

@@ -1479,7 +1479,7 @@ class HACLStorageSQL {
         if ($type !== NULL)
             $where['type'] = $type;
         if (strlen($prefix))
-            $where[] = 'page_title LIKE '.$dbr->addQuotes("$prefix%").' OR page_title LIKE '.$dbr->addQuotes("%/$prefix%");
+            $where[] = 'page_title LIKE '.$dbr->addQuotes('%'.str_replace(' ', '_', $prefix).'%');
         $res = $dbr->select(array('halo_acl_security_descriptors', 'page'),
             'sd_id, pe_id, type, mr_groups, mr_users, page_namespace, page_title',
             $where, __METHOD__,
