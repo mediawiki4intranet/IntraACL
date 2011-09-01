@@ -127,6 +127,7 @@ class HACLEvaluator
         }
 
         // Check rights for managing ACLs
+        if ($title->getNamespace() == HACL_NS_ACL)
         {
             $R = array('Checked ACL modification rights.', self::checkACLManager($title, $user, $actionID), true);
             goto fin;
