@@ -82,6 +82,7 @@ class HACLEvaluator
     {
         global $haclgContLang, $haclgOpenWikiAccess, $wgRequest;
         $etc = haclfDisableTitlePatch();
+        $actionID = 0;
 
         // $R = array(final log message, access granted?, continue hook processing?);
         $R = array('', false, false);
@@ -126,7 +127,6 @@ class HACLEvaluator
         }
 
         // Check rights for managing ACLs
-        if ($title->getNamespace() == HACL_NS_ACL)
         {
             $R = array('Checked ACL modification rights.', self::checkACLManager($title, $user, $actionID), true);
             goto fin;
