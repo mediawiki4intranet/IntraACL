@@ -502,7 +502,7 @@ function haclfAddToolbarForEditPage($editpage, $out)
 {
     if ($editpage->mTitle->mNamespace == HACL_NS_ACL)
         return true;
-    $out->addHTML(HACLToolbar::get($editpage->mTitle, $editpage->eNonReadable));
+    $out->addHTML(HACLToolbar::get($editpage->mTitle, !empty($editpage->eNonReadable)));
     return true;
 }
 

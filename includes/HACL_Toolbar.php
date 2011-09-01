@@ -73,6 +73,7 @@ class HACLToolbar
         // I.e. category and namespace ACLs
         $globalACL = array();
 
+        $pageSDId = 0;
         if ($title->exists())
         {
             // Check SD modification rights
@@ -159,13 +160,13 @@ class HACLToolbar
             unset($o); // prevent reference bugs
         }
 
-        $selectedIndex = -1;
+        $selectedIndex = false;
         foreach ($options as $i => $o)
-            if ($o['current'])
+            if (!empty($o['current']))
                 $selectedIndex = $i;
 
         // Check if page namespace has an ACL (for hint)
-        if (!$pageSDid && !$globalACL &&
+        if (!$pageSDId && !$globalACL &&
             ($sdid = HACLSecurityDescriptor::getSDForPE($title->getNamespace(), HACLLanguage::PET_NAMESPACE)))
             $globalACL[] = Title::newFromId($sdid);
 
@@ -245,7 +246,7 @@ class HACLToolbar
     {
         global $haclgOpenWikiAccess, $wgUser, $wgOut;
         $g = $wgUser->getGroups();
-        if (!$editpage->eNonReadable &&
+        if (empty($editpage->eNonReadable) &&
             !$editpage->mTitle->getArticleId() &&
             (!$g || !in_array('bureaucrat', $g) && !in_array('sysop', $g)))
         {
@@ -256,7 +257,7 @@ class HACLToolbar
             if (!($sd ? $r : $haclgOpenWikiAccess))
                 $editpage->eNonReadable = true;
         }
-        if ($editpage->eNonReadable)
+        if (empty($editpage->eNonReadable))
         {
             $sel = self::getReadableCategoriesSelectBox();
             if ($sel)

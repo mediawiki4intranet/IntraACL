@@ -3,10 +3,10 @@
  <label for="hacl_protected_with"><?= wfMsg('hacl_toolbar_page_prot') ?></label>
  <select name="hacl_protected_with" id="hacl_protected_with" onchange="haclt_change_goto(this, '<?= wfMsg('hacl_toolbar_goto') ?>')">
   <?php foreach($options as $o) { ?>
-   <option title="<?= htmlspecialchars($o['title']) ?>" <?= $o['current'] ? ' selected="selected"' : '' ?> value="<?= htmlspecialchars($o['value']) ?>"><?= htmlspecialchars($o['name']) ?></option>
+   <option title="<?= htmlspecialchars($o['title']) ?>" <?= !empty($o['current']) ? ' selected="selected"' : '' ?> value="<?= htmlspecialchars($o['value']) ?>"><?= htmlspecialchars($o['name']) ?></option>
   <?php } ?>
  </select>
- <?php if ($options[$selectedIndex]['title']) { ?>
+ <?php if ($selectedIndex !== false && $options[$selectedIndex]['title']) { ?>
   <a id="hacl_toolbar_goto" href="<?= Title::newFromText($options[$selectedIndex]['title'])->getLocalUrl() ?>" target="_blank" title="<?= htmlspecialchars(wfMsg('hacl_toolbar_goto', $options[$selectedIndex]['title'])) ?>">
    <img src="<?= $wgScriptPath ?>/skins/monobook/external.png" width="10" height="10" alt="&rarr;" />
   </a>
