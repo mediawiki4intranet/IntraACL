@@ -246,7 +246,7 @@ class HACLToolbar
     {
         global $haclgOpenWikiAccess, $wgUser, $wgOut;
         $g = $wgUser->getGroups();
-        if (empty($editpage->eNonReadable) &&
+        if (!isset($editpage->eNonReadable) &&
             !$editpage->mTitle->getArticleId() &&
             (!$g || !in_array('bureaucrat', $g) && !in_array('sysop', $g)))
         {
@@ -257,7 +257,7 @@ class HACLToolbar
             if (!($sd ? $r : $haclgOpenWikiAccess))
                 $editpage->eNonReadable = true;
         }
-        if (empty($editpage->eNonReadable))
+        if (!empty($editpage->eNonReadable))
         {
             $sel = self::getReadableCategoriesSelectBox();
             if ($sel)
