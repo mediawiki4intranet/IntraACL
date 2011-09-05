@@ -56,9 +56,11 @@ class HACLToolbar
 
         $ns = $wgContLang->getNsText(HACL_NS_ACL);
         $canModify = true;
-        $options = array(
-            array('value' => 'unprotected', 'name' => wfMsg('hacl_toolbar_unprotected')),
-        );
+        $options = array(array(
+            'value' => 'unprotected',
+            'name' => wfMsg('hacl_toolbar_unprotected'),
+            'title' => wfMsg('hacl_toolbar_unprotected'),
+        ));
 
         if (!is_object($title))
             $title = Title::newFromText($title);
@@ -180,6 +182,7 @@ class HACLToolbar
         }
 
         // Check if the article does include any content
+        $anyLinks = $embeddedToolbar = false;
         if ($title->exists())
         {
             if (!$pageSDId)
