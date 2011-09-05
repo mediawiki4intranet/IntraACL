@@ -5,14 +5,14 @@
   <label for="hacl_qafilter"><?= wfMsg('hacl_qacl_filter') ?></label>
   <input type="hidden" name="title" value="Special:IntraACL" />
   <input type="hidden" name="action" value="quickaccess" />
-  <input type="text" name="like" id="hacl_qafilter" value="<?= htmlspecialchars($args['like']) ?>" />
+  <input type="text" name="like" id="hacl_qafilter" value="<?= htmlspecialchars($like) ?>" />
   <input type="submit" value="<?= wfMsg('hacl_qacl_filter_submit') ?>" />
  </form>
 </fieldset>
 <?php if ($templates) { ?>
 <p><?= wfMsg('hacl_qacl_hint') ?></p>
 <form action="<?= $wgScript ?>?title=Special:IntraACL&action=quickaccess&save=1" method="POST">
- <input type="hidden" name="like" value="<?= htmlspecialchars($args['like']) ?>" />
+ <input type="hidden" name="like" value="<?= htmlspecialchars($like) ?>" />
  <table class="wikitable">
   <tr>
    <th><?= wfMsg('hacl_qacl_col_select') ?></th>
@@ -23,9 +23,7 @@
   <?php foreach ($templates as $sd) { ?>
    <tr>
     <td style="text-align: center">
-     <?php if (!$sd->owntemplate) { ?>
-      <input type="checkbox" name="qa_<?= $sd->getSDId() ?>" id="qa_<?= $sd->getSDId() ?>" <?= $sd->selected ? ' checked="checked"' : '' ?> />
-     <?php } ?>
+     <input type="checkbox" name="qa_<?= $sd->getSDId() ?>" id="qa_<?= $sd->getSDId() ?>" <?= $sd->selected ? ' checked="checked"' : '' ?> />
     </td>
     <td style="text-align: center">
      <input onchange="set_checked(<?= $sd->getSDId() ?>)" type="radio" name="qa_default" id="qd_<?= $sd->getSDId() ?>" value="<?= $sd->getSDId() ?>" <?= $sd->default ? ' checked="checked"' : '' ?> />

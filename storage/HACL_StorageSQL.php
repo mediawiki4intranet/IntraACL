@@ -1146,7 +1146,10 @@ class HACLStorageSQL {
         ));
         $rows = array();
         foreach ($res as $row)
+        {
+            $row->sd_single_title = NULL;
             $rows[$row->page_id] = $row;
+        }
         if (!$rows)
             return $rows;
         // Select total page count
@@ -1489,8 +1492,8 @@ class HACLStorageSQL {
         foreach ($res as $r)
             $rights[] = new HACLSecurityDescriptor(
                 $r->sd_id, $r->page_title, $r->pe_id,
-                $r->type, $r->mg_groups ? $r->mg_groups : array(),
-                $r->mg_users ? $r->mg_users : array()
+                $r->type, $r->mr_groups ? $r->mr_groups : array(),
+                $r->mr_users ? $r->mr_users : array()
             );
         return $rights;
     }

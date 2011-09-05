@@ -111,8 +111,10 @@ class IntraACLSpecial extends SpecialPage
     public function html_acllist(&$q)
     {
         global $wgOut, $wgUser, $wgScript, $haclgHaloScriptPath, $haclgContLang;
-        $limit = intval($q['limit']) > 0 ? intval($q['limit']) : 100;
-        if ($q['types'])
+        $limit = !empty($q['limit']) ? intval($q['limit']) : 100;
+        if (empty($q['filter'])) $q['filter'] = '';
+        if (empty($q['offset'])) $q['offset'] = 0;
+        if (!empty($q['types']))
         {
             $types = array_flip(explode(',', $q['types']));
             foreach ($types as $k => &$i)
@@ -149,23 +151,24 @@ class IntraACLSpecial extends SpecialPage
     public function html_acl(&$q)
     {
         global $wgOut, $wgUser, $wgScript, $haclgHaloScriptPath, $haclgContLang, $wgContLang, $wgScriptPath;
-        $aclTitle = Title::newFromText($q['sd'], HACL_NS_ACL);
-        $t = HACLEvaluator::hacl_type($aclTitle);
-        if (!($q['sd'] && $aclTitle &&
-            $t != 'group' &&
-            ($aclArticle = new Article($aclTitle)) &&
-            $aclArticle->exists()))
+        $aclTitle = $aclArticle = NULL;
+        $aclContent = $aclPEName = $aclPEType = '';
+        if (!empty($q['sd']))
         {
-            $aclArticle = NULL;
-            $aclContent = '';
-        }
-        else
-        {
-            $aclContent = $aclArticle->getContent();
-            $aclSDName = $aclTitle->getText();
+            $aclTitle = Title::newFromText($q['sd'], HACL_NS_ACL);
+            $t = HACLEvaluator::hacl_type($aclTitle);
+            if ($aclTitle && $t != 'group')
+            {
+                if (($aclArticle = new Article($aclTitle)) &&
+                    $aclArticle->exists())
+                {
+                    $aclContent = $aclArticle->getContent();
+                    $aclSDName = $aclTitle->getText();
+                }
+                list($aclPEName, $aclPEType) = HACLSecurityDescriptor::nameOfPE($aclTitle->getText());
+            }
         }
         if ($aclTitle)
-            list($aclPEName, $aclPEType) = HACLSecurityDescriptor::nameOfPE($aclTitle->getText());
         /* Run template */
         ob_start();
         require(dirname(__FILE__).'/HACL_ACLEditor.tpl.php');
@@ -187,7 +190,8 @@ class IntraACLSpecial extends SpecialPage
         global $wgOut, $wgUser, $wgScript, $haclgHaloScriptPath, $wgRequest;
         /* Handle save */
         $args = $wgRequest->getValues();
-        if ($args['save'])
+        $like = empty($args['like']) ? '' : $args['like'];
+        if (!empty($args['save']))
         {
             $ids = array();
             foreach ($args as $k => $v)
@@ -195,11 +199,11 @@ class IntraACLSpecial extends SpecialPage
                     $ids[] = substr($k, 3);
             HACLStorage::getDatabase()->saveQuickAcl($wgUser->getId(), $ids, $args['qa_default']);
             wfGetDB(DB_MASTER)->commit();
-            header("Location: $wgScript?title=Special:IntraACL&action=quickaccess&like=".urlencode($args['like']));
+            header("Location: $wgScript?title=Special:IntraACL&action=quickaccess&like=".urlencode($like));
             exit;
         }
         /* Load data */
-        $templates = HACLStorage::getDatabase()->getSDs2('right', $args['like']);
+        $templates = HACLStorage::getDatabase()->getSDs2('right', $like);
         $quickacl = HACLQuickacl::newForUserId($wgUser->getId());
         $quickacl_ids = array_flip($quickacl->getSD_IDs());
         foreach ($templates as $sd)
@@ -223,9 +227,9 @@ class IntraACLSpecial extends SpecialPage
     {
         global $wgScript, $wgOut, $wgUser;
         $act = $q['action'];
-        if ($act == 'acl' && $q['sd'])
+        if ($act == 'acl' && !empty($q['sd']))
             $act = 'acledit';
-        elseif ($act == 'group' && $q['group'])
+        elseif ($act == 'group' && !empty($q['group']))
             $act = 'groupedit';
         $html = array();
         foreach (array('acllist', 'acl', 'quickaccess', 'grouplist', 'group') as $action)
@@ -258,14 +262,15 @@ class IntraACLSpecial extends SpecialPage
     public function html_group(&$q)
     {
         global $wgOut, $wgUser, $wgScript, $haclgHaloScriptPath, $wgContLang, $haclgContLang;
-        if (!($q['group'] &&
-            ($grpTitle = Title::newFromText($q['group'], HACL_NS_ACL)) &&
-            HACLEvaluator::hacl_type($grpTitle) == 'group' &&
-            ($grpArticle = new Article($grpTitle)) &&
-            $grpArticle->exists()))
+        if (empty($q['group']) ||
+            !($grpTitle = Title::newFromText($q['group'], HACL_NS_ACL)) ||
+            HACLEvaluator::hacl_type($grpTitle) != 'group' ||
+            !($grpArticle = new Article($grpTitle)) ||
+            !$grpArticle->exists())
         {
             $grpTitle = NULL;
             $grpArticle = NULL;
+            $grpName = '';
         }
         else
             list($grpPrefix, $grpName) = explode('/', $grpTitle->getText(), 2);
@@ -369,9 +374,9 @@ class IntraACLSpecial extends SpecialPage
             else
                 $d['real'] = $d['type'];
             // Single SD inclusion
+            $d['single'] = $r->sd_single_title;
             if ($r->sd_single_title)
             {
-                $d['single'] = $r->sd_single_title;
                 list($d['singletype'], $d['singlename']) = explode('/', $d['single']->getText(), 2);
                 if ($d['singlename'])
                     $d['singletype'] = $haclgContLang->getPetAlias($d['type']);
@@ -388,6 +393,7 @@ class IntraACLSpecial extends SpecialPage
             'filter' => $n,
             'limit' => $limit,
         ));
+        $nextpage = $prevpage = false;
         if ($total > $limit+$offset)
             $nextpage = $pageurl.'&offset='.intval($offset+$limit);
         if ($offset >= $limit)
