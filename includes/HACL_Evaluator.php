@@ -536,7 +536,7 @@ ok:
             $ptParents = array_keys($pt->getParentCategories());
             foreach ($ptParents as $p)
             {
-                if (!$visitedParents[$p])
+                if (empty($visitedParents[$p]))
                 {
                     $parents[] = $p;
                     $visitedParents[$p] = true;
