@@ -179,6 +179,7 @@ function haclfSetupExtension()
     $wgHooks['EditPage::showEditForm:fields'][] = 'haclfAddToolbarForEditPage';
     $wgHooks['SkinTemplateContentActions'][] = 'HACLToolbar::SkinTemplateContentActions';
     $wgHooks['SkinTemplateNavigation'][] = 'HACLToolbar::SkinTemplateNavigation';
+    $wgHooks['GetPreferences'][] = 'HACLToolbar::GetPreferences';
 
     //-- Hooks for SMW interface (not checked and disabled)
     //$wgHooks['sfEditPageBeforeForm'][] = 'haclfAddToolbarForSemanticForms';

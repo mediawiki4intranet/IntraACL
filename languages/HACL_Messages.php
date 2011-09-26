@@ -114,6 +114,8 @@ You have no read access to the <tt>File</tt> namespace. You will <b>not</b> be a
 
     /**** IntraACL: ****/
 
+    'tog-showacltab'                    => 'Always show ACL tab (page access rights)',
+
     // General
     'hacl_invalid_prefix'               =>
 'This page does not protect anything, create any rights or right templates.
@@ -414,6 +416,8 @@ $messages['ru'] = array(
     'hacl_sp_cant_save_article'         => "'''Статья содержит следующие защищённые свойства:'''\n$1'''Вы не можете изменять из значения. Удалите их и сохраните статью заново.'''",
 
     /**** IntraACL: ****/
+
+    'tog-showacltab'                    => 'Всегда показывать вкладку ACL (права доступа к странице)',
 
     // General
     'hacl_invalid_prefix'               =>
