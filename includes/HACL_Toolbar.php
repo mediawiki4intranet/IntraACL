@@ -699,12 +699,16 @@ class HACLToolbar
     // User setting hook allowing user to select whether to display "ACL" tab for 
     static function GetPreferences($user, &$prefs)
     {
-        $prefs['showacltab'] =
-            array(
-                'type' => 'toggle',
-                'label-message' => 'tog-showacltab',
-                'section' => 'rendering/advancedrendering',
-            );
+        global $haclgDisableACLTab;
+        if (!empty($haclgDisableACLTab))
+        {
+            $prefs['showacltab'] =
+                array(
+                    'type' => 'toggle',
+                    'label-message' => 'tog-showacltab',
+                    'section' => 'rendering/advancedrendering',
+                );
+        }
         return true;
     }
 
@@ -739,7 +743,7 @@ class HACLToolbar
                     '/'.$wgTitle->getPrefixedText();
             $sd = Title::newFromText($sd, HACL_NS_ACL);
             // Hide ACL tab if SD does not exist and $haclgDisableACLTab is true
-            if ($haclgDisableACLTab && (!$sd || !$sd->exists()) && !$wgUser->getOption('showacltab'))
+            if (!empty($haclgDisableACLTab) && (!$sd || !$sd->exists()) && !$wgUser->getOption('showacltab'))
                 return NULL;
             return array(
                 'class' => $sd->exists() ? false : 'new',
