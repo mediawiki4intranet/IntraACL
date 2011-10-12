@@ -189,30 +189,29 @@ class HACLStorageSQL {
      */
     public function groupNameForID($groupID)
     {
-        $dbr = wfGetDB( DB_SLAVE );
+        $dbr = wfGetDB(DB_SLAVE);
         $groupName = $dbr->selectField('halo_acl_groups', 'group_name', array('group_id' => $groupID), __METHOD__);
         return $groupName;
     }
 
     /**
      * Saves the given group in the database.
-     *
      * @param HACLGroup $group
-     *         This object defines the group that wil be saved.
-     *
-     * @throws
-     *         Exception
-     *
+     *        This object defines the group that wil be saved.
      */
-    public function saveGroup(HACLGroup $group) {
+    public function saveGroup(HACLGroup $group)
+    {
         $dbw = wfGetDB(DB_MASTER);
         $mgGroups = implode(',', $group->getManageGroups());
-        $mgUsers  = implode(',', $group->getManageUsers());
-        $dbw->replace('halo_acl_groups', NULL, array(
-            'group_id'   => $group->getGroupID() ,
-            'group_name' => $group->getGroupName() ,
-            'mg_groups'  => $mgGroups,
-            'mg_users'   => $mgUsers), __METHOD__);
+        $mgUsers = implode(',', $group->getManageUsers());
+        $dbw->replace(
+            'halo_acl_groups', NULL, array(
+                'group_id'   => $group->getGroupID(),
+                'group_name' => $group->getGroupName(),
+                'mg_groups'  => $mgGroups,
+                'mg_users'   => $mgUsers
+            ), __METHOD__
+        );
     }
 
     /**
@@ -623,9 +622,9 @@ class HACLStorageSQL {
      *         <true> if the group exists
      *         <false> otherwise
      */
-    public function groupExists($groupID) {
-        $dbr =& wfGetDB( DB_SLAVE );
-
+    public function groupExists($groupID)
+    {
+        $dbr = wfGetDB(DB_SLAVE);
         $obj = $dbr->selectRow('halo_acl_groups', 'group_id', array('group_id' => $groupID), __METHOD__);
         return ($obj !== false);
     }

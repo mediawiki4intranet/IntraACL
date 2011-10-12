@@ -889,12 +889,22 @@ class HACLParserFunctions
      */
     private function saveGroup()
     {
+        // FIXME make this HACLGroup's method
+        global $wgUser;
         $t = $this->mTitle;
-        wfDebug(__METHOD__." Saving group: $t\n");
-        // group does not exist yet
-        $group = new HACLGroup($t->getArticleID(), $t->getText(),
+        $id = $t->getArticleID();
+        $group = new HACLGroup(
+            $id,
+            $t->getText(),
             $this->mGroupManagerGroups,
-            $this->mGroupManagerUsers);
+            $this->mGroupManagerUsers
+        );
+        if (HACLGroup::exists($id) && !$group->userCanModify($wgUser))
+        {
+            wfDebug(__METHOD__." ".$wgUser->getName()." does not have the right to modify group $t\n");
+            return false;
+        }
+        wfDebug(__METHOD__." Saving group: $t\n");
         $group->save();
         $group->removeAllMembers();
         foreach ($this->mGroupMembers as $m)
