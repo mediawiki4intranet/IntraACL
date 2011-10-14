@@ -168,7 +168,6 @@ class IntraACLSpecial extends SpecialPage
                 list($aclPEName, $aclPEType) = HACLSecurityDescriptor::nameOfPE($aclTitle->getText());
             }
         }
-        if ($aclTitle)
         /* Run template */
         ob_start();
         require(dirname(__FILE__).'/HACL_ACLEditor.tpl.php');
