@@ -80,6 +80,10 @@ class HACLEvaluator
      */
     public static function userCan($title, $user, $action, &$result)
     {
+        // Do not check interwiki links
+        if ($title->getInterwiki() !== '')
+            return array('', true, true);
+
         global $haclgContLang, $haclgOpenWikiAccess, $wgRequest;
         $etc = haclfDisableTitlePatch();
         $actionID = 0;
