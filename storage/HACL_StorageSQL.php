@@ -1365,7 +1365,7 @@ class HACLStorageSQL {
             foreach ($res as $row)
             {
                 $row = $row->page_id;
-                if (!$catids[$row])
+                if (!isset($catids[$row]))
                     $ids[$row] = $catids[$row] = true;
             }
         }
