@@ -169,6 +169,7 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
     if (!$a)
         return '<div class="hacl_tt">'.wfMsg('hacl_autocomplete_no_'.$t.'s').'</div>';
     // More than (limit-1) items => add '...' at the end of list
+    $max = false;
     if (count($a) >= $limit)
     {
         array_pop($a);
