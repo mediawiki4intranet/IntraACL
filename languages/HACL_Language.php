@@ -184,10 +184,25 @@ abstract class HACLLanguage
     // GETTERS //
     /////////////
 
-    public function getNamespaces() { return $this->mNamespaces; }
-    public function getNamespaceAliases() { return $this->mNamespaceAliases; }
-    public function getPermissionDeniedPage() { return $this->mPermissionDeniedPage; }
-    public function getPermissionDeniedPageContent() { return $this->mPermissionDeniedPageContent; }
+    public function getNamespaces()
+    {
+        return $this->mNamespaces;
+    }
+
+    public function getNamespaceAliases()
+    {
+        return $this->mNamespaceAliases;
+    }
+
+    public function getPermissionDeniedPage()
+    {
+        return $this->mPermissionDeniedPage;
+    }
+
+    public function getPermissionDeniedPageContent()
+    {
+        return $this->mPermissionDeniedPageContent;
+    }
 
     /**
      * This method returns the language dependent name of a parser function.
@@ -198,7 +213,8 @@ abstract class HACLLanguage
      * @return string
      *         The language dependent name of the parser function.
      */
-    public function getParserFunction($parserFunctionID) {
+    public function getParserFunction($parserFunctionID)
+    {
         return $this->mParserFunctions[$parserFunctionID];
     }
 
@@ -212,7 +228,8 @@ abstract class HACLLanguage
      * @return string
      *         The language dependent name of the parser function.
      */
-    public function getParserFunctionParameter($parserFunctionParameterID) {
+    public function getParserFunctionParameter($parserFunctionParameterID)
+    {
         return $this->mParserFunctionsParameters[$parserFunctionParameterID];
     }
 
@@ -224,16 +241,53 @@ abstract class HACLLanguage
      *         A mapping from action IDs to action names.
      *         The possible IDs are HACLLanguage::RIGHT_*
      */
-    public function getActionNames()    { return $this->mActionNames; }
+    public function getActionNames()
+    {
+        return $this->mActionNames;
+    }
 
     // Get self::RIGHT_* action ID by action name $name
-    public function getActionId($name)  { return $this->mActionAliases[mb_strtolower($name)]; }
+    public function getActionId($name)
+    {
+        return $this->mActionAliases[mb_strtolower($name)];
+    }
 
-    public function getPetPrefix($type) { return $this->mPetPrefixes[$type]; }
-    public function getPetPrefixes()    { return $this->mPetPrefixes; }
-    public function getPrefix($prefix)  { return $this->mPrefixes[mb_strtolower($prefix)]; }
-    public function getPrefixes()       { return $this->mPrefixes; }
-    public function getPetAlias($alias) { return $this->mPetAliases[mb_strtolower($alias)]; }
-    public function getPetAliases()     { return $this->mPetAliases; }
-    public function getGroupPrefix()    { return $this->mGroupPrefix; }
+    public function getPetPrefix($type)
+    {
+        return $this->mPetPrefixes[$type];
+    }
+
+    public function getPetPrefixes()
+    {
+        return $this->mPetPrefixes;
+    }
+
+    public function getPrefix($prefix)
+    {
+        if (isset($this->mPrefixes[mb_strtolower($prefix)]))
+            return $this->mPrefixes[mb_strtolower($prefix)];
+        return false;
+    }
+
+    public function getPrefixes()
+    {
+        return $this->mPrefixes;
+    }
+
+    public function getPetAlias($alias)
+    {
+        if (isset($this->mPetAliases[mb_strtolower($alias)]))
+            return $this->mPetAliases[mb_strtolower($alias)];
+        return false;
+    }
+
+    public function getPetAliases()
+    {
+        return $this->mPetAliases;
+    }
+
+    public function getGroupPrefix()
+    {
+        return $this->mGroupPrefix;
+    }
 }
