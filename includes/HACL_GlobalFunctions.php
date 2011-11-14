@@ -64,8 +64,6 @@ function enableIntraACL()
         'HACLGroup'                 => "$haclgIP/includes/HACL_Group.php",
         'HACLSecurityDescriptor'    => "$haclgIP/includes/HACL_SecurityDescriptor.php",
         'HACLRight'                 => "$haclgIP/includes/HACL_Right.php",
-        'HACLResultFilter'          => "$haclgIP/includes/HACL_ResultFilter.php",
-        'HACLQueryRewriter'         => "$haclgIP/includes/HACL_QueryRewriter.php",
         'HACLQuickacl'              => "$haclgIP/includes/HACL_Quickacl.php",
         'HACLToolbar'               => "$haclgIP/includes/HACL_Toolbar.php",
         'HACLDBHelper'              => "$haclgIP/storage/HACL_DBHelper.php",
@@ -101,7 +99,6 @@ function haclfLanguageGetMagic(&$magicWords, $langCode)
 {
     global $haclgContLang;
     $magicWords['haclaccess']           = array(0, $haclgContLang->getParserFunction(HACLLanguage::PF_ACCESS));
-    $magicWords['haclpropertyaccess']   = array(0, $haclgContLang->getParserFunction(HACLLanguage::PF_PROPERTY_ACCESS));
     $magicWords['haclpredefinedright']  = array(0, $haclgContLang->getParserFunction(HACLLanguage::PF_PREDEFINED_RIGHT));
     $magicWords['haclmanagerights']     = array(0, $haclgContLang->getParserFunction(HACLLanguage::PF_MANAGE_RIGHTS));
     $magicWords['haclmember']           = array(0, $haclgContLang->getParserFunction(HACLLanguage::PF_MEMBER));
@@ -165,16 +162,6 @@ function haclfSetupExtension()
     $wgHooks['IsFileCacheable'][]       = 'haclfIsFileCacheable';
     $wgHooks['PageRenderingHash'][]     = 'haclfPageRenderingHash';
 
-    global $haclgProtectProperties;
-    if ($haclgProtectProperties === true)
-    {
-        $wgHooks['FilterQueryResults'][] = 'HACLResultFilter::filterResult';
-        $wgHooks['RewriteQuery'][]       = 'HACLQueryRewriter::rewriteAskQuery';
-        $wgHooks['RewriteSparqlQuery'][] = 'HACLQueryRewriter::rewriteSparqlQuery';
-        $wgHooks['DiffViewHeader'][]     = 'HACLEvaluator::onDiffViewHeader';
-        $wgHooks['EditFilter'][]         = 'HACLEvaluator::onEditFilter';
-    }
-
     //-- Hooks for ACL toolbar --
     $wgHooks['EditPage::showEditForm:fields'][] = 'haclfAddToolbarForEditPage';
     $wgHooks['SkinTemplateContentActions'][] = 'HACLToolbar::SkinTemplateContentActions';
@@ -212,7 +199,6 @@ function haclfSetupExtension()
 
     // HACLParserFunctions callbacks
     $wgParser->setFunctionHook('haclaccess',            'HACLParserFunctions::access');
-    $wgParser->setFunctionHook('haclpropertyaccess',    'HACLParserFunctions::propertyAccess');
     $wgParser->setFunctionHook('haclpredefinedright',   'HACLParserFunctions::predefinedRight');
     $wgParser->setFunctionHook('haclmanagerights',      'HACLParserFunctions::manageRights');
     $wgParser->setFunctionHook('haclmember',            'HACLParserFunctions::addMember');
@@ -504,61 +490,6 @@ function haclfAddToolbarForEditPage($editpage, $out)
     if ($editpage->mTitle->mNamespace == HACL_NS_ACL)
         return true;
     $out->addHTML(HACLToolbar::get($editpage->mTitle, !empty($editpage->eNonReadable)));
-    return true;
-}
-
-// encrypt() and decrypt() functions copied from
-// http://us2.php.net/manual/en/ref.mcrypt.php#52384
-function haclfEncrypt($string) {
-    global $haclgEncryptionKey;
-    $result = '';
-    for($i=0; $i<strlen($string); $i++) {
-        $char = substr($string, $i, 1);
-        $keychar = substr($haclgEncryptionKey, ($i % strlen($haclgEncryptionKey))-1, 1);
-        $char = chr(ord($char)+ord($keychar));
-        $result .= $char;
-    }
-    return base64_encode($result);
-}
-
-function haclfDecrypt($string) {
-    global $haclgEncryptionKey;
-    $result = '';
-    $string = base64_decode($string);
-    for($i=0; $i<strlen($string); $i++) {
-        $char = substr($string, $i, 1);
-        $keychar = substr($haclgEncryptionKey, ($i % strlen($haclgEncryptionKey))-1, 1);
-        $char = chr(ord($char)-ord($keychar));
-        $result .= $char;
-    }
-    return $result;
-}
-
-function haclfHandleFormField($form_field, $cur_value, $form_submitted)
-{
-    $property_name = $form_field->template_field->semantic_property;
-    if (!empty($property_name))
-    {
-        $property_title = Title::makeTitleSafe(SMW_NS_PROPERTY, $property_name);
-        if (!isset($property_title))
-            return true;
-        if ($property_title->exists())
-        {
-            $form_field->is_disabled = false;
-            if (!$property_title->userCan('propertyread'))
-            {
-                if ($form_submitted)
-                    $cur_value = haclfDecrypt($cur_value);
-                else
-                {
-                    $form_field->is_hidden = true;
-                    $cur_value = haclfEncrypt($cur_value);
-                }
-            }
-            elseif ((! $property_title->userCan('propertyedit')) && (! $property_title->userCan('propertyformedit')))
-                $form_field->is_disabled = true;
-        }
-    }
     return true;
 }
 

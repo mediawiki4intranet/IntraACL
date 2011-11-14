@@ -35,13 +35,13 @@ if (!defined('MEDIAWIKI'))
 /**
  * This class describes security descriptors and predefined rights in IntraACL.
  *
- * Pages, categories, namespaces and properties are protected by a security
+ * Pages, categories and namespaces are protected by a security
  * descriptor (SD). An SD is an article (with certain naming conventions) that
  * contains the rules that are applied to the protected object.
  *
  * Each SD has an ID (the page ID of the article that contains the SD),
- * the page ID of the protected element, a type (page, category, namespace,
- * property) and a list of users and groups who can modify the SD.
+ * the page ID of the protected element, a type (page, category, namespace)
+ * and a list of users and groups who can modify the SD.
  *
  * Predefined rights have the same structure as security descriptors. So in the
  * following, SD is used as synonym for predefined right. SDs and PRs can be
@@ -127,12 +127,10 @@ class HACLSecurityDescriptor
      * - PET_PAGE: ID of the article that is protected
      * - PET_NAMESPACE: ID of the namespace that is protected
      * - PET_CATEGORY: ID of the category article whose instances are protected
-     * - PET_PROPERTY: ID of the property article whose values are protected
      * - PET_RIGHT: not applicable
      *
      * @param  string $peName
-     *         Name of the protected object. For categories and properties, the
-     *         namespace must be given
+     *         Name of the protected object. Category:XXX for categories.
      * @param  int $peType
      *         Type of the protected element. See HACLLanguage::PET_*
      * @return int/bool
@@ -374,8 +372,6 @@ class HACLSecurityDescriptor
             $peName = substr($nameOfSD, $p+1);
             if ($type == HACLLanguage::PET_CATEGORY)
                 $peName = $wgContLang->getNsText(NS_CATEGORY).':'.$peName;
-            elseif ($type == HACLLanguage::PET_PROPERTY && defined('SMW_NS_PROPERTY'))
-                $peName = $wgContLang->getNsText(SMW_NS_PROPERTY).':'.$peName;
             elseif ($type == HACLLanguage::PET_RIGHT)
                 $peName = NULL;
             return array($peName, $type);

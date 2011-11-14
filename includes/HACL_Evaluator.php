@@ -40,15 +40,11 @@ class HACLEvaluator
     //---- Constants for the modes of the evaluator ----
     const NORMAL = 0;
     const DENY_DIFF = 1;
-    const ALLOW_PROPERTY_READ = 2;
 
     //--- Private fields ---
 
     // The current mode of the evaluator
     static $mMode = HACLEvaluator::NORMAL;
-
-    // Saving protected properties is allowed if the value did not change
-    static $mSavePropertiesAllowed = false;
 
     // String with logging information
     static $mLog = "";
@@ -80,10 +76,6 @@ class HACLEvaluator
      */
     public static function userCan($title, $user, $action, &$result)
     {
-        // Do not check interwiki links
-        if ($title->getInterwiki() !== '')
-            return array('', true, true);
-
         global $haclgContLang, $haclgOpenWikiAccess, $wgRequest;
         $etc = haclfDisableTitlePatch();
         $actionID = 0;
@@ -97,18 +89,17 @@ class HACLEvaluator
             goto fin;
         }
 
+        // Do not check interwiki links
+        if ($title->getInterwiki() !== '')
+        {
+            $R = array('Interwiki title', true, true);
+            goto fin;
+        }
+
         $groups = $user->getGroups();
         if ($groups && (in_array('bureaucrat', $groups) || in_array('sysop', $groups)))
         {
             $R = array('User is a bureaucrat/sysop and can do anything.', true, true);
-            goto fin;
-        }
-
-        // Check if property access is requested.
-        global $haclgProtectProperties;
-        if ($haclgProtectProperties && ($r = self::checkPropertyAccess($title, $user, $action)) !== -1)
-        {
-            $R = array('Properties are protected, property right evaluated.', $r && true, true);
             goto fin;
         }
 
@@ -159,40 +150,6 @@ class HACLEvaluator
             list($r, $sd) = self::checkNamespaceRight($title->getNamespace(), $userID, $actionID);
             $R = array('Checked namespace access right.', $r, $sd);
             goto fin;
-        }
-
-        if ($haclgProtectProperties)
-        {
-            $action = $wgRequest->getText('action');
-            $submit = $action == 'submit';
-            $edit = $action == 'edit';
-            $savePage = $wgRequest->getCheck('wpSave');
-            $sameTitle = $wgRequest->getText('title');
-            $sameTitle = str_replace(' ', '_', $sameTitle) == str_replace(' ', '_', $title->getFullText());
-            // Check if the article contains protected properties that avert
-            // editing the article
-            // There is no need to check for protected properties if an edited article
-            // is submitted. An article with protected properties may be saved if their
-            // values are not changed. This is checked in method "onEditFilter" when
-            // the article is about to be saved.
-            if (($submit && !$savePage) || ($edit && $sameTitle))
-            {
-                // First condition:
-                // The article is submitted but not saved (preview). This causes, that
-                // the wikitext will be displayed.
-                // Second condition:
-                // The requested article is edited. Nevertheless, the passed $action
-                // might be "read" as MW tries to show the articles source
-                // => prohibit this if it contains properties without read-access
-                $allowed = self::checkProperties($title, $userID, HACLLanguage::RIGHT_EDIT);
-            }
-            else
-                $allowed = $savePage || self::checkProperties($title, $userID, $actionID);
-            if (!$allowed)
-            {
-                $R = array('The article contains protected properties.', false, false);
-                goto fin;
-            }
         }
 
         $R = self::hasSD($title, $articleID, $userID, $actionID);
@@ -311,161 +268,6 @@ ok:
                 return true;
 
         return false;
-    }
-
-    /**
-     * Checks, if the given user has the right to perform the given action on
-     * the given property. (This happens only if protection of semantic properties
-     * is enabled (see $haclgProtectProperties in HACL_Initialize.php))
-     *
-     * @param mixed(Title|int) $propertyTitle
-     *         ID or title of the property whose rights are evaluated
-     * @param int $userID
-     *         ID of the user who wants to perform an action
-     * @param int $actionID
-     *         The action, the user wants to perform. One of the constant defined
-     *         in HACLRight: READ, FORMEDIT, EDIT
-     * @return bool
-     *        <true>, if the user has the right to perform the action
-     *         <false>, otherwise
-     */
-    public static function hasPropertyRight($propertyTitle, $userID, $actionID)
-    {
-        global $haclgProtectProperties;
-        if (!$haclgProtectProperties)
-        {
-            // Protection of properties is disabled.
-            return true;
-        }
-
-        if ($propertyTitle instanceof Title)
-            $propertyTitle = $propertyTitle->getArticleID();
-
-        $hasSD = HACLSecurityDescriptor::getSDForPE($propertyTitle, HACLLanguage::PET_PROPERTY) !== false;
-
-        if (!$hasSD)
-        {
-            global $haclgOpenWikiAccess;
-            // Properties with no SD are not protected if $haclgOpenWikiAccess is
-            // true. Otherwise access is denied
-            return $haclgOpenWikiAccess;
-        }
-        return self::hasRight($propertyTitle, HACLLanguage::PET_PROPERTY, $userID, $actionID);
-    }
-
-    /**
-     * This function is called, before an article is saved.
-     * If protection of properties is switched on, it checks if the article contains
-     * properties that have been changed and for which the current user has no
-     * access rights. In that case, saving the article is aborted and an error
-     * message is displayed.
-     *
-     * @param EditPage $editor
-     * @param string $text
-     * @param $section
-     * @param string $error
-     *         If a property is not accessible, this error message is modified and
-     *         displayed on the editor page.
-     *
-     * @return bool
-     *         true
-     */
-    public static function onEditFilter($editor, $text, $section, &$error) {
-        global $wgParser, $wgUser;
-        $article = $editor->mArticle;
-        $options = new ParserOptions;
-        $options->enableLimitReport();
-        self::$mMode = HACLEvaluator::ALLOW_PROPERTY_READ;
-        $output = $wgParser->parse($article->preSaveTransform($text),
-                                   $article->mTitle, $options);
-        self::$mMode = HACLEvaluator::NORMAL;
-
-        $protectedProperties = "";
-        if (isset($output->mSMWData)) {
-            foreach ($output->mSMWData->getProperties() as $name => $prop) {
-                if (!$prop->userCan("propertyformedit")) {
-                    // Access to property is restricted
-                    if (!isset($oldPV)) {
-                        // Get all old properties of the page from the semantic store
-                        $oldPV = smwfGetStore()->getSemanticData($editor->mTitle);
-                    }
-                    if (self::propertyValuesChanged($prop, $oldPV, $output->mSMWData)) {
-                        $protectedProperties .= "* $name\n";
-                    }
-                }
-            }
-        }
-        if (empty($protectedProperties)) {
-            self::$mSavePropertiesAllowed = true;
-            return true;
-        }
-
-        self::$mSavePropertiesAllowed = false;
-        $error = wfMsgForContent('hacl_sp_cant_save_article', $protectedProperties);
-
-        // Special handling for semantic forms
-        if (defined('SF_VERSION')) {
-            include_once('includes/SpecialPage.php');
-            $spt = SpecialPage::getTitleFor('EditData');
-            $url = $spt->getFullURL();
-            $referer = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';
-            if (strpos($referer, $url) === 0) {
-                // A semantic form was saved.
-                // => abort with an error message
-                global $wgOut;
-                $wgOut->addWikiText($error);
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * This method is called when the difference of two revisions of an article is
-     * about to be displayed.
-     * If one of the revisions contains a property that can not be read, the mode
-     * for the ACL evaluator is set accordingly for following calls to the userCan
-     * hook.
-     *
-     * @param DifferenceEngine $diffEngine
-     * @param Revision $oldRev
-     * @param Revision $newRev
-     * @return boolean true
-     */
-    public static function onDiffViewHeader(DifferenceEngine &$diffEngine, $oldRev, $newRev) {
-
-        $newText = $diffEngine->mNewtext;
-        if (!isset($newText)) {
-            $diffEngine->loadText();
-        }
-        $newText = $diffEngine->mNewtext;
-        $oldText = $diffEngine->mOldtext;
-
-        global $wgParser;
-        $options = new ParserOptions;
-        $output = $wgParser->parse($newText, $diffEngine->mTitle, $options);
-
-        if (isset($output->mSMWData)) {
-            foreach ($output->mSMWData->getProperties() as $name => $prop) {
-                if (!$prop->userCan("propertyread")) {
-                    HACLEvaluator::$mMode = HACLEvaluator::DENY_DIFF;
-                    return true;
-                }
-            }
-        }
-
-        $output = $wgParser->parse($oldText, $diffEngine->mTitle, $options);
-
-        if (isset($output->mSMWData)) {
-            foreach ($output->mSMWData->getProperties() as $name => $prop) {
-                if (!$prop->userCan("propertyread")) {
-                    HACLEvaluator::$mMode = HACLEvaluator::DENY_DIFF;
-                    return true;
-                }
-            }
-        }
-
-        return true;
     }
 
     //--- Private methods ---
@@ -643,7 +445,7 @@ ok:
                 else
                 {
                     // Non-existing right templates and SDs for
-                    // properties/namespaces/categories are editables by anyone
+                    // namespaces/categories are editables by anyone
                     return true;
                 }
             }
@@ -663,196 +465,6 @@ ok:
         $prefix = substr($text, 0, $p);
         if ($t = $haclgContLang->getPrefix($prefix))
             return $t;
-        return false;
-    }
-
-    /**
-     * This method checks if a user wants to edit an article with protected
-     * properties. (This happens only if protection of semantic properties
-     * is enabled (see $haclgProtectProperties in HACL_Initialize.php))
-     *
-     * @param Title $t
-     *         The title.
-     * @param int $userID
-     *         ID of the user.
-     * @param int $actionID
-     *         ID of the action. The actions FORMEDIT, WYSIWYG, EDIT, ANNOTATE,
-     *      CREATE, MOVE and DELETE are relevant for managing an ACL object.
-     *
-     * @return bool
-     *         rightGranted:
-     *             <true>, if the user has the right to perform the action
-     *             <false>, otherwise
-     */
-    private static function checkProperties(Title $t, $userID, $actionID) {
-        global $haclgProtectProperties;
-        global $wgRequest;
-        if (!$haclgProtectProperties) {
-            // Properties are not protected.
-            return true;
-        }
-
-        if ($actionID == HACLLanguage::RIGHT_READ) {
-            // The article is only read but not edited => action is allowed
-            return true;
-        }
-        // Articles with protected properties are protected if an unauthorized
-        // user wants to edit it
-        if ($actionID != HACLLanguage::RIGHT_EDIT) {
-
-            $a = @$wgRequest->data['action'];
-            if (isset($a)) {
-                // Some web request are translated to other actions before they
-                // are passed to the userCan hook. E.g. action=history is passed
-                // as action=read.
-                // Articles with protected properties can be viewed, because the
-                // property values are replaced by dummy text but showing the wikitext
-                // (e.g. in the history) must be prohibited.
-
-                // Define exceptions for actions that display only rendered text
-                static $actionExceptions = array("purge","render","raw");
-                if (in_array($a,$actionExceptions)) {
-                    return true;
-                }
-
-            } else {
-                return true;
-            }
-
-        }
-
-        if (function_exists('smwfGetStore'))
-            return true;
-        // Get all properties of the page
-        $semdata = smwfGetStore()->getSemanticData($t);
-        $props = $semdata->getProperties();
-        foreach ($props as $p) {
-//            if (!$p->isShown()) {
-//                // Ignore invisible(internal) properties
-//                continue;
-//            }
-            // Check if a property is protected
-            $wpv = $p->getWikiPageValue();
-            if (!$wpv) {
-                // no page for property
-                continue;
-            }
-            $t = $wpv->getTitle();
-
-            if (!self::hasPropertyRight($t, $userID, $actionID)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Checks if access to a property should be evaluated. This is the case if
-     * the string $action is one of 'propertyread', 'propertyformedit' or
-     * 'propertyedit'.
-     *
-     * @param Title $title
-     *         Title object for the property whose rights are checked.
-     * @param User $user
-     *         User who wants to access the property
-     * @param string $action
-     *         If this is one of 'propertyread', 'propertyformedit' or 'propertyedit'
-     *         property rights are checked
-     * @return bool / int
-     *         <true>:  Access to the property is granted.
-     *         <false>: Access to the property is denied.
-     *      -1: $action is not concerned with properties.
-     */
-    private static function checkPropertyAccess(Title $title, User $user, $action)
-    {
-        if (self::$mMode == HACLEvaluator::DENY_DIFF)
-            return false;
-        if (self::$mMode == HACLEvaluator::ALLOW_PROPERTY_READ && $action == 'propertyread')
-            return true;
-
-        switch ($action)
-        {
-            case 'propertyread':
-                $actionID = HACLLanguage::RIGHT_READ;
-                break;
-            case 'propertyformedit':
-                $actionID = HACLLanguage::RIGHT_EDIT;
-                break;
-            case 'propertyedit':
-                $actionID = HACLLanguage::RIGHT_EDIT;
-                break;
-            default:
-                // No property access requested
-                return -1;
-        }
-        if (self::$mSavePropertiesAllowed)
-            return true;
-        return self::hasPropertyRight($title, $user->getId(), $actionID);
-    }
-
-    /**
-     * This function checks if the values of the property $property have changed
-     * in the comparison of the semantic database ($oldValues) and the wiki text
-     * that is about to be stored ($newValues).
-     *
-     * @param SMWPropertyValue $property
-     *         The property whose old and new values are compared.
-     * @param SMWSemanticData $oldValues
-     *         The semantic data object with the old values
-     * @param SMWSemanticData $newValues
-     *         The semantic data object with the new values
-     * @return boolean
-     *         <true>, if values have been added, removed or changed,
-     *         <false>, if values are exactly the same.
-     */
-    private static function propertyValuesChanged(
-        SMWPropertyValue $property, SMWSemanticData $oldValues,
-        SMWSemanticData $newValues)
-    {
-        // Get all old values of the property
-        $oldPV = $oldValues->getPropertyValues($property);
-        $oldValues = array();
-        self::$mMode = HACLEvaluator::ALLOW_PROPERTY_READ;
-        foreach ($oldPV as $v)
-            $oldValues[$v->getHash()] = false;
-        self::$mMode = HACLEvaluator::NORMAL;
-
-        // Get all new values of the property
-        $newPV = $newValues->getPropertyValues($property);
-        foreach ($newPV as $v)
-        {
-            self::$mMode = HACLEvaluator::ALLOW_PROPERTY_READ;
-            $wv = $v->getWikiValue();
-            if (empty($wv))
-            {
-                // A property has an empty value => can be ignored
-                continue;
-            }
-
-            $nv = $v->getHash();
-            self::$mMode = HACLEvaluator::NORMAL;
-            if (array_key_exists($nv, $oldValues))
-            {
-                // Old value was not changed
-                $oldValues[$nv] = true;
-            }
-            else
-            {
-                // A new value was added
-                return true;
-            }
-        }
-
-        foreach ($oldValues as $stillThere)
-        {
-            if (!$stillThere)
-            {
-                // A property value has been deleted
-                return true;
-            }
-        }
-
-        // Property values have not changed.
         return false;
     }
 

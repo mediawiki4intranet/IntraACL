@@ -48,7 +48,6 @@ class HACLLanguageDe extends HACLLanguage
         'page'      => 'Seite',
         'category'  => 'Kategorie',
         'namespace' => 'Namensraum',
-        'property'  => 'Attribut',
         'right'     => 'Recht',
     );
 
@@ -58,7 +57,6 @@ class HACLLanguageDe extends HACLLanguage
         'page'      => self::PET_PAGE,
         'category'  => self::PET_CATEGORY,
         'namespace' => self::PET_NAMESPACE,
-        'property'  => self::PET_PROPERTY,
         'right'     => self::PET_RIGHT,
     );
 }

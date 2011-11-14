@@ -106,12 +106,6 @@ Please, add one of the following categories to the description, or you will <b>n
 You have no read access to the <tt>File</tt> namespace. You will <b>not</b> be able to view the file after uploading!
 </div>',
 
-    // Messages for semantic protection (properties etc.)
-    'hacl_sp_query_modified'            => "- The query was modified because it contains protected properties.\n",
-    'hacl_sp_empty_query'               => "- Your query consists only of protected properties. It was not executed.\n",
-    'hacl_sp_results_removed'           => "- Some results were removed due to access restrictions.\n",
-    'hacl_sp_cant_save_article'         => "'''The article contains the following protected properties:'''\n$1'''You do not have the permission to set their values. Please remove these properties and save again.'''",
-
     /**** IntraACL: ****/
 
     'tog-showacltab'                    => 'Always show ACL tab (page access rights)',
@@ -120,7 +114,7 @@ You have no read access to the <tt>File</tt> namespace. You will <b>not</b> be a
     'hacl_invalid_prefix'               =>
 'This page does not protect anything, create any rights or right templates.
 Either it is supposed to be included into other ACL definitions, or is created incorrectly.
-If you want to protect some pages, ACL page must be named as one of: ACL:Page/*, ACL:Category/*, ACL:Namespace/*, ACL:Property/*, ACL:Right/*.',
+If you want to protect some pages, ACL page must be named as one of: ACL:Page/*, ACL:Category/*, ACL:Namespace/*, ACL:Right/*.',
     'hacl_pe_not_exists'                => 'The element supposed to be protected with this ACL does not exist.',
     'hacl_edit_with_special'            => '<p><a href="$1"><img src="$2" width="16" height="16" alt="Edit" /> Edit this definition with IntraACL editor.</a></p><hr />',
     'hacl_create_with_special'          => '<p><a href="$1"><img src="$2" width="16" height="16" alt="Create" /> Create this definition with IntraACL editor.</a></p><hr />',
@@ -141,7 +135,6 @@ If you want to protect some pages, ACL page must be named as one of: ACL:Page/*,
     'hacl_autocomplete_no_pages'        => 'No pages found',
     'hacl_autocomplete_no_namespaces'   => 'No namespaces found',
     'hacl_autocomplete_no_categorys'    => 'No categories found',
-    'hacl_autocomplete_no_propertys'    => 'No properties found',
     'hacl_autocomplete_no_sds'          => 'No security descriptors found',
 
     'hacl_login_first_title'            => 'Please login',
@@ -208,7 +201,6 @@ If you want to protect some pages, ACL page must be named as one of: ACL:Page/*,
     'hacl_define_page'                  => 'Protect page:',
     'hacl_define_namespace'             => 'Protect namespace:',
     'hacl_define_category'              => 'Protect category:',
-    'hacl_define_property'              => 'Protect property:',
     'hacl_define_right'                 => 'Define right:',
 
     // ACL list
@@ -229,14 +221,12 @@ If you want to protect some pages, ACL page must be named as one of: ACL:Page/*,
     'hacl_acllist_type_page'            => 'Page',
     'hacl_acllist_type_namespace'       => 'Namespace',
     'hacl_acllist_type_category'        => 'Category',
-    'hacl_acllist_type_property'        => 'Property',
     'hacl_acllist_type_right'           => 'Predefined rights',
     'hacl_acllist_type_template'        => 'User templates',
 
     'hacl_acllist_page'                 => 'Rights for pages:',
     'hacl_acllist_namespace'            => 'Rights for namespaces:',
     'hacl_acllist_category'             => 'Rights for categories:',
-    'hacl_acllist_property'             => 'Rights for properties:',
     'hacl_acllist_right'                => 'Predefined rights:',
     'hacl_acllist_edit'                 => 'Edit',
     'hacl_acllist_view'                 => 'View',
@@ -409,12 +399,6 @@ $messages['ru'] = array(
 У вас доступа на чтение пространства имён Файл. Вы <b>не сможете</b> просмотреть файл после загрузки!
 </div>',
 
-    // Messages for semantic protection (properties etc.)
-    'hacl_sp_query_modified'            => "- Запрос был изменён, потому что содержит защищённые от чтения свойства.\n",
-    'hacl_sp_empty_query'               => "- Запрос не выполнен, потому что состоит только из защищённых от чтения свойств.\n",
-    'hacl_sp_results_removed'           => "- Часть результатов запроса удалена в связи с ограничением доступа.\n",
-    'hacl_sp_cant_save_article'         => "'''Статья содержит следующие защищённые свойства:'''\n$1'''Вы не можете изменять из значения. Удалите их и сохраните статью заново.'''",
-
     /**** IntraACL: ****/
 
     'tog-showacltab'                    => 'Всегда показывать вкладку ACL (права доступа к странице)',
@@ -422,7 +406,7 @@ $messages['ru'] = array(
     // General
     'hacl_invalid_prefix'               =>
 'Эта страница ничего не защищает и не задаёт группы. Либо так и задумано, либо она некорректно создана.
-Если вы хотите что-то защитить, создавайте статьи с именами: ACL:Page/*, ACL:Category/*, ACL:Namespace/*, ACL:Property/*, ACL:Right/*.',
+Если вы хотите что-то защитить, создавайте статьи с именами: ACL:Page/*, ACL:Category/*, ACL:Namespace/*, ACL:Right/*.',
     'hacl_pe_not_exists'                => 'То, что должна защищать эта статья, не существует.',
     'hacl_edit_with_special'            => '<p><a href="$1"><img src="$2" width="16" height="16" alt="Править" /> Править это определение редактором IntraACL.</a></p><hr />',
     'hacl_create_with_special'          => '<p><a href="$1"><img src="$2" width="16" height="16" alt="Создать" /> Создать это определение редактором IntraACL.</a></p><hr />',
@@ -443,7 +427,6 @@ $messages['ru'] = array(
     'hacl_autocomplete_no_pages'        => 'Страницы не найдены',
     'hacl_autocomplete_no_namespaces'   => 'Пространства имён не найдены',
     'hacl_autocomplete_no_categorys'    => 'Категории не найдены',
-    'hacl_autocomplete_no_propertys'    => 'Свойства не найдены',
     'hacl_autocomplete_no_sds'          => 'Определения прав не найдены',
 
     'hacl_login_first_title'            => 'Сначала представьтесь',
@@ -513,7 +496,6 @@ $messages['ru'] = array(
     'hacl_define_page'                  => 'Защитить страницу:',
     'hacl_define_namespace'             => 'Защитить пространство имён:',
     'hacl_define_category'              => 'Защитить категорию:',
-    'hacl_define_property'              => 'Защитить свойство:',
     'hacl_define_right'                 => 'Шаблон прав:',
 
     // ACL list
@@ -534,13 +516,11 @@ $messages['ru'] = array(
     'hacl_acllist_type_page'            => 'Страниц',
     'hacl_acllist_type_namespace'       => 'Пространств имён',
     'hacl_acllist_type_category'        => 'Категорий',
-    'hacl_acllist_type_property'        => 'Свойств',
     'hacl_acllist_type_right'           => 'Шаблоны прав',
 
     'hacl_acllist_page'                 => 'Права для страниц:',
     'hacl_acllist_namespace'            => 'Права для пространств имён:',
     'hacl_acllist_category'             => 'Права для категорий:',
-    'hacl_acllist_property'             => 'Права для свойств:',
     'hacl_acllist_right'                => 'Шаблоны прав:',
     'hacl_acllist_edit'                 => 'Изменить',
     'hacl_acllist_view'                 => 'Просмотр',
@@ -684,9 +664,4 @@ $messages['de'] = array(
     'hacl_permission_denied'              => 'Sie dürfen die gewünschte Aktion auf dieser Seite nicht durchführen.
 
 Zurück zur [[Hauptseite]].',
-    'hacl_sp_query_modified'              => '- Ihre Anfrage wurde modifiziert, das sie geschützte Attribute enthält.'."\n",
-    'hacl_sp_empty_query'                 => '- Ihre Anfrage besteht nur aus geschützten Attributen und konnte deshalb nicht ausgeführt werden.of protected properties.'."\n",
-    'hacl_sp_results_removed'             => '- Wegen Zugriffbeschränkungen wurden einige Resultate entfernt.'."\n",
-    'hacl_sp_cant_save_article'           => '\'\'\'Der Artikel enthält die folgenden geschützten Attribute:\'\'\'
-$1\'\'\'Sie haben nicht die Berechtigung, deren Werte zu setzen. Bitte entfernen Sie die Attribute und speichern Sie erneut.\'\'\'',
 );

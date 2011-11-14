@@ -43,7 +43,7 @@ class IntraACLSpecial extends SpecialPage
     );
 
     var $aclTargetTypes = array(
-        'protect' => array('page' => 1, 'namespace' => 1, 'category' => 1, 'property' => 1),
+        'protect' => array('page' => 1, 'namespace' => 1, 'category' => 1),
         'define' => array('right' => 1),
     );
 
@@ -61,11 +61,6 @@ class IntraACLSpecial extends SpecialPage
     public function __construct()
     {
         $this->mRestriction = 'user';
-        if (!defined('SMW_NS_PROPERTY'))
-        {
-            $this->hasProp = false;
-            unset($this->aclTargetTypes['protect']['property']);
-        }
         parent::__construct('IntraACL');
     }
 

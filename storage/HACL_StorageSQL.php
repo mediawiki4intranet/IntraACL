@@ -653,7 +653,6 @@ class HACLStorageSQL {
             'page' => 0x01,
             'category' => 0x02,
             'namespace' => 0x04,
-            'property' => 0x08,
             'standardacl' => 0x0F,
             'acltemplate' => 0x10,
             'defusertemplate' => 0x20,
@@ -671,8 +670,6 @@ class HACLStorageSQL {
                 $t[] = 'category';
             if ($mask & 0x04)
                 $t[] = 'namespace';
-            if ($mask & 0x08)
-                $t[] = 'property';
             if (($mask & 0x30) == 0x30)
                 $t[] = 'right';
             elseif ($mask & 0x30)

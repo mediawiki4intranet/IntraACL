@@ -76,16 +76,6 @@ if (!isset($haclgInclusionDeniedMessage))
 if (!isset($haclgOpenWikiAccess))
     $haclgOpenWikiAccess = true;
 
-# This flag controls Semantic MediaWiki property protection.
-#
-# true
-#    If this value is <true>, semantic properties can be protected.
-# false
-#    If it is <false>, semantic properties are not protected even if they have
-#     security descriptors.
-if (!isset($haclgProtectProperties))
-    $haclgProtectProperties = false;
-
 # By design several databases can be connected to IntraACL. However, now there
 # is only an implementation for MySQL. With this variable you can
 # specify which store will actually be used.
@@ -108,14 +98,6 @@ if (!isset($haclgDisableACLTab))
 if (!isset($haclgEvaluatorLog))
     $haclgEvaluatorLog = true;
 
-# This key is used for protected properties in Semantic Forms. SF has to embed
-# all values of input fields into the HTML of the form, even if fields are protected
-# and not visible to the user (i.e. user has no right to read.) The values of
-# all protected fields are encrypted with the given key.
-# YOU SHOULD CHANGE THIS KEY AND KEEP IT SECRET.
-if (!isset($haclgEncryptionKey))
-    $haclgEncryptionKey = "Es war einmal ein Hase.";
-
 # If you already have custom namespaces on your site, insert
 #    $haclgNamespaceIndex = ???;
 # into your LocalSettings.php *before* including this file. The number ??? must
@@ -123,14 +105,6 @@ if (!isset($haclgEncryptionKey))
 # must not be smaller than 100.
 if (!isset($haclgNamespaceIndex))
     $haclgNamespaceIndex = 102;
-
-// add rights that are newly available with the haloACL
-$wgAvailableRights[] = 'propertyread';
-$wgAvailableRights[] = 'propertyformedit';
-$wgAvailableRights[] = 'propertyedit';
-$wgGroupPermissions['*']['propertyread'] = true;
-$wgGroupPermissions['*']['propertyformedit'] = true;
-$wgGroupPermissions['*']['propertyedit'] = true;
 
 // load global functions
 require_once('HACL_GlobalFunctions.php');

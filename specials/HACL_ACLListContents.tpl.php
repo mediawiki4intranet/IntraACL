@@ -5,7 +5,7 @@
 <?php } if ($prevpage) { ?>
 <p><a href="<?= $prevpage ?>" onclick="change_page(<?= intval($offset/$limit-1) ?>); return false;"><?= wfMsg('hacl_acllist_prev') ?></a></p>
 <?php }
-foreach (array('default', 'namespace', 'category', 'right', 'template', 'page', 'property') as $k) {
+foreach (array('default', 'namespace', 'category', 'right', 'template', 'page') as $k) {
  if (!empty($lists[$k])) { ?>
  <?= wfMsg('hacl_acllist_'.$k) ?>
  <ul>

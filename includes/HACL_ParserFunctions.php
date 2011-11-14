@@ -33,7 +33,6 @@ if (!defined('MEDIAWIKI'))
  * The class HACLParserFunctions handles parser functions of the IntraACL
  * extension. The following functions are parsed:
  * - access
- * - property access
  * - predefined right
  * - manage rights
  * - member
@@ -49,9 +48,6 @@ class HACLParserFunctions
 
     // array(HACLRight): All inline rights of the title
     private $mInlineRights = array();
-
-    // array(HACLRight): All inline rights of the title for properties
-    private $mPropertyRights = array();
 
     // array(string): All predefined rights that are referenced
     private $mPredefinedRights = array();
@@ -104,13 +100,6 @@ class HACLParserFunctions
     {
         if (self::$mInstance)
             return self::$mInstance->_access($parser, func_get_args());
-        return '';
-    }
-
-    public static function propertyAccess(&$parser)
-    {
-        if (self::$mInstance)
-            return self::$mInstance->_propertyAccess($parser, func_get_args());
         return '';
     }
 
@@ -221,84 +210,6 @@ class HACLParserFunctions
 
         return $text;
 
-    }
-
-    /**
-     * Callback for parser function "#property access:".
-     * This parser function defines an access control entry (ACE) in form of an
-     * inline right definition for a property. It can appear several times in an
-     * article and has the following parameters:
-     * assigned to: This is a comma separated list of user groups and users whose
-     *              access rights are defined. The special value stands for all
-     *              anonymous users. The special value user stands for all
-     *              registered users.
-     * actions: This is the comma separated list of actions that are permitted.
-     *          The allowed values are read, edit, formedit, create, move,
-     *          annotate and delete. The special value comprises all of these actions.
-     * description:This description in prose explains the meaning of this ACE.
-     * name: (optional) A short name for this inline right
-     *
-     * @param Parser $parser
-     *         The parser object
-     *
-     * @return string
-     *         Wikitext
-     *
-     * @throws
-     *         HACLException(HACLException::INTERNAL_ERROR)
-     *             ... if the parser function is called for different articles
-     *
-     */
-    public function _propertyAccess(&$parser, $args)
-    {
-        $params = $this->getParameters($args);
-        $fingerprint = $this->makeFingerprint("propertyaccess", $params);
-
-        // handle the parameter "assigned to".
-        list($users, $groups, $em1, $warnings) = $this->assignedTo($params);
-
-        // handle the parameter 'action'
-        list($actions, $em2) = $this->actions($params);
-
-        // handle the (optional) parameter 'description'
-        global $haclgContLang;
-        $descPN = $haclgContLang->getParserFunctionParameter(HACLLanguage::PFP_DESCRIPTION);
-        $description = array_key_exists($descPN, $params)
-            ? $params[$descPN]
-            : "";
-        // handle the (optional) parameter 'name'
-        $namePN = $haclgContLang->getParserFunctionParameter(HACLLanguage::PFP_NAME);
-        $name = array_key_exists($namePN, $params)
-            ? $params[$namePN]
-            : "";
-
-        $errMsgs = $em1 + $em2;
-
-        if (count($errMsgs) == 0) {
-            // no errors
-            // => create and store the new right for later use.
-            if (!in_array($fingerprint, $this->mFingerprints)) {
-                $ir = new HACLRight($this->actionNamesToIDs($actions), $groups, $users, $description, $name);
-                $this->mPropertyRights[] = $ir;
-                $this->mFingerprints[] = $fingerprint;
-            }
-        } else {
-            $this->mDefinitionValid = false;
-        }
-
-        // Format the defined right in Wikitext
-        if (!empty($name)) {
-            $text = wfMsgForContent('hacl_pf_rightname_title', $name)
-                    .wfMsgForContent('hacl_pf_rights', implode(' ,', $actions));
-        } else {
-            $text = wfMsgForContent('hacl_pf_rights_title', implode(' ,', $actions));
-        }
-        $text .= $this->showAssignees($users, $groups);
-        $text .= $this->showDescription($description);
-        $text .= $this->showErrors($errMsgs);
-        $text .= $this->showWarnings($warnings);
-
-        return $text;
     }
 
     /**
@@ -707,7 +618,7 @@ class HACLParserFunctions
 
     /**
      * This method is called, after an article is moved. If the article has a
-     * security descriptor of type page or property, the SD is moved accordingly.
+     * security descriptor of type page, the SD is moved accordingly.
      *
      * @param unknown_type $oldTitle
      * @param unknown_type $newTitle
@@ -727,17 +638,6 @@ class HACLParserFunctions
             $oldSD = Title::newFromID($sd);
             $newSD = HACLSecurityDescriptor::nameOfSD($newName,
                 HACLLanguage::PET_PAGE);
-            self::move($oldSD, $newSD);
-        }
-
-        $sd = HACLSecurityDescriptor::getSDForPE($pageid, HACLLanguage::PET_PROPERTY);
-        if ($sd !== false)
-        {
-            // move SD for property
-            wfDebug("Move SD for property: ID=$sd, pageid=$pageid\n");
-            $oldSD = Title::newFromID($sd);
-            $newSD = HACLSecurityDescriptor::nameOfSD($newName,
-                HACLLanguage::PET_PROPERTY);
             self::move($oldSD, $newSD);
         }
 
@@ -952,8 +852,6 @@ class HACLParserFunctions
 
             // add all inline rights
             $sd->addInlineRights($this->mInlineRights);
-            // add all property rights
-            $sd->addInlineRights($this->mPropertyRights);
             // add all predefined rights
             $sd->addPredefinedRights($this->mPredefinedRights);
         }
@@ -995,8 +893,7 @@ class HACLParserFunctions
         {
             // check for inline or predefined rights
             if (!$this->mInlineRights &&
-                !$this->mPredefinedRights &&
-                !$this->mPropertyRights)
+                !$this->mPredefinedRights)
                 $msg[] = wfMsgForContent('hacl_right_must_have_rights');
         }
         // Additional checks for SDs
@@ -1039,12 +936,6 @@ class HACLParserFunctions
             if ($type == 'group') {
                 $msg[] = wfMsgForContent("hacl_invalid_parser_function",
                     $haclgContLang->getParserFunction(HACLLanguage::PF_ACCESS));
-            }
-        }
-        if (count($this->mPropertyRights) > 0) {
-            if ($type == 'group') {
-                $msg[] = wfMsgForContent("hacl_invalid_parser_function",
-                    $haclgContLang->getParserFunction(HACLLanguage::PF_PROPERTY_ACCESS));
             }
         }
         if (count($this->mPredefinedRights) > 0) {
@@ -1103,7 +994,7 @@ class HACLParserFunctions
 
     /**
      * This method handles the parameter "assignedTo" of the parser functions
-     * #access, #property access, #manage rights and #manage groups.
+     * #access, #manage rights and #manage groups.
      * If $isAssignedTo is false, the parameter "members" for parser function
      * #members is handled. The values have the same format as for "assigned to".
      *
@@ -1193,8 +1084,7 @@ class HACLParserFunctions
     }
 
     /**
-     * This method handles the parameter "actions" of the parser functions
-     * #access and #property access.
+     * This method handles the parameter "actions" of the parser function #access.
      *
      * @param array(string=>string) $params
      *         Array of argument names and their values. These are the arguments
