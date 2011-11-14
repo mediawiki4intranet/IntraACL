@@ -96,26 +96,6 @@ diff -r 98a60024775f includes/LogEventsList.php
  		$time = $wgLang->timeanddate( wfTimestamp(TS_MW, $row->log_timestamp), true );
  		// User links
  		if( self::isDeleted($row,LogPage::DELETED_USER) ) {
-diff -r 98a60024775f includes/PageHistory.php
---- includes/PageHistory.php	Fri Jan 14 18:06:06 2011 +0300
-+++ includes/PageHistory.php	Mon Feb 28 19:46:36 2011 +0300
-@@ -321,8 +321,14 @@
- 			$s .= ' ' . $this->mSkin->formatRevisionSize( $size );
- 		}
- 
--		$s .= $this->mSkin->revComment( $rev, false, true );
--
-+/*patch|2009-11-05|IntraACL|Protected properties|start*/
-+		global $haclgProtectProperties;
-+		if (!$haclgProtectProperties) {
-+			// The comment for an article might reveal values of protected properties
-+			$s .= $this->mSkin->revComment( $rev, false, true );
-+		}
-+/*patch|2009-11-05|IntraACL|end*/  
-+		
- 		if( $notificationtimestamp && ($row->rev_timestamp >= $notificationtimestamp) ) {
- 			$s .= ' <span class="updatedmarker">' .  wfMsgHtml( 'updatedmarker' ) . '</span>';
- 		}
 diff -r 98a60024775f includes/QueryPage.php
 --- includes/QueryPage.php	Fri Jan 14 18:06:06 2011 +0300
 +++ includes/QueryPage.php	Mon Feb 28 19:46:36 2011 +0300

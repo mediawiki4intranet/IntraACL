@@ -96,26 +96,6 @@ diff -r 9adb5260a4b9 includes/LogEventsList.php
  		$classes = array( "mw-logline-{$row->log_type}" );
  		$time = $wgLang->timeanddate( wfTimestamp(TS_MW, $row->log_timestamp), true );
  		// User links
-diff -r 9adb5260a4b9 includes/PageHistory.php
---- includes/PageHistory.php	Mon Feb 28 20:30:17 2011 +0300
-+++ includes/PageHistory.php	Mon Feb 28 20:34:48 2011 +0300
-@@ -292,8 +292,14 @@
- 			$s .= ' ' . $this->mSkin->formatRevisionSize( $size );
- 		}
- 
--		$s .= $this->mSkin->revComment( $rev, false, true );
--
-+/*patch|2009-11-05|IntraACL|Protected properties|start*/
-+		global $haclgProtectProperties;
-+		if (!$haclgProtectProperties) {
-+			// The comment for an article might reveal values of protected properties
-+			$s .= $this->mSkin->revComment( $rev, false, true );
-+		}
-+/*patch|2009-11-05|IntraACL|end*/
-+		
- 		if( $notificationtimestamp && ($row->rev_timestamp >= $notificationtimestamp) ) {
- 			$s .= ' <span class="updatedmarker">' .  wfMsgHtml( 'updatedmarker' ) . '</span>';
- 		}
 diff -r 9adb5260a4b9 includes/QueryPage.php
 --- includes/QueryPage.php	Mon Feb 28 20:30:17 2011 +0300
 +++ includes/QueryPage.php	Mon Feb 28 20:34:48 2011 +0300
