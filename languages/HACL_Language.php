@@ -244,7 +244,9 @@ abstract class HACLLanguage
     // Get self::RIGHT_* action ID by action name $name
     public function getActionId($name)
     {
-        return $this->mActionAliases[mb_strtolower($name)];
+        if (isset($this->mActionAliases[mb_strtolower($name)]))
+            return $this->mActionAliases[mb_strtolower($name)];
+        return false;
     }
 
     public function getPetPrefix($type)

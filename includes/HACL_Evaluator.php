@@ -76,57 +76,76 @@ class HACLEvaluator
      */
     public static function userCan($title, $user, $action, &$result)
     {
-        global $haclgContLang, $haclgOpenWikiAccess, $wgRequest;
+        global $haclgOpenWikiAccess, $wgRequest;
         $etc = haclfDisableTitlePatch();
         $actionID = 0;
 
-        // $R = array(final log message, access granted?, continue hook processing?);
-        $R = array('', false, false);
+        $grant = array('', false, false);
         self::startLog($title, $user, $action);
-        if (!$title)
+
+        $grant = self::userCan_Switches($title, $user, $action);
+
+        // Articles with no SD are not protected if $haclgOpenWikiAccess is
+        // true. Otherwise access is denied for non-bureaucrats/sysops.
+        if ($grant[0] && (!$grant[1] || !$grant[2]))
+            $grant[0] .= ' ';
+        if (!$grant[2])
         {
-            $R = array("Title is <null>.", true, true);
-            goto fin;
+            $grant[2] = $grant[1] = $haclgOpenWikiAccess;
+            $grant[0] .= 'No security descriptor for article found. IntraACL is configured to '.
+                ($haclgOpenWikiAccess ? 'Open' : 'Closed').' Wiki access';
         }
+        elseif (!$grant[1])
+        {
+            $grant[0] .= 'Access is denied.';
+            $grant[2] = false; // Other extensions can not decide anything if access is denied
+        }
+
+        haclfRestoreTitlePatch($etc);
+        $result = $grant[1];
+        self::finishLog($grant[0], $grant[1], $grant[2]);
+
+        // If the user has no read access to a non-existing page,
+        // but has the right to create it - allow him to "read" it,
+        // because Wiki needs it to show the creation form.
+        if ($actionID == HACLLanguage::RIGHT_READ && !$result && !$grant[2] && !$articleID)
+            $grant[2] = self::userCan($title, $user, 'create', $result);
+
+        return $grant[2];
+    }
+
+    // Returns array(final log message, access granted?, continue hook processing?)
+    public static function userCan_Switches($title, $user, $action)
+    {
+        global $haclgContLang;
+        if (!$title)
+            return array("Title is <null>.", true, true);
 
         // Do not check interwiki links
         if ($title->getInterwiki() !== '')
-        {
-            $R = array('Interwiki title', true, true);
-            goto fin;
-        }
+            return array('Interwiki title', true, true);
 
         $groups = $user->getGroups();
         if ($groups && (in_array('bureaucrat', $groups) || in_array('sysop', $groups)))
-        {
-            $R = array('User is a bureaucrat/sysop and can do anything.', true, true);
-            goto fin;
-        }
+            return array('User is a bureaucrat/sysop and can do anything.', true, true);
 
         // no access to the page "Permission denied" is allowed.
         // together with the TitlePatch which returns this page, this leads
         // to MediaWiki's "Permission error"
         if ($title->getPrefixedText() == $haclgContLang->getPermissionDeniedPage())
-        {
-            $R = array('Special handling of "Permission denied" page.', false, true);
-            goto fin;
-        }
+            return array('Special handling of "Permission denied" page.', false, true);
 
         // Check action
         $actionID = HACLRight::getActionID($action);
         if ($actionID == 0)
         {
             // unknown action => nothing can be said about this
-            $R = array('Unknown action.', true, true);
-            goto fin;
+            return array('Unknown action.', true, true);
         }
 
         // Check rights for managing ACLs
         if ($title->getNamespace() == HACL_NS_ACL)
-        {
-            $R = array('Checked ACL modification rights.', self::checkACLManager($title, $user, $actionID), true);
-            goto fin;
-        }
+            return array('Checked ACL modification rights.', self::checkACLManager($title, $user, $actionID), true);
 
         // haclfArticleID also returns IDs for special pages
         $articleID = haclfArticleID($title);
@@ -142,46 +161,13 @@ class HACLEvaluator
             }
             elseif ($actionID == HACLLanguage::RIGHT_DELETE ||
                 $actionID == HACLLanguage::RIGHT_MOVE)
-            {
-                $R = array('Can\'t move or delete non-existing article.', true, true);
-                goto fin;
-            }
+                return array('Can\'t move or delete non-existing article.', true, true);
             // Check if the title belongs to a namespace with an SD
             list($r, $sd) = self::checkNamespaceRight($title->getNamespace(), $userID, $actionID);
-            $R = array('Checked namespace access right.', $r, $sd);
-            goto fin;
+            return array('Checked namespace access right.', $r, $sd);
         }
 
-        $R = self::hasSD($title, $articleID, $userID, $actionID);
-
-    fin:
-        // Articles with no SD are not protected if $haclgOpenWikiAccess is
-        // true. Otherwise access is denied for non-bureaucrats/sysops.
-        if ($R[0] && (!$R[1] || !$R[2]))
-            $R[0] .= ' ';
-        if (!$R[2])
-        {
-            $R[2] = $R[1] = $haclgOpenWikiAccess;
-            $R[0] .= 'No security descriptor for article found. IntraACL is configured to '.
-                ($haclgOpenWikiAccess ? 'Open' : 'Closed').' Wiki access';
-        }
-        elseif (!$R[1])
-        {
-            $R[0] .= 'Access is denied.';
-            $R[2] = false; // Other extensions can not decide anything if access is denied
-        }
-
-        haclfRestoreTitlePatch($etc);
-        $result = $R[1];
-        self::finishLog($R[0], $R[1], $R[2]);
-
-        // If the user has no read access to a non-existing page,
-        // but has the right to create it - allow him to "read" it,
-        // because Wiki needs it to show the creation form.
-        if ($actionID == HACLLanguage::RIGHT_READ && !$result && !$R[2] && !$articleID)
-            $R[2] = self::userCan($title, $user, 'create', $result);
-
-        return $R[2];
+        return self::hasSD($title, $articleID, $userID, $actionID);
     }
 
     // Checks if user $userID can do action $actionID on article $articleID (or $title)
@@ -197,48 +183,35 @@ class HACLEvaluator
         {
             // First check page rights
             $sd = HACLSecurityDescriptor::getSDForPE($articleID, HACLLanguage::PET_PAGE);
-            $hasSD = $hasSD || $sd;
-            if ($hasSD)
+            if ($sd)
             {
                 $r = self::hasRight($articleID, HACLLanguage::PET_PAGE, $userID, $actionID);
-                $msg[] = ($r ? 'Access allowed by' : 'Found') . ' page SD.';
-                goto ok;
+                return array(($r ? 'Access allowed by' : 'Found') . ' page SD.', $r, true);
             }
 
             // If the page is a category page, check the category right
             if ($title->getNamespace() == NS_CATEGORY)
             {
                 $sd = HACLSecurityDescriptor::getSDForPE($articleID, HACLLanguage::PET_CATEGORY);
-                $hasSD = $hasSD || $sd;
                 if ($sd)
                 {
                     $r = self::hasRight($articleID, HACLLanguage::PET_CATEGORY, $userID, $actionID);
-                    $msg[] = ($r ? 'Access allowed by' : 'Found') . ' category SD for category page.';
-                    goto ok;
+                    return array(($r ? 'Access allowed by' : 'Found') . ' category SD for category page.', $r, true);
                 }
             }
 
             // Check category rights
             list($r, $sd) = self::hasCategoryRight($title, $userID, $actionID);
-            $hasSD = $hasSD || $sd;
             if ($sd)
-            {
-                $msg[] = ($r ? 'Access allowed by' : 'Found') . ' category SD.';
-                goto ok;
-            }
+                return array(($r ? 'Access allowed by' : 'Found') . ' category SD.', $r, true);
         }
 
         // Check namespace rights
         list($r, $sd) = self::checkNamespaceRight($title->getNamespace(), $userID, $actionID);
-        $hasSD = $hasSD || $sd;
         if ($sd)
-        {
-            $msg[] = ($r ? 'Access allowed by' : 'Found') . ' namespace SD.';
-            goto ok;
-        }
+            return array(($r ? 'Access allowed by' : 'Found') . ' namespace SD.', $r, true);
 
-ok:
-        return array(implode(' ', $msg), $hasSD && $r, $hasSD);
+        return array('', false, false);
     }
 
     /**

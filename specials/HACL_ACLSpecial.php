@@ -74,7 +74,7 @@ class IntraACLSpecial extends SpecialPage
         {
             wfLoadExtensionMessages('IntraACL');
             $wgOut->setPageTitle(wfMsg('hacl_special_page'));
-            if (!self::$actions[$q['action']])
+            if (!isset($q['action']) || !isset(self::$actions[$q['action']]))
                 $q['action'] = 'acllist';
             $f = 'html_'.$q['action'];
             $wgOut->addLink(array(

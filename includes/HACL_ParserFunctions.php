@@ -98,36 +98,41 @@ class HACLParserFunctions
 
     public static function access(&$parser)
     {
+        $args = func_get_args();
         if (self::$mInstance)
-            return self::$mInstance->_access($parser, func_get_args());
+            return self::$mInstance->_access($parser, $args);
         return '';
     }
 
     public static function predefinedRight(&$parser)
     {
+        $args = func_get_args();
         if (self::$mInstance)
-            return self::$mInstance->_predefinedRight($parser, func_get_args());
+            return self::$mInstance->_predefinedRight($parser, $args);
         return '';
     }
 
     public static function manageRights(&$parser)
     {
+        $args = func_get_args();
         if (self::$mInstance)
-            return self::$mInstance->_manageRights($parser, func_get_args());
+            return self::$mInstance->_manageRights($parser, $args);
         return '';
     }
 
     public static function addMember(&$parser)
     {
+        $args = func_get_args();
         if (self::$mInstance)
-            return self::$mInstance->_addMember($parser, func_get_args());
+            return self::$mInstance->_addMember($parser, $args);
         return '';
     }
 
     public static function manageGroup(&$parser)
     {
+        $args = func_get_args();
         if (self::$mInstance)
-            return self::$mInstance->_manageGroup($parser, func_get_args());
+            return self::$mInstance->_manageGroup($parser, $args);
         return '';
     }
 
