@@ -87,18 +87,18 @@ class HACLEvaluator
 
         // Articles with no SD are not protected if $haclgOpenWikiAccess is
         // true. Otherwise access is denied for non-bureaucrats/sysops.
-        if ($grant[0] && (!$grant[1] || !$grant[2]))
-            $grant[0] .= ' ';
         if (!$grant[2])
         {
             $grant[2] = $grant[1] = $haclgOpenWikiAccess;
+            if ($grant[0])
+                $grant[0] .= ' ';
             $grant[0] .= 'No security descriptor for article found. IntraACL is configured to '.
                 ($haclgOpenWikiAccess ? 'Open' : 'Closed').' Wiki access';
         }
         elseif (!$grant[1])
         {
-            $grant[0] .= 'Access is denied.';
-            $grant[2] = false; // Other extensions can not decide anything if access is denied
+            // Other extensions can not allow access anymore
+            $grant[2] = false;
         }
 
         haclfRestoreTitlePatch($etc);
@@ -171,12 +171,12 @@ class HACLEvaluator
     }
 
     // Checks if user $userID can do action $actionID on article $articleID (or $title)
+    // Returns array(log message, has right, has SD)
     // Check sequence: page rights -> category rights -> namespace rights
-    // I.e. page overrides category, category overrides namespace
-    // Categories do not override each other and child categories of each other
+    // Global $haclgCombineMode specifies override mode.
     public static function hasSD($title, $articleID, $userID, $actionID)
     {
-        $hasSD = false;
+        global $haclgCombineMode;
         $msg = array();
 
         if ($articleID)
@@ -186,30 +186,54 @@ class HACLEvaluator
             if ($sd)
             {
                 $r = self::hasRight($articleID, HACLLanguage::PET_PAGE, $userID, $actionID);
-                return array(($r ? 'Access allowed by' : 'Found') . ' page SD.', $r, true);
+                $msg[] = 'Access '.($r ? 'allowed' : 'denied').' by page SD';
+                if ($haclgCombineMode == HACL_COMBINE_OVERRIDE ||
+                    $haclgCombineMode == HACL_COMBINE_EXTEND && $r ||
+                    $haclgCombineMode == HACL_COMBINE_SHRINK && !$r)
+                    return array(implode(', ', $msg), $r, true);
             }
 
-            // If the page is a category page, check the category right
+            // If the page is a category page, check that category's rights
             if ($title->getNamespace() == NS_CATEGORY)
             {
                 $sd = HACLSecurityDescriptor::getSDForPE($articleID, HACLLanguage::PET_CATEGORY);
                 if ($sd)
                 {
                     $r = self::hasRight($articleID, HACLLanguage::PET_CATEGORY, $userID, $actionID);
-                    return array(($r ? 'Access allowed by' : 'Found') . ' category SD for category page.', $r, true);
+                    $msg[] = 'Access '.($r ? 'allowed' : 'denied').' by category SD for category page';
+                    if ($haclgCombineMode == HACL_COMBINE_OVERRIDE ||
+                        $haclgCombineMode == HACL_COMBINE_EXTEND && $r ||
+                        $haclgCombineMode == HACL_COMBINE_SHRINK && !$r)
+                        return array(implode(', ', $msg), $r, true);
                 }
             }
 
             // Check category rights
             list($r, $sd) = self::hasCategoryRight($title, $userID, $actionID);
             if ($sd)
-                return array(($r ? 'Access allowed by' : 'Found') . ' category SD.', $r, true);
+            {
+                $msg[] = 'Access '.($r ? 'allowed' : 'denied').' by category SD';
+                if ($haclgCombineMode == HACL_COMBINE_OVERRIDE ||
+                    $haclgCombineMode == HACL_COMBINE_EXTEND && $r ||
+                    $haclgCombineMode == HACL_COMBINE_SHRINK && !$r)
+                    return array(implode(', ', $msg), $r, true);
+            }
         }
 
         // Check namespace rights
         list($r, $sd) = self::checkNamespaceRight($title->getNamespace(), $userID, $actionID);
         if ($sd)
-            return array(($r ? 'Access allowed by' : 'Found') . ' namespace SD.', $r, true);
+        {
+            $msg[] = 'Access '.($r ? 'allowed' : 'denied').' by namespace SD';
+            if ($haclgCombineMode == HACL_COMBINE_OVERRIDE ||
+                $haclgCombineMode == HACL_COMBINE_EXTEND && $r ||
+                $haclgCombineMode == HACL_COMBINE_SHRINK && !$r)
+                return array(implode(', ', $msg), $r, true);
+        }
+
+        // Maybe there was an SD which allowed the action, while we are in shrink mode?
+        if ($haclgCombineMode == HACL_COMBINE_SHRINK && $msg)
+            return array(implode(', ', $msg), true, true);
 
         return array('', false, false);
     }

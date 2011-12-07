@@ -33,17 +33,18 @@ if (!defined('MEDIAWIKI'))
     die("This file is part of the IntraACL extension. It is not a valid entry point.");
 
 define('HACL_STORE_SQL', 'HaclStoreSQL');
+define('HACL_COMBINE_EXTEND', 1);
+define('HACL_COMBINE_SHRINK', 2);
+define('HACL_COMBINE_OVERRIDE', 3);
 
 # This is the path to your installation of IntraACL as seen on your
 # local filesystem. Used against some PHP file path issues.
-if (!isset($haclgIP))
-    $haclgIP = $IP . '/extensions/IntraACL';
+$haclgIP = $IP . '/extensions/IntraACL';
 
 # This is the path to your installation of IntraACL as seen from the
 # web. Change it if required ($wgScriptPath is the path to the base directory
 # of your wiki). No final slash.
-if (!isset($haclgHaloScriptPath))
-    $haclgHaloScriptPath = 'extensions/IntraACL';
+$haclgHaloScriptPath = 'extensions/IntraACL';
 
 # Set this variable to false to disable the patch that checks all titles
 # for accessibility. Unfortunately, the Title-object does not check if an article
@@ -51,16 +52,14 @@ if (!isset($haclgHaloScriptPath))
 # created. If a title can not be accessed, a replacement title called "Permission
 # denied" is returned. This is the best and securest way of protecting an article,
 # however, it slows down things a bit.
-if (!isset($haclgEnableTitleCheck))
-    $haclgEnableTitleCheck = false;
+$haclgEnableTitleCheck = false;
 
 # This variable controls the behaviour of unreadable articles included into other
 # articles. When it is a non-empty string, it is treated as the name of a message
 # inside MediaWiki: namespace (i.e. localisation message). When it is set to an
 # empty string, nothing is displayed in place of protected inclusion. When it is
 # set to boolean FALSE, inclusion directive is shown instead of article content.
-if (!isset($haclgInclusionDeniedMessage))
-    $haclgInclusionDeniedMessage = 'haloacl-inclusion-denied';
+$haclgInclusionDeniedMessage = 'haloacl-inclusion-denied';
 
 # This flag applies to articles that have or inherit no security descriptor.
 #
@@ -73,38 +72,41 @@ if (!isset($haclgInclusionDeniedMessage))
 # false
 #    If it is <false>, no access is granted at all. Only the latest author of an
 #    article can create a security descriptor.
-if (!isset($haclgOpenWikiAccess))
-    $haclgOpenWikiAccess = true;
+$haclgOpenWikiAccess = true;
 
 # By design several databases can be connected to IntraACL. However, now there
 # is only an implementation for MySQL. With this variable you can
 # specify which store will actually be used.
 # Possible values:
 # - HACL_STORE_SQL
-if (!isset($haclgBaseStore))
-    $haclgBaseStore = HACL_STORE_SQL;
+$haclgBaseStore = HACL_STORE_SQL;
 
 # Values of this array are treated as language-dependent names of namespaces which
 # can not be protected by IntraACL.
-if (!isset($haclgUnprotectableNamespaces))
-    $haclgUnprotectableNamespaces = array();
+$haclgUnprotectableNamespaces = array();
 
 # If this is true, "ACL" tab will be hidden for unprotected pages.
-if (!isset($haclgDisableACLTab))
-    $haclgDisableACLTab = false;
+$haclgDisableACLTab = false;
 
 # If $haclgEvaluatorLog is <true>, you can specify the URL-parameter "hacllog=true".
 # In this case IntraACL echos the reason why actions are permitted or prohibited.
-if (!isset($haclgEvaluatorLog))
-    $haclgEvaluatorLog = true;
+$haclgEvaluatorLog = true;
 
 # If you already have custom namespaces on your site, insert
 #    $haclgNamespaceIndex = ???;
 # into your LocalSettings.php *before* including this file. The number ??? must
 # be the smallest even namespace number that is not in use yet. However, it
 # must not be smaller than 100.
-if (!isset($haclgNamespaceIndex))
-    $haclgNamespaceIndex = 102;
+$haclgNamespaceIndex = 102;
+
+# This specifies how different right definitions which apply to one page combine.
+# There may be page, category and namespace rights.
+# Possible values:
+# - HACL_COMBINE_EXTEND: user has the right if it is granted within ANY of the applicable definitions.
+# - HACL_COMBINE_SHRINK: user has the right only if it is granted within ALL applicable definitions.
+# - HACL_COMBINE_OVERRIDE: more specific rights override less specific ones.
+#   I.e. page rights override category rights, which override namespace rights.
+$haclgCombineMode = HACL_COMBINE_EXTEND;
 
 // load global functions
 require_once('HACL_GlobalFunctions.php');
