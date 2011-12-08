@@ -128,6 +128,7 @@ If you want to protect some pages, ACL page must be named as one of: ACL:Page/*,
     'hacl_action_quickaccess'           => 'Manage Quick ACL',
     'hacl_action_grouplist'             => 'Manage groups',
     'hacl_action_group'                 => 'Create a group',
+    'hacl_action_rightgraph'            => 'View rights on a graph',
 
     // ACL Editor
     'hacl_autocomplete_no_users'        => 'No users found',
@@ -420,6 +421,7 @@ $messages['ru'] = array(
     'hacl_action_quickaccess'           => 'Шаблоны быстрого доступа',
     'hacl_action_grouplist'             => 'Группы',
     'hacl_action_group'                 => 'Создать группу',
+    'hacl_action_rightgraph'            => 'Права на графе',
 
     // ACL Editor
     'hacl_autocomplete_no_users'        => 'Пользователи не найдены',

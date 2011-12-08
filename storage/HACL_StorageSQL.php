@@ -95,7 +95,7 @@ class HACLStorageSQL {
         HACLDBHelper::setupTable($table, array(
             'sd_id'     => 'INT(8) UNSIGNED NOT NULL',
             'pe_id'     => 'INT(8)',
-            'type'      => "ENUM('category','page','namespace','property','right','template') DEFAULT 'page' NOT NULL",
+            'type'      => "ENUM('category','page','namespace','property','right') DEFAULT 'page' NOT NULL",
             'mr_groups' => 'TEXT CHARACTER SET utf8 COLLATE utf8_bin',
             'mr_users'  => 'TEXT CHARACTER SET utf8 COLLATE utf8_bin'),
         $dbw, $verbose, 'sd_id');
@@ -435,6 +435,19 @@ class HACLStorageSQL {
     }
 
     /**
+     * Massively retrieve members of groups with IDs $ids
+     */
+    public function getMembersOfGroups($ids)
+    {
+        $dbr = wfGetDB(DB_SLAVE);
+        $res = $dbr->select('halo_acl_group_members', '*', array('parent_group_id' => $ids), __METHOD__);
+        $members = array();
+        foreach ($res as $row)
+            $members[$row->parent_group_id][$row->child_type][] = $row->child_id;
+        return $members;
+    }
+
+    /**
      * Returns all groups the user is member of
      *
      * @param  string $memberType: 'user' or 'group'
@@ -552,40 +565,73 @@ class HACLStorageSQL {
         return $children;
     }
 
-    public function getUserNames($user_ids)
+    /**
+     * Massively retrieves users with IDs $user_ids from the DB
+     * @return array(object), indexed by user ID
+     */
+    public function getUsers($user_ids)
     {
         $dbr = wfGetDB(DB_SLAVE);
         $rows = array();
         if ($user_ids)
         {
-            $res = $dbr->select('user', 'user_id, user_name, user_real_name', array('user_id' => $user_ids), __METHOD__);
-            while ($r = $dbr->fetchRow($res))
-            {
-                unset($r[0]);
-                unset($r[1]);
-                unset($r[2]);
-                $rows[] = $r;
-            }
+            $res = $dbr->select('user', '*', array('user_id' => $user_ids), __METHOD__);
+            foreach ($res as $r)
+                $rows[$r->user_id] = $r;
         }
         return $rows;
     }
 
-    public function getGroupNames($group_ids)
+    /**
+     * Massively retrieves titles with ids $ids from the DB
+     * @return array(object), indexed by page ID, if $as_object is false
+     * @return array(Title), indexed by page ID, if $as_object is true
+     */
+    public function getTitles($ids, $as_object = false)
     {
         $dbr = wfGetDB(DB_SLAVE);
         $rows = array();
-        if ($group_ids)
+        if ($ids)
         {
-            $res = $dbr->select('halo_acl_groups', '*', array('group_id' => $group_ids), __METHOD__);
-            while ($r = $dbr->fetchRow($res))
-            {
-                unset($r[0]);
-                unset($r[1]);
-                unset($r[2]);
-                unset($r[3]);
-                $rows[] = $r;
-            }
+            $res = $dbr->select('page', '*', array('page_id' => $ids), __METHOD__);
+            if (!$as_object)
+                foreach ($res as $r)
+                    $rows[$r->page_id] = $r;
+            else
+                foreach ($res as $r)
+                    $rows[$r->page_id] = Title::newFromRow($r);
         }
+        return $rows;
+    }
+
+    /**
+     * Massively retrieves contents of categories with db-keys $dbkeys
+     * @return array(category_dbkey => array(Title))
+     */
+    public function getCategoryLinks($dbkeys)
+    {
+        if (!$dbkeys)
+            return array();
+        $dbr = wfGetDB(DB_SLAVE);
+        $res = $dbr->select(array('categorylinks', 'page'), 'cl_to, page.*',
+            array('page_id=cl_from', 'cl_to' => $dbkeys), __METHOD__);
+        $cont = array();
+        foreach ($res as $row)
+            $cont[$row->cl_to][] = Title::newFromRow($row);
+        return $cont;
+    }
+
+    /**
+     * Massively retrieves IntraACL groups with $group_ids from the DB
+     * @return array(object), indexed by group ID
+     */
+    public function getGroupsByIds($group_ids)
+    {
+        $dbr = wfGetDB(DB_SLAVE);
+        $rows = array();
+        $res = $dbr->select('halo_acl_groups', '*', $group_ids ? array('group_id' => $group_ids) : '1', __METHOD__);
+        foreach ($res as $r)
+            $rows[$r->group_id] = $r;
         return $rows;
     }
 
@@ -634,70 +680,6 @@ class HACLStorageSQL {
      * Functions for security descriptors (SD)
      *
      **************************************************************************/
-
-    /**
-     * Retrieves all SDs from
-     * the database.
-     *
-     *
-     * @return Array
-     *         Array of SD Objects
-     *
-     */
-    public function getSDs($types)
-    {
-        $dbr = wfGetDB( DB_SLAVE );
-
-        $or = array(
-            'all' => 0x3F,
-            'page' => 0x01,
-            'category' => 0x02,
-            'namespace' => 0x04,
-            'standardacl' => 0x0F,
-            'acltemplate' => 0x10,
-            'defusertemplate' => 0x20,
-        );
-        $mask = 0;
-        foreach ($types as $type)
-            $mask = $mask | $or["$type"];
-        $where = array();
-        if (($mask & 0x3F) != 0x3F)
-        {
-            $t = array();
-            if ($mask & 0x01)
-                $t[] = 'page';
-            if ($mask & 0x02)
-                $t[] = 'category';
-            if ($mask & 0x04)
-                $t[] = 'namespace';
-            if (($mask & 0x30) == 0x30)
-                $t[] = 'right';
-            elseif ($mask & 0x30)
-            {
-                // strip leading "Template/"
-                $u = $dbr->tableName('user');
-                $where[] = "type='right' AND SUBSTRING(page_title FROM 10) " .
-                    ($mask & 0x10 ? '' : 'NOT') .
-                    " IN (SELECT user_name FROM $u)";
-            }
-            if ($t)
-                $where[] = "type IN ('".implode("','", $t)."')";
-            if ($where)
-                $where = '(' . implode(') OR (', $where) . ')';
-        }
-
-        $sds = array();
-        $res = $dbr->select(
-            array('halo_acl_security_descriptors', 'page'), '*', $where, __METHOD__,
-            array('ORDER BY' => 'page_title'),
-            array('page' => array('LEFT JOIN', array('page_id=sd_id')))
-        );
-        while ($row = $dbr->fetchObject($res))
-            $sds[] = HACLSecurityDescriptor::newFromID($row->sd_id);
-        $dbr->freeResult($res);
-
-        return $sds;
-    }
 
     /**
      * Saves the given SD in the database.
@@ -899,6 +881,19 @@ class HACLStorageSQL {
         }
 
         return array_keys($result);
+    }
+
+    /**
+     * Retrieves the full hierarchy of SDs from the DB
+     */
+    public function getFullSDHierarchy()
+    {
+        $dbr = wfGetDB(DB_SLAVE);
+        $res = $dbr->select('halo_acl_rights_hierarchy', '*', '1', __METHOD__);
+        $rows = array();
+        foreach ($res as $row)
+            $rows[] = $row;
+        return $rows;
     }
 
     /**
@@ -1119,7 +1114,7 @@ class HACLStorageSQL {
      * I.e. when sd_no_rights is true, non-NULL sd_single_id means that SD
      * contains only one predefined right inclusion.
      *
-     * Partly repeated with getSDs() / getSDs2()
+     * Partly repeated with getSDs2()
      * FIXME: remove this duplication
      */
     public function getSDPages($types, $name, $offset, $limit, &$total)
@@ -1268,7 +1263,7 @@ class HACLStorageSQL {
      *         ID of the action. One of
      *         HACLLanguage::RIGHT_*
      *
-     * @return array<int>
+     * @return array(HACLRight)
      *         An array of IDs of rights that match the given constraints.
      */
     public function getRights($peID, $type, $actionID, $originNotEqual = NULL)
@@ -1295,10 +1290,24 @@ class HACLStorageSQL {
 
         $res = $dbr->query($sql, __METHOD__);
         $rights = array();
-        while ($row = $dbr->fetchObject($res))
+        foreach ($res as $row)
             $rights[] = self::rowToRight($row);
-        $dbr->freeResult($res);
 
+        return $rights;
+    }
+
+    /**
+     * Retrieves all rights for a set of security descriptors,
+     * or for ALL security descriptors if their IDs are omitted
+     * @return array(SDid => array(HACLRight))
+     */
+    public function getAllRights($sdids = NULL)
+    {
+        $dbr = wfGetDB(DB_SLAVE);
+        $res = $dbr->select('halo_acl_rights', '*', $sdids ? array('origin_id' => $sdids) : '1', __METHOD__);
+        $rights = array();
+        foreach ($res as $row)
+            $rights[$row->origin_id][] = self::rowToRight($row);
         return $rights;
     }
 
@@ -1468,7 +1477,10 @@ class HACLStorageSQL {
         return ($obj === false) ? false : $obj->sd_id;
     }
 
-    public static function getSDs2($type = NULL, $prefix = NULL, $limit = NULL)
+    /**
+     * Retrieves security descriptors from the database
+     */
+    public static function getSDs2($type = NULL, $prefix = NULL, $limit = NULL, $as_object = true)
     {
         $dbr = wfGetDB(DB_SLAVE);
         $options = array('ORDER BY' => 'page_title');
@@ -1486,11 +1498,16 @@ class HACLStorageSQL {
         );
         $rights = array();
         foreach ($res as $r)
-            $rights[] = new HACLSecurityDescriptor(
-                $r->sd_id, $r->page_title, $r->pe_id,
-                $r->type, $r->mr_groups ? $r->mr_groups : array(),
-                $r->mr_users ? $r->mr_users : array()
-            );
+        {
+            if ($as_object)
+                $rights[] = new HACLSecurityDescriptor(
+                    $r->sd_id, $r->page_title, $r->pe_id,
+                    $r->type, $r->mr_groups ? $r->mr_groups : array(),
+                    $r->mr_users ? $r->mr_users : array()
+                );
+            else
+                $rights[] = $r;
+        }
         return $rights;
     }
 
