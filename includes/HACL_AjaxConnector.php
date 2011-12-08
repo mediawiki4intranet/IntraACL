@@ -195,7 +195,7 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
         foreach ($a as $item)
         {
             $i++;
-            $html .= '<div id="'.$ip.$i.'" class="hacl_ti" title="'.
+            $html .= '<div id="item'.$i.'" class="hacl_ti" title="'.
                 htmlspecialchars($item[1]).'">'.
                 htmlspecialchars($item[0]).'</div>';
         }

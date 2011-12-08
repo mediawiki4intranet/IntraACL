@@ -694,4 +694,5 @@ HACLACLEditor.prototype.init = function(aclTitle, aclType, aclExists)
     this.inc_hint.init();
     document.getElementById('acl_exists_hint').style.display = aclExists ? '' : 'none';
     document.getElementById('acl_delete_link').style.display = aclExists ? '' : 'none';
+    this.check_errors();
 }
