@@ -231,9 +231,9 @@ class HACLEvaluator
                 return array(implode(', ', $msg), $r, true);
         }
 
-        // Maybe there was an SD which allowed the action, while we are in shrink mode?
-        if ($haclgCombineMode == HACL_COMBINE_SHRINK && $msg)
-            return array(implode(', ', $msg), true, true);
+        // Maybe there was an applicable SD?
+        if ($msg && $haclgCombineMode != HACL_COMBINE_OVERRIDE)
+            return array(implode(', ', $msg), $haclgCombineMode == HACL_COMBINE_SHRINK, true);
 
         return array('', false, false);
     }
