@@ -33,9 +33,9 @@ if (!defined('MEDIAWIKI'))
     die("This file is part of the IntraACL extension. It is not a valid entry point.");
 
 define('HACL_STORE_SQL', 'HaclStoreSQL');
-define('HACL_COMBINE_EXTEND', 1);
-define('HACL_COMBINE_SHRINK', 2);
-define('HACL_COMBINE_OVERRIDE', 3);
+define('HACL_COMBINE_EXTEND', 'extend');
+define('HACL_COMBINE_SHRINK', 'shrink');
+define('HACL_COMBINE_OVERRIDE', 'override');
 
 # This is the path to your installation of IntraACL as seen on your
 # local filesystem. Used against some PHP file path issues.

@@ -231,7 +231,9 @@ class HACLEvaluator
                 return array(implode(', ', $msg), $r, true);
         }
 
-        // Maybe there was an applicable SD?
+        // If mode is extend and we are here, maybe a denying SD was found.
+        // If mode is shrink and we are here, maybe an allowing SD was found.
+        // If it is found, $msg is not empty.
         if ($msg && $haclgCombineMode != HACL_COMBINE_OVERRIDE)
             return array(implode(', ', $msg), $haclgCombineMode == HACL_COMBINE_SHRINK, true);
 
@@ -474,7 +476,7 @@ class HACLEvaluator
      */
     private static function startLog($title, $user, $action)
     {
-        global $wgRequest, $haclgEvaluatorLog;
+        global $wgRequest, $haclgEvaluatorLog, $haclgCombineMode;
 
         self::$mLogEnabled = $haclgEvaluatorLog && $wgRequest->getVal('hacllog', 'false') == 'true';
 
@@ -487,9 +489,9 @@ class HACLEvaluator
 
         self::$mLog .= "IntraACL Evaluation Log\n";
         self::$mLog .= "======================\n\n";
-        self::$mLog .= "Article: ". (is_null($title) ? "null" : $title->getFullText()). "\n";
+        self::$mLog .= "Title: ". (is_null($title) ? "null" : $title->getFullText()). "\n";
         self::$mLog .= "User: ". $user->getName(). "\n";
-        self::$mLog .= "Action: $action\n";
+        self::$mLog .= "Action: $action; mode: $haclgCombineMode\n";
     }
 
     /**
