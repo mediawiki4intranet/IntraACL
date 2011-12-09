@@ -107,6 +107,15 @@ class IntraACLSpecial extends SpecialPage
         }
     }
 
+    // key="value", key="value", ...
+    public static function attrstring($attr)
+    {
+        $a = array();
+        foreach ($attr as $k => $v)
+            $a[] = "$k=\"".str_replace('"', '\\"', $v)."\"";
+        return implode(', ', $a);
+    }
+
     // Displays full graph of IntraACL rights using Graphviz, in SVG format
     // Does not reflect the right override method - just displays which rights apply
     // to different protected elements and which users have these rights
@@ -142,7 +151,7 @@ class IntraACLSpecial extends SpecialPage
         // Fetch categories and subcategories
         $cattitles = array();
         foreach ($sds as $r)
-            if ($r->type == 'category')
+            if ($r->type == 'category' && isset($titles[$r->pe_id]))
                 $cattitles[] = $titles[$r->pe_id];
         $cattitles = $st->getAllChildrenCategories($cattitles);
         $catkeys = array();
@@ -166,7 +175,12 @@ class IntraACLSpecial extends SpecialPage
         {
             if (($r->type == 'page' || $r->type == 'category') && !isset($titles[$r->pe_id]))
                 continue;
-            $nodes[HACL_NS_ACL]["sd".$r->sd_id] = array(
+            $ns = HACL_NS_ACL;
+            if ($r->type == 'page')
+                $ns = $titles[$r->pe_id]->getNamespace();
+            elseif ($r->type == 'category')
+                $ns = NS_CATEGORY;
+            $nodes[$ns]["sd".$r->sd_id] = array(
                 'label' => $titles[$r->sd_id]->getPrefixedText(),
                 'shape' => 'note',
                 'href'  => $titles[$r->sd_id]->getFullUrl(),
@@ -205,8 +219,8 @@ class IntraACLSpecial extends SpecialPage
                 'label'   => $catname,
                 'shape'   => 'folder',
                 'style'   => 'filled',
-                'href'    => $t->getFullUrl(),
-                'tooltip' => $t->getPrefixedText(),
+                'href'    => $c->getFullUrl(),
+                'tooltip' => $c->getPrefixedText(),
                 'fillcolor' => $colors['category'],
             );
             foreach ($ct as $t)
@@ -226,16 +240,6 @@ class IntraACLSpecial extends SpecialPage
                 }
                 elseif (isset($nodes[$t->getNamespace()]["pg$tid"]))
                     $edges["cat$id"]["pg$tid"] = true;
-                elseif (!isset($nodes[HACL_NS_ACL]["trunc$id"]))
-                {
-                    $nodes[HACL_NS_ACL]["trunc$id"] = array(
-                        'label'   => '...',
-                        'shape'   => 'circle',
-                        'href'    => $c->getFullUrl(),
-                        'tooltip' => "Category '".$c->getText()."' content is truncated. Click to see all pages inside it",
-                    );
-                    $edges["cat$id"]["trunc$id"] = true;
-                }
             }
         }
         // Then draw namespace SDs
@@ -247,7 +251,7 @@ class IntraACLSpecial extends SpecialPage
                     'label'   => '...',
                     'shape'   => 'circle',
                     'href'    => Title::newFromText('Special:Allpages')->getFullUrl(array('namespace' => $r->pe_id)),
-                    'tooltip' => "Not all pages may be shown. Click to see all pages in namespace ".$wgContLang->getNsText($r->pe_id),
+                    'tooltip' => "Click to see all pages in namespace ".$wgContLang->getNsText($r->pe_id),
                 );
             }
             else
@@ -268,15 +272,14 @@ class IntraACLSpecial extends SpecialPage
             if ($ns != HACL_NS_ACL)
             {
                 $graph .= "subgraph cluster$ns {\n";
-                $graph .= "graph [label=\"".($ns ? $wgContLang->getNsText($ns) : 'Main')."\"];\n";
+                $graph .= "graph [label=\"Namespace ".($ns ? $wgContLang->getNsText($ns) : 'Main').
+                    "\", href=\"".Title::newFromText('Special:Allpages')->getFullUrl(array('namespace' => $r->pe_id)).
+                    "\"];\n";
             }
             foreach ($nsnodes as $nodename => $attr)
             {
-                $allnodes[$nodename] = true;
-                $a = array();
-                foreach ($attr as $k => $v)
-                    $a[] = "$k=\"".str_replace('"', '\\"', $v)."\"";
-                $graph .= "$nodename [".implode(', ', $a)."];\n";
+                $allnodes[$nodename] = $attr;
+                $graph .= "$nodename [".self::attrstring($attr)."];\n";
             }
             if ($ns != HACL_NS_ACL)
                 $graph .= "}\n";
@@ -286,14 +289,19 @@ class IntraACLSpecial extends SpecialPage
         {
             foreach ($to as $id => $attr)
             {
-                if ($attr === true)
-                    $graph .= "$from -> $id;\n";
+                if ($attr !== true)
+                    $attr .= ', ';
                 else
-                    $graph .= "$from -> $id [$attr];\n";
+                    $attr = '';
+                $attr .= self::attrstring(array(
+                    'href' => $allnodes[$from]['href'],
+                    'tooltip' => $allnodes[$from]['label'],
+                ));
+                $graph .= "$from -> $id [$attr];\n";
             }
         }
         // Render the graph
-        $graph = "<graph>\ndigraph G {\noverlap=false;\nranksep=2;\nrankdir=LR;\ncompound=true;\n$graph\n}\n</graph>\n";
+        $graph = "<graph>\ndigraph G {\nedge [penwidth=2];\nsplines=polyline;\noverlap=false;\nranksep=2;\nrankdir=LR;\ncompound=true;\n$graph\n}\n</graph>\n";
         $wgOut->addWikiText($graph);
         $wgOut->addHTML("<pre>$graph</pre>");
         haclfRestoreTitlePatch($patch);
