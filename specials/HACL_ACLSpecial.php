@@ -162,129 +162,183 @@ class IntraACLSpecial extends SpecialPage
         }
         $catlinks = $st->getCategoryLinks($catkeys);
         $catkeys = array_flip($catkeys);
+        // Filter inconsistent SDs
+        $newsds = array();
+        foreach ($sds as $r)
+            if ($r->type != 'template' &&
+                ($r->type != 'page' && $r->type != 'category' || isset($titles[$r->pe_id])))
+                $newsds[] = $r;
+        $sds = $newsds;
         // Draw security descriptors
-        $ns_sd = array();
+        $nodes = array();
+        $ns_first = array();
+        $cat_cluster = array();
+        $cat_cluster[NS_CATEGORY][''] = array();
+        foreach ($sds as $r)
+        {
+            $nodes['sd'.$r->sd_id] = $r;
+            if ($r->type == 'page')
+            {
+                $nodes['pg'.$r->pe_id] = true;
+                $edges['sd'.$r->sd_id]['pg'.$r->pe_id] = true;
+                if (!isset($ns_first[$titles[$r->pe_id]->getNamespace()]))
+                    $ns_first[$titles[$r->pe_id]->getNamespace()] = 'pg'.$r->pe_id;
+            }
+            elseif ($r->type == 'category')
+            {
+                $edges['sd'.$r->sd_id]['cat'.$r->pe_id] = true;
+                $nodes['cat'.$r->pe_id] = true;
+                $cluster['sd'.$r->sd_id] = "clusterns".NS_CATEGORY;
+            }
+        }
+        // Group pages in category clusters within namespaces
+        foreach ($catlinks as $catkey => $cattitles)
+        {
+            $cattitle = $titles[$catkeys[$catkey]];
+            $catid = $cattitle->getArticleId();
+            foreach ($cattitles as $t)
+            {
+                $tns = $t->getNamespace();
+                $tid = $t->getArticleId();
+                if ($tns == NS_CATEGORY)
+                {
+                    $edges["cat$catid"]["cat$tid"] = true;
+                    if (!isset($nodes["cat$tid"]))
+                        $nodes["cat$tid"] = true;
+                }
+                elseif (isset($nodes["pg$tid"]))
+                {
+                    if (!isset($cluster["pg$tid"]))
+                    {
+                        $cluster["pg$tid"] = 'clustercat'.$tns.'_'.$catid;
+                        if (!isset($cat_cluster[$tns][$catid]))
+                        {
+                            $cat_cluster[$tns][$catid] = array();
+                            $edges["cat$catid"]["pg$tid"] = 'lhead=clustercat'.$tns.'_'.$catid;
+                        }
+                    }
+                    else
+                        $edges["cat$catid"]["pg$tid"] = true;
+                }
+            }
+        }
+        // Set namespace clusters for non-grouped nodes
+        foreach ($nodes as $n => &$attr)
+        {
+            if (substr($n, 0, 2) == 'pg' && !isset($cluster[$n]))
+                $cluster[$n] = 'clusterns'.$titles[substr($n, 2)]->getNamespace();
+            elseif (substr($n, 0, 3) == 'cat')
+            {
+                $cluster[$n] = 'clusterns'.NS_CATEGORY;
+                if (!isset($ns_first[NS_CATEGORY]))
+                    $ns_first[NS_CATEGORY] = $n;
+            }
+        }
+        unset($attr);
+        // Group SDs in the same clusters as their PEs and draw namespace SD edges
+        foreach ($sds as $r)
+        {
+            if ($r->type == 'page')
+                $cluster['sd'.$r->sd_id] = $cluster['pg'.$r->pe_id];
+            elseif ($r->type == 'namespace')
+            {
+                $cluster['sd'.$r->sd_id] = '';
+                if (isset($ns_first[$r->pe_id]))
+                    $k = $ns_first[$r->pe_id];
+                else
+                {
+                    $k = 'etc'.$r->pe_id;
+                    $nodes[$k] = array(
+                        'label'   => '...',
+                        'shape'   => 'circle',
+                        'href'    => Title::newFromText('Special:Allpages')->getFullUrl(array('namespace' => $r->pe_id)),
+                        'tooltip' => "Click to see all pages in namespace ".$wgContLang->getNsText($r->pe_id),
+                    );
+                    $cluster[$k] = "clusterns".$r->pe_id;
+                    $ns_first[$r->pe_id] = $k;
+                }
+                $edges['sd'.$r->sd_id][$k] = "lhead=clusterns".$r->pe_id;
+            }
+            elseif ($r->type == 'right')
+                $cluster['sd'.$r->sd_id] = '';
+        }
+        foreach ($cluster as $k => $cl)
+        {
+            if (preg_match('/clustercat(\d+)_(\d+)/', $cl, $m))
+                $cat_cluster[$m[1]][$m[2]][] = $k;
+            elseif (preg_match('/clusterns(\d+)/', $cl, $m))
+                $cat_cluster[$m[1]][''][] = $k;
+            elseif ($cl === '')
+                $cat_cluster[''][''][] = $k;
+        }
+        // Draw right hierarchy
+        $hier = $st->getFullSDHierarchy();
+        foreach ($hier as $row)
+            if (isset($nodes['sd'.$row->child_id]) &&
+                isset($nodes['sd'.$row->parent_right_id]))
+                $edges['sd'.$row->child_id]['sd'.$row->parent_right_id] = true;
+        // Set node attributes
+        $shapes = array(
+            'sd' => 'note',
+            'pg' => 'ellipse',
+            'cat' => 'folder',
+        );
         $colors = array(
             'sd_page'      => '#ffd0d0',
             'sd_category'  => '#ffff80',
             'sd_right'     => '#90ff90',
             'sd_namespace' => '#c0c0ff',
-            'category'     => '#ffe0c0',
+            'cat'          => '#ffe0c0',
         );
-        foreach ($sds as $r)
+        foreach ($nodes as $n => $r)
         {
-            if (($r->type == 'page' || $r->type == 'category') && !isset($titles[$r->pe_id]))
+            if (is_array($r))
                 continue;
-            $ns = HACL_NS_ACL;
-            if ($r->type == 'page')
-                $ns = $titles[$r->pe_id]->getNamespace();
-            elseif ($r->type == 'category')
-                $ns = NS_CATEGORY;
-            $nodes[$ns]["sd".$r->sd_id] = array(
-                'label' => $titles[$r->sd_id]->getPrefixedText(),
-                'shape' => 'note',
-                'href'  => $titles[$r->sd_id]->getFullUrl(),
-                'style' => 'filled',
-                'fillcolor' => $colors['sd_'.$r->type],
+            preg_match('/([a-z]+)(\d+)/', $n, $m);
+            $type = $m[1];
+            $id = $m[2];
+            $nodes[$n] = array(
+                'shape' => $shapes[$type],
+                'label' => $titles[$id]->getPrefixedText(),
+                'href'  => $titles[$id]->getFullUrl(),
             );
-            if ($r->type == 'page')
+            if ($type != 'pg')
             {
-                // SD for a single page (even if it's in NS_CATEGORY)
-                $nodes[$titles[$r->pe_id]->getNamespace()]["pg".$r->pe_id] = array(
-                    'label' => $titles[$r->pe_id]->getPrefixedText(),
-                    'href'  => $titles[$r->pe_id]->getFullUrl(),
-                );
-                $edges["sd".$r->sd_id]["pg".$r->pe_id] = true;
-            }
-            elseif ($r->type == 'category')
-            {
-                // SD for category contents
-                $nodes[NS_CATEGORY]["cat".$r->pe_id] = array(
-                    'label' => $titles[$r->pe_id]->getPrefixedText(),
-                    'shape' => 'folder',
-                    'href'  => $titles[$r->pe_id]->getFullUrl(),
-                );
-                $edges["sd".$r->sd_id]["cat".$r->pe_id] = true;
-            }
-            elseif ($r->type == 'namespace')
-                $ns_sd[] = $r;
-        }
-        // Draw categories
-        foreach ($catlinks as $k => $ct)
-        {
-            $c = $titles[$catkeys[$k]];
-            $catname = $c->getPrefixedText();
-            $id = $c->getArticleId();
-            $nodes[NS_CATEGORY]["cat$id"] = array(
-                'label'   => $catname,
-                'shape'   => 'folder',
-                'style'   => 'filled',
-                'href'    => $c->getFullUrl(),
-                'tooltip' => $c->getPrefixedText(),
-                'fillcolor' => $colors['category'],
-            );
-            foreach ($ct as $t)
-            {
-                $tid = $t->getArticleId();
-                if ($t->getNamespace() == NS_CATEGORY)
-                {
-                    $nodes[NS_CATEGORY]["cat$tid"] = array(
-                        'label'   => $t->getPrefixedText(),
-                        'shape'   => 'folder',
-                        'style'   => 'filled',
-                        'href'    => $t->getFullUrl(),
-                        'tooltip' => $t->getPrefixedText(),
-                        'fillcolor' => $colors['category'],
-                    );
-                    $edges["cat$id"]["cat$tid"] = true;
-                }
-                elseif (isset($nodes[$t->getNamespace()]["pg$tid"]))
-                    $edges["cat$id"]["pg$tid"] = true;
+                $type2 = $type;
+                if ($type2 == 'sd')
+                    $type2 .= '_'.$r->type;
+                $nodes[$n]['fillcolor'] = $colors[$type2];
+                $nodes[$n]['style'] = 'filled';
             }
         }
-        // Then draw namespace SDs
-        foreach ($ns_sd as $r)
-        {
-            if (!$nodes[$r->pe_id])
-            {
-                $nodes[$r->pe_id][$k = 'trunc'.$r->pe_id] = array(
-                    'label'   => '...',
-                    'shape'   => 'circle',
-                    'href'    => Title::newFromText('Special:Allpages')->getFullUrl(array('namespace' => $r->pe_id)),
-                    'tooltip' => "Click to see all pages in namespace ".$wgContLang->getNsText($r->pe_id),
-                );
-            }
-            else
-                list($k, $v) = each($nodes[$r->pe_id]);
-            $edges["sd".$r->sd_id][$k] = 'lhead=cluster'.$r->pe_id;
-        }
-        // Draw the right hierarchy
-        $hier = $st->getFullSDHierarchy();
-        foreach ($hier as $row)
-            if (isset($nodes[HACL_NS_ACL]['sd'.$row->child_id]) && isset($nodes[HACL_NS_ACL]['sd'.$row->parent_right_id]))
-                $edges['sd'.$row->child_id]['sd'.$row->parent_right_id] = true;
-        // Namespaces as subgraphs, pages as nodes
-        // ACL nodes are not grouped
+        // Draw clusters
         $graph = '';
-        $allnodes = array();
-        foreach ($nodes as $ns => $nsnodes)
+        $ns_first[''] = '';
+        foreach ($ns_first as $ns => $first)
         {
-            if ($ns != HACL_NS_ACL)
+            if ($ns !== '')
             {
-                $graph .= "subgraph cluster$ns {\n";
+                $graph .= "subgraph clusterns$ns {\n";
                 $graph .= "graph [label=\"Namespace ".($ns ? $wgContLang->getNsText($ns) : 'Main').
-                    "\", href=\"".Title::newFromText('Special:Allpages')->getFullUrl(array('namespace' => $r->pe_id)).
+                    "\", href=\"".Title::newFromText('Special:Allpages')->getFullUrl(array('namespace' => $ns)).
                     "\"];\n";
             }
-            foreach ($nsnodes as $nodename => $attr)
+            foreach ($cat_cluster[$ns] as $cat => $ks)
             {
-                $allnodes[$nodename] = $attr;
-                $graph .= "$nodename [".self::attrstring($attr)."];\n";
+                if ($cat !== '')
+                {
+                    $graph .= "subgraph clustercat${ns}_$cat {\n";
+                    $graph .= 'graph [label="'.$titles[$cat]->getPrefixedText().'", href="'.$titles[$cat]->getFullUrl().'"];'."\n";
+                }
+                foreach ($ks as $nodename)
+                    $graph .= "$nodename [".self::attrstring($nodes[$nodename])."];\n";
+                if ($cat !== '')
+                    $graph .= "}\n";
             }
-            if ($ns != HACL_NS_ACL)
+            if ($ns !== '')
                 $graph .= "}\n";
         }
-        // Edges
+        // Draw edges
         foreach ($edges as $from => $to)
         {
             foreach ($to as $id => $attr)
@@ -294,8 +348,8 @@ class IntraACLSpecial extends SpecialPage
                 else
                     $attr = '';
                 $attr .= self::attrstring(array(
-                    'href' => $allnodes[$from]['href'],
-                    'tooltip' => $allnodes[$from]['label'],
+                    'href' => $nodes[$from]['href'],
+                    'tooltip' => $nodes[$from]['label'],
                 ));
                 $graph .= "$from -> $id [$attr];\n";
             }
