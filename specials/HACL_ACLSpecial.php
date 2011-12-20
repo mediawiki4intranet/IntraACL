@@ -419,6 +419,8 @@ class IntraACLSpecial extends SpecialPage
                     $aclContent = $aclArticle->getContent();
                     $aclSDName = $aclTitle->getText();
                 }
+                else
+                    $aclArticle = NULL;
                 list($aclPEName, $aclPEType) = HACLSecurityDescriptor::nameOfPE($aclTitle->getText());
             }
         }
