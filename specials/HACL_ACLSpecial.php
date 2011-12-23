@@ -176,7 +176,8 @@ class IntraACLSpecial extends SpecialPage
         $cat_cluster[NS_CATEGORY][''] = array();
         foreach ($sds as $r)
         {
-            $nodes['sd'.$r->sd_id] = $r;
+            if ($r->type != 'page')
+                $nodes['sd'.$r->sd_id] = $r;
             if ($r->type == 'page')
             {
                 $nodes['pg'.$r->pe_id] = true;
@@ -236,10 +237,14 @@ class IntraACLSpecial extends SpecialPage
         }
         unset($attr);
         // Group SDs in the same clusters as their PEs and draw namespace SD edges
+        $sdbyid = array();
         foreach ($sds as $r)
         {
             if ($r->type == 'page')
+            {
                 $cluster['sd'.$r->sd_id] = $cluster['pg'.$r->pe_id];
+                $sdbyid[$r->sd_id] = $r;
+            }
             elseif ($r->type == 'namespace')
             {
                 $cluster['sd'.$r->sd_id] = '';
@@ -262,21 +267,30 @@ class IntraACLSpecial extends SpecialPage
             elseif ($r->type == 'right')
                 $cluster['sd'.$r->sd_id] = '';
         }
-        foreach ($cluster as $k => $cl)
-        {
-            if (preg_match('/clustercat(\d+)_(\d+)/', $cl, $m))
-                $cat_cluster[$m[1]][$m[2]][] = $k;
-            elseif (preg_match('/clusterns(\d+)/', $cl, $m))
-                $cat_cluster[$m[1]][''][] = $k;
-            elseif ($cl === '')
-                $cat_cluster[''][''][] = $k;
-        }
         // Draw right hierarchy
         $hier = $st->getFullSDHierarchy();
         foreach ($hier as $row)
+        {
+            if ($sdbyid[$row->child_id]->type == 'page')
+                $nodes['sd'.$row->child_id] = $sdbyid[$row->child_id];
+            if ($sdbyid[$row->parent_right_id]->type == 'page')
+                $nodes['sd'.$row->parent_right_id] = $sdbyid[$row->parent_right_id];
             if (isset($nodes['sd'.$row->child_id]) &&
                 isset($nodes['sd'.$row->parent_right_id]))
                 $edges['sd'.$row->child_id]['sd'.$row->parent_right_id] = true;
+        }
+        foreach ($cluster as $k => $cl)
+        {
+            if (isset($nodes[$k]))
+            {
+                if (preg_match('/clustercat(\d+)_(\d+)/', $cl, $m))
+                    $cat_cluster[$m[1]][$m[2]][] = $k;
+                elseif (preg_match('/clusterns(\d+)/', $cl, $m))
+                    $cat_cluster[$m[1]][''][] = $k;
+                elseif ($cl === '')
+                    $cat_cluster[''][''][] = $k;
+            }
+        }
         // Set node attributes
         $shapes = array(
             'sd' => 'note',
@@ -341,21 +355,24 @@ class IntraACLSpecial extends SpecialPage
         // Draw edges
         foreach ($edges as $from => $to)
         {
-            foreach ($to as $id => $attr)
+            if (isset($nodes[$from]))
             {
-                if ($attr !== true)
-                    $attr .= ', ';
-                else
-                    $attr = '';
-                $attr .= self::attrstring(array(
-                    'href' => $nodes[$from]['href'],
-                    'tooltip' => $nodes[$from]['label'],
-                ));
-                $graph .= "$from -> $id [$attr];\n";
+                foreach ($to as $id => $attr)
+                {
+                    if ($attr !== true)
+                        $attr .= ', ';
+                    else
+                        $attr = '';
+                    $attr .= self::attrstring(array(
+                        'href' => $nodes[$from]['href'],
+                        'tooltip' => $nodes[$from]['label'],
+                    ));
+                    $graph .= "$from -> $id [$attr];\n";
+                }
             }
         }
         // Render the graph
-        $graph = "<graph>\ndigraph G {\nedge [penwidth=2];\nsplines=polyline;\noverlap=false;\nranksep=2;\nrankdir=LR;\ncompound=true;\n$graph\n}\n</graph>\n";
+        $graph = "<graph>\ndigraph G {\nedge [penwidth=2 color=blue];\nnode [fontname=sans-serif];\nsplines=polyline;\noverlap=false;\nranksep=2;\nrankdir=LR;\ncompound=true;\n$graph\n}\n</graph>\n";
         $wgOut->addWikiText($graph);
         $wgOut->addHTML("<pre>$graph</pre>");
         haclfRestoreTitlePatch($patch);
