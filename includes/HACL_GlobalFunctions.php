@@ -125,7 +125,7 @@ function haclfSetupExtension()
      * of this file and haclfRestoreTitleCheck() here.
      * But this does not allow changing $haclgEnableTitlePatch after enabling IntraACL.
      */
-    if ($_SERVER['SERVER_NAME'])
+    if (!empty($_SERVER['SERVER_NAME']))
     {
         define('HACL_HALOACL_VERSION', '1.0');
         $wgHooks['EditPage::showEditForm:initial'][] = 'HACLToolbar::warnNonReadableCreate';
@@ -186,7 +186,7 @@ function haclfSetupExtension()
     //--- credits (see "Special:Version") ---
     $wgExtensionCredits['other'][] = array(
         'name'        => 'IntraACL',
-        'version'     => HACL_HALOACL_VERSION,
+        'version'     => '2011-12-30',
         'author'      => "Vitaliy Filippov, Stas Fomin, Thomas Schweitzer",
         'url'         => 'http://wiki.4intra.net/IntraACL',
         'description' => 'The best MediaWiki rights extension, based on HaloACL.');
