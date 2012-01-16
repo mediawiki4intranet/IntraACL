@@ -78,7 +78,6 @@ class HACLEvaluator
     {
         global $haclgOpenWikiAccess, $wgRequest;
         $etc = haclfDisableTitlePatch();
-        $actionID = 0;
 
         $grant = array('', false, false);
         self::startLog($title, $user, $action);
@@ -108,7 +107,7 @@ class HACLEvaluator
         // If the user has no read access to a non-existing page,
         // but has the right to create it - allow him to "read" it,
         // because Wiki needs it to show the creation form.
-        if ($actionID == HACLLanguage::RIGHT_READ && !$result && !$grant[2] && !$articleID)
+        if ($action == 'read' && !$result && !$grant[2] && !$articleID)
             $grant[2] = self::userCan($title, $user, 'create', $result);
 
         return $grant[2];
@@ -164,7 +163,7 @@ class HACLEvaluator
                 return array('Can\'t move or delete non-existing article.', true, true);
             // Check if the title belongs to a namespace with an SD
             list($r, $sd) = self::checkNamespaceRight($title->getNamespace(), $userID, $actionID);
-            return array('Checked namespace access right.', $r, $sd);
+            return array("Checked namespace access right: ($r,$sd)", $r, $sd);
         }
 
         return self::hasSD($title, $articleID, $userID, $actionID);
