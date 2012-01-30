@@ -107,7 +107,7 @@ class HACLEvaluator
         // If the user has no read access to a non-existing page,
         // but has the right to create it - allow him to "read" it,
         // because Wiki needs it to show the creation form.
-        if ($action == 'read' && !$result && !$grant[2] && !$articleID)
+        if ($action == 'read' && !$result && !$grant[2] && !$title->exists())
             $grant[2] = self::userCan($title, $user, 'create', $result);
 
         return $grant[2];
