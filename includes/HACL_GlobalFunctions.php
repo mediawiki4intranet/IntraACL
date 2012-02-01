@@ -475,7 +475,7 @@ function haclfArticleID($articleName, $defaultNS = NS_MAIN)
         return 0;
     $id = $t->getArticleID();
     if ($id === 0)
-        $id = $t->getArticleID(GAID_FOR_UPDATE);
+        $id = $t->getArticleID(Title::GAID_FOR_UPDATE);
     if ($id == 0 && $t->getNamespace() == NS_SPECIAL)
         $id = HACLStorage::getDatabase()->idForSpecial($articleName);
     return $id;
