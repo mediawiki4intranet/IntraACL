@@ -143,9 +143,9 @@ class HACLToolbar
         }
 
         // If page SD is not yet in the list, insert it as the second option
-        if ($pageSDId && !$found)
+        if ($pageSDId && !$found &&
+            ($sd = HACLSecurityDescriptor::newFromId($pageSDId, false)))
         {
-            $sd = HACLSecurityDescriptor::newFromId($pageSDId);
             array_splice($options, 1, 0, array(array(
                 'name'    => $sd->getPEName(),
                 'value'   => $sd->getSDId(),
