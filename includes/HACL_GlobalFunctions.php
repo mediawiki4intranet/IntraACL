@@ -513,7 +513,7 @@ function haclfLoadExtensionSchemaUpdates($updater = NULL)
 function haclfInitDatabase()
 {
     global $argv;
-    $delete = $_ENV['HACL_DELETE_DB'] && true;
+    $delete = !empty($_ENV['HACL_DELETE_DB']);
     if ($delete)
     {
         echo "Deleting database tables for IntraACL...";
