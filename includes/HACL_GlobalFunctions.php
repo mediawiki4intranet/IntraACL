@@ -494,13 +494,17 @@ function haclfAddToolbarForEditPage($editpage, $out)
 }
 
 // Hook into maintenance/update.php
-function haclfLoadExtensionSchemaUpdates()
+function haclfLoadExtensionSchemaUpdates($updater = NULL)
 {
     global $wgMysqlUpdates, $wgUpdates;
-    if ($wgMysqlUpdates)
+    if ($updater && $updater->getDB()->getType() == 'mysql')
+        $updater->addExtensionUpdate(array('haclfInitDatabase'));
+    elseif ($wgMysqlUpdates)
         $wgMysqlUpdates[] = array('haclfInitDatabase');
     elseif ($wgUpdates)
         $wgUpdates['mysql'][] = array('haclfInitDatabase');
+    else
+        die("IntraACL: unsupported database or MW version");
     return true;
 }
 
