@@ -66,7 +66,7 @@ class IntraACLSpecial extends SpecialPage
     }
 
     /* Entry point */
-    public function execute()
+    public function execute($par)
     {
         global $wgOut, $wgRequest, $wgUser, $wgTitle, $haclgHaloScriptPath;
         haclCheckScriptPath();
