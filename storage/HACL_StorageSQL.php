@@ -544,6 +544,10 @@ class HACLStorageSQL {
 
     public function getGroupMembersRecursive($groupID, $children = array())
     {
+        if (!isset($children['user']))
+            $children['user'] = array();
+        if (!isset($children['group']))
+            $children['group'] = array();
         $dbr = wfGetDB(DB_SLAVE);
         while ($groupID)
         {
@@ -623,13 +627,14 @@ class HACLStorageSQL {
 
     /**
      * Massively retrieves IntraACL groups with $group_ids from the DB
-     * @return array(object), indexed by group ID
+     * If $group_ids is NULL, retrieves ALL groups
+     * @return array(group_id => row)
      */
     public function getGroupsByIds($group_ids)
     {
         $dbr = wfGetDB(DB_SLAVE);
         $rows = array();
-        $res = $dbr->select('halo_acl_groups', '*', $group_ids ? array('group_id' => $group_ids) : '1', __METHOD__);
+        $res = $dbr->select('halo_acl_groups', '*', is_null($group_ids) ? '1' : array('group_id' => $group_ids), __METHOD__);
         foreach ($res as $r)
             $rows[$r->group_id] = $r;
         return $rows;

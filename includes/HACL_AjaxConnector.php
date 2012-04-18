@@ -230,9 +230,9 @@ function haclGroupClosure($groups, $predefined = '')
         {
             $m = $st->getGroupMembersRecursive($i);
             $members[$k] = array();
-            foreach ($st->getUsers(@array_keys($m['user'])) as $u)
+            foreach ($st->getUsers(array_keys($m['user'])) as $u)
                 $members[$k][] = 'User:'.$u->user_name;
-            foreach ($st->getGroupsByIds(@array_keys($m['group'])) as $g)
+            foreach ($st->getGroupsByIds(array_keys($m['group'])) as $g)
                 $members[$k][] = $g->group_name;
             sort($members[$k]);
         }
