@@ -514,17 +514,9 @@ class HACLStorageSQL {
      */
     public function hasGroupMember($parentID, $childID, $memberType, $recursive)
     {
-        $dbr = wfGetDB(DB_SLAVE);
+        $dbr = wfGetDB( DB_SLAVE );
 
         $parents = array();
-
-        if ($memberType == HACLGroup::USER)
-        {
-            // Include check for "all registered users"
-            // FIXME including "all users" into the group is senseless, but it's now allowed by IntraACL
-            $childID = (array)$childID;
-            $childID[] = -1;
-        }
 
         // Ask for the immediate parents of $childID
         // Then check recursively, if one of the parent groups of $childID is $parentID
@@ -542,7 +534,7 @@ class HACLStorageSQL {
             $res = $dbr->select('halo_acl_group_members', 'parent_group_id', $where, __METHOD__);
             $new = false;
             while ($row = $dbr->fetchRow($res))
-                if (!isset($parents[$row[0]]))
+                if (!$parents[$row[0]])
                     $new = $parents[$row[0]] = true;
             $dbr->freeResult($res);
         } while ($recursive && $new);
