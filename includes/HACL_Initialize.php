@@ -108,6 +108,8 @@ $haclgNamespaceIndex = 102;
 #   I.e. page rights override category rights, which override namespace rights.
 $haclgCombineMode = HACL_COMBINE_EXTEND;
 
+# See also $wgWhitelistRead - IntraACL opens whitelisted pages for reading
+
 // load global functions
 require_once('HACL_GlobalFunctions.php');
 
