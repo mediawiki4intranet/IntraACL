@@ -146,6 +146,11 @@ class HACLEvaluator
         if ($title->getNamespace() == HACL_NS_ACL)
             return array('Checked ACL modification rights.', self::checkACLManager($title, $user, $actionID), true);
 
+        // If there is a whitelist, then allow user to read the page
+        global $wgWhitelistRead;
+        if ($wgWhitelistRead && $action == HACLLanguage::RIGHT_READ && in_array($title, $wgWhitelistRead, false))
+            return array('Page is in MediaWiki whitelist', true, true);
+
         // haclfArticleID also returns IDs for special pages
         $articleID = haclfArticleID($title);
         $userID = $user->getId();
