@@ -632,6 +632,8 @@ class HACLStorageSQL {
      */
     public function getGroupsByIds($group_ids)
     {
+        if (!$group_ids)
+            return array();
         $dbr = wfGetDB(DB_SLAVE);
         $rows = array();
         $res = $dbr->select('halo_acl_groups', '*', is_null($group_ids) ? '1' : array('group_id' => $group_ids), __METHOD__);
