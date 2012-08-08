@@ -148,7 +148,7 @@ class HACLEvaluator
 
         // If there is a whitelist, then allow user to read the page
         global $wgWhitelistRead;
-        if ($wgWhitelistRead && $action == HACLLanguage::RIGHT_READ && in_array($title, $wgWhitelistRead, false))
+        if ($wgWhitelistRead && $actionID == HACLLanguage::RIGHT_READ && in_array($title, $wgWhitelistRead, false))
             return array('Page is in MediaWiki whitelist', true, true);
 
         // haclfArticleID also returns IDs for special pages
