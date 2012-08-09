@@ -1021,9 +1021,9 @@ class HACLStorageSQL {
         // Rematerialize the rights of the parents of $SDID
         foreach ($parents as $p)
         {
-            if ($p != $SDID)
+            if ($p != $SDID &&
+                ($sd = HACLSecurityDescriptor::newFromID($p, false)))
             {
-                $sd = HACLSecurityDescriptor::newFromID($p);
                 $sd->materializeRightsHierarchy();
             }
         }
