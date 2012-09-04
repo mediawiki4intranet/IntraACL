@@ -534,7 +534,7 @@ class HACLStorageSQL {
             $res = $dbr->select('halo_acl_group_members', 'parent_group_id', $where, __METHOD__);
             $new = false;
             while ($row = $dbr->fetchRow($res))
-                if (!$parents[$row[0]])
+                if (!isset($parents[$row[0]]))
                     $new = $parents[$row[0]] = true;
             $dbr->freeResult($res);
         } while ($recursive && $new);

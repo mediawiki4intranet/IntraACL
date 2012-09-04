@@ -603,7 +603,7 @@ class HACLToolbar
     //     timestamp of embedded element's SD, if it does exist.
     //     Value may be even just "-" when the toolbar was queried for article without SD,
     //     and when the embedded element did not have any SD.
-    public function getEmbeddedHtml($peID, $sdID = '')
+    public static function getEmbeddedHtml($peID, $sdID = '')
     {
         global $haclgContLang, $wgRequest;
         if (!$sdID)
