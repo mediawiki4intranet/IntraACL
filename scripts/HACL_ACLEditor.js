@@ -19,7 +19,6 @@ var HACLACLEditor = function(msg, petPrefixes, initialTitle, initialType, initia
 {
     this.msg = msg;
     this.pet_prefixes = petPrefixes;
-    this.is_template = { 'right': true };
 
     this.group_cache = {};
     this.predef_cache = {};
@@ -229,7 +228,6 @@ HACLACLEditor.prototype.parse_sd = function()
 HACLACLEditor.prototype.check_errors = function()
 {
     var has_managers = false, has_rights = false;
-    var is_template = this.is_template[this.last_target_type];
     var merge = [ this.rights_direct, this.rights_indirect ];
     for (var h in merge)
     {
@@ -238,7 +236,7 @@ HACLACLEditor.prototype.check_errors = function()
         {
             for (var a in h[m])
             {
-                if (a == 'manage' && !is_template ||
+                if (a == 'manage' && this.last_target_type == 'page' ||
                     a == 'template')
                     has_managers = true;
                 else
@@ -251,8 +249,13 @@ HACLACLEditor.prototype.check_errors = function()
     document.getElementById('acl_define_rights').style.display = has_rights ? 'none' : '';
     var m = document.getElementById('acl_define_manager');
     m.style.display = has_managers ? 'none' : '';
-    var man_err = { 'page' : 'edit_define_manager', 'right' : 'edit_define_tmanager' };
-    m.innerHTML = this.msg[man_err[is_template] || 'edit_define_manager_np'];
+    var managerErrorMessages = {
+        'page': 'edit_define_manager',
+        'category': 'edit_define_manager_np',
+        'namespace': 'edit_define_manager_np',
+        'right': 'edit_define_tmanager',
+    };
+    m.innerHTML = this.msg[managerErrorMessages[this.last_target_type]];
 };
 
 // fill in this.rights_direct with closure data
@@ -627,7 +630,7 @@ HACLACLEditor.prototype.user_hint_change = function(h)
 HACLACLEditor.prototype.target_hint_fill = function (h, v)
 {
     var wv = document.getElementById('acl_what').value;
-    if (this.is_template[wv])
+    if (wv == 'right')
         return;
     // Always show autocomplete for namespaces
     if (wv != 'namespace' && !v.length)
@@ -639,7 +642,9 @@ HACLACLEditor.prototype.target_hint_fill = function (h, v)
 
 HACLACLEditor.prototype.target_hint_focus = function(f)
 {
-    this.target_hint.tip_div.style.display = !this.is_template[document.getElementById('acl_what').value] && (f || this.target_hint.nodefocus) ? '' : 'none';
+    this.target_hint.tip_div.style.display =
+        this.last_target_type != 'right'
+        && (f || this.target_hint.nodefocus) ? '' : 'none';
     this.target_hint.nodefocus = undefined;
 };
 
