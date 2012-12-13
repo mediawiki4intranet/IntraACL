@@ -111,6 +111,6 @@ $haclgCombineMode = HACL_COMBINE_EXTEND;
 # See also $wgWhitelistRead - IntraACL opens whitelisted pages for reading
 
 // load global functions
-require_once('HACL_GlobalFunctions.php');
+require_once(dirname(__FILE__).'/HACL_GlobalFunctions.php');
 
 haclfInitNamespaces();

@@ -178,8 +178,8 @@ function haclfSetupExtension()
                         ? $_POST["rs"]
                         : (isset( $_GET["rs"] ) ? $_GET["rs"] : NULL);
         if (strpos($funcName, 'hacl') === 0) {
-            require_once('HACL_Toolbar.php');
-            require_once('HACL_AjaxConnector.php');
+            require_once("$haclgIP/includes/HACL_Toolbar.php");
+            require_once("$haclgIP/includes/HACL_AjaxConnector.php");
         }
     }
 
