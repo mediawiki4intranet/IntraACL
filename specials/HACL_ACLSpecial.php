@@ -271,9 +271,9 @@ class IntraACLSpecial extends SpecialPage
         $hier = $st->getFullSDHierarchy();
         foreach ($hier as $row)
         {
-            if ($sdbyid[$row->child_id]->type == 'page')
+            if (isset($sdbyid[$row->child_id]) && $sdbyid[$row->child_id]->type == 'page')
                 $nodes['sd'.$row->child_id] = $sdbyid[$row->child_id];
-            if ($sdbyid[$row->parent_right_id]->type == 'page')
+            if (isset($sdbyid[$row->parent_right_id]) && $sdbyid[$row->parent_right_id]->type == 'page')
                 $nodes['sd'.$row->parent_right_id] = $sdbyid[$row->parent_right_id];
             if (isset($nodes['sd'.$row->child_id]) &&
                 isset($nodes['sd'.$row->parent_right_id]))
@@ -321,7 +321,8 @@ class IntraACLSpecial extends SpecialPage
                 $type2 = $type;
                 if ($type2 == 'sd')
                     $type2 .= '_'.$r->type;
-                $nodes[$n]['fillcolor'] = $colors[$type2];
+                if (isset($colors[$type2]))
+                    $nodes[$n]['fillcolor'] = $colors[$type2];
                 $nodes[$n]['style'] = 'filled';
             }
         }
