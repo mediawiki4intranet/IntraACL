@@ -46,12 +46,12 @@ class HACLDBHelper
      */
     public static function setupTable($table, $fields, $db, $verbose, $primaryKeys = "")
     {
-        global $wgDBname, $wgDBTableOptions;
+        global $wgDBTableOptions;
         HACLDBHelper::reportProgress("Setting up table $table ...\n", $verbose);
         if ($db->tableExists($table) === false)
         {
             // create new table
-            $sql = 'CREATE TABLE ' . $wgDBname . '.' . $table . ' (';
+            $sql = 'CREATE TABLE ' . $table . ' (';
             $first = true;
             foreach ($fields as $name => $type)
             {
