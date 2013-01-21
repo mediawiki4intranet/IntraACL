@@ -512,7 +512,7 @@ function haclfLoadExtensionSchemaUpdates($updater = NULL)
 // and is called from standard maintenance/update.php script
 function haclfInitDatabase()
 {
-    global $argv;
+    global $argv, $egDeferCreatePermissionDenied;
     $delete = !empty($_ENV['HACL_DELETE_DB']);
     if ($delete)
     {
@@ -526,6 +526,16 @@ function haclfInitDatabase()
         HACLStorage::getDatabase()->initDatabaseTables();
         echo "done.\n";
 
+        // Defer creating 'Permission Denied' page until all schema updates are finished
+        $egDeferCreatePermissionDenied = new DeferCreatePermissionDenied();
+    }
+}
+
+// Creates 'Permission Denied' page during destruction
+class DeferCreatePermissionDenied
+{
+    function __destruct()
+    {
         global $haclgContLang;
         $pd = $haclgContLang->getPermissionDeniedPage();
         $t = Title::newFromText($pd);
