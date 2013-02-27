@@ -533,6 +533,16 @@ class HACLStorageSQL {
             ), __METHOD__);
             if ($yes)
                 return true;
+
+            // Check if # presents in the group DB
+            if (is_int($childID) && $childID > 0) {
+                $yes = $dbr->selectField('halo_acl_group_members', 'parent_group_id', array(
+                    'child_id'   => '-1',
+                    'parent_group_id' => $parentID,
+                ), __METHOD__);
+                if ($yes)
+                    return true;
+            }
             $res = $dbr->select('halo_acl_group_members', 'parent_group_id', $where, __METHOD__);
             $new = false;
             while ($row = $dbr->fetchRow($res))
