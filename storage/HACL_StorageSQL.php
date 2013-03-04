@@ -516,29 +516,28 @@ class HACLStorageSQL {
      */
     public function hasGroupMember($parentID, $childID, $memberType, $recursive)
     {
-        $dbr = wfGetDB( DB_SLAVE );
-
-        $parents = array();
+        $dbr = wfGetDB(DB_SLAVE);
 
         // Ask for the immediate parents of $childID
         // Then check recursively, if one of the parent groups of $childID is $parentID
+        if ($memberType === 'user')
+        {
+            // Include 0 and -1 to check for "all users" (*) / "all registered users" (#) grants, respectively
+            $childID = array($childID, -1, 0);
+        }
+        $where = array('child_type' => $memberType, 'child_id' => $childID);
+        $parents = array();
         do
         {
-            $where = array(
-                'child_id'   => $parents ? array_keys($parents) : $childID,
-                'child_type' => $parents ? 'group' : $memberType,
-            );
-            $yes = $dbr->selectField('halo_acl_group_members', 'parent_group_id', $where+array(
-                'parent_group_id' => $parentID,
-            ), __METHOD__);
-            if ($yes)
-                return true;
             $res = $dbr->select('halo_acl_group_members', 'parent_group_id', $where, __METHOD__);
-            $new = false;
-            while ($row = $dbr->fetchRow($res))
-                if (!isset($parents[$row[0]]))
-                    $new = $parents[$row[0]] = true;
-            $dbr->freeResult($res);
+            $new = array();
+            foreach ($res as $row)
+                if (!isset($parents[$row->parent_group_id]))
+                    $new[$row->parent_group_id] = true;
+            if (isset($new[$parentID]))
+                return true;
+            $parents += $new;
+            $where = array('child_type' => 'group', 'child_id' => array_keys($new));
         } while ($recursive && $new);
 
         return false;
