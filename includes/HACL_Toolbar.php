@@ -226,7 +226,7 @@ class HACLToolbar
 
         // Run template
         ob_start();
-        require(dirname(__FILE__).'/HACL_Toolbar.tpl.php');
+        require(dirname(__FILE__).'/../templates/HACL_Toolbar.tpl.php');
         $html = ob_get_contents();
         ob_end_clean();
         return $html;

@@ -57,7 +57,7 @@ function enableIntraACL()
     // Set up autoloading; essentially all classes should be autoloaded!
     global $wgAutoloadClasses;
     $wgAutoloadClasses += array(
-
+        // Internals
         'HACLParserFunctions'       => "$haclgIP/includes/HACL_ParserFunctions.php",
         'HACLEvaluator'             => "$haclgIP/includes/HACL_Evaluator.php",
         'HACLStorage'               => "$haclgIP/includes/HACL_Storage.php",
@@ -67,14 +67,14 @@ function enableIntraACL()
         'HACLQuickacl'              => "$haclgIP/includes/HACL_Quickacl.php",
         'HACLToolbar'               => "$haclgIP/includes/HACL_Toolbar.php",
 
-        // UI
-        'IntraACLSpecial'           => "$haclgIP/specials/HACL_ACLSpecial.php",
+        // Special page
+        'IntraACLSpecial'           => "$haclgIP/includes/HACL_ACLSpecial.php",
 
         // Exception classes
-        'HACLException'             => "$haclgIP/exceptions/HACL_Exception.php",
-        'HACLGroupException'        => "$haclgIP/exceptions/HACL_GroupException.php",
-        'HACLSDException'           => "$haclgIP/exceptions/HACL_SDException.php",
-        'HACLRightException'        => "$haclgIP/exceptions/HACL_RightException.php",
+        'HACLException'             => "$haclgIP/includes/HACL_Exception.php",
+        'HACLGroupException'        => "$haclgIP/includes/HACL_Exception.php",
+        'HACLSDException'           => "$haclgIP/includes/HACL_Exception.php",
+        'HACLRightException'        => "$haclgIP/includes/HACL_Exception.php",
     );
 
     // ACL update hooks are registered even in commandline.

@@ -414,7 +414,7 @@ class IntraACLSpecial extends SpecialPage
         }
         // Run template
         ob_start();
-        require(dirname(__FILE__).'/HACL_ACLList.tpl.php');
+        require(dirname(__FILE__).'/../templates/HACL_ACLList.tpl.php');
         $html = ob_get_contents();
         ob_end_clean();
         $wgOut->setPageTitle(wfMsg('hacl_acllist'));
@@ -447,7 +447,7 @@ class IntraACLSpecial extends SpecialPage
         }
         /* Run template */
         ob_start();
-        require(dirname(__FILE__).'/HACL_ACLEditor.tpl.php');
+        require(dirname(__FILE__).'/../templates/HACL_ACLEditor.tpl.php');
         $html = ob_get_contents();
         ob_end_clean();
         if ($aclArticle)
@@ -491,7 +491,7 @@ class IntraACLSpecial extends SpecialPage
         }
         /* Run template */
         ob_start();
-        require(dirname(__FILE__).'/HACL_QuickACL.tpl.php');
+        require(dirname(__FILE__).'/../templates/HACL_QuickACL.tpl.php');
         $html = ob_get_contents();
         ob_end_clean();
         $wgOut->setPageTitle(wfMsg('hacl_qacl_manage'));
@@ -530,7 +530,7 @@ class IntraACLSpecial extends SpecialPage
     {
         global $wgOut, $wgUser, $wgScript, $haclgHaloScriptPath, $haclgContLang;
         ob_start();
-        require(dirname(__FILE__).'/HACL_GroupList.tpl.php');
+        require(dirname(__FILE__).'/../templates/HACL_GroupList.tpl.php');
         $html = ob_get_contents();
         ob_end_clean();
         $wgOut->setPageTitle(wfMsg('hacl_grouplist'));
@@ -555,7 +555,7 @@ class IntraACLSpecial extends SpecialPage
             list($grpPrefix, $grpName) = explode('/', $grpTitle->getText(), 2);
         /* Run template */
         ob_start();
-        require(dirname(__FILE__).'/HACL_GroupEditor.tpl.php');
+        require(dirname(__FILE__).'/../templates/HACL_GroupEditor.tpl.php');
         $html = ob_get_contents();
         ob_end_clean();
         $wgOut->setPageTitle($grpTitle ? wfMsg('hacl_grp_editing', $grpTitle->getText()) : wfMsg('hacl_grp_creating'));
@@ -677,7 +677,7 @@ class IntraACLSpecial extends SpecialPage
             $prevpage = $pageurl.'&offset='.intval($offset-$limit);
         // Run template
         ob_start();
-        require(dirname(__FILE__).'/HACL_ACLListContents.tpl.php');
+        require(dirname(__FILE__).'/../templates/HACL_ACLListContents.tpl.php');
         $html = ob_get_contents();
         ob_end_clean();
         return $html;
@@ -704,7 +704,7 @@ class IntraACLSpecial extends SpecialPage
         }
         /* Run template */
         ob_start();
-        require(dirname(__FILE__).'/HACL_GroupListContents.tpl.php');
+        require(dirname(__FILE__).'/../templates/HACL_GroupListContents.tpl.php');
         $html = ob_get_contents();
         ob_end_clean();
         return $html;
