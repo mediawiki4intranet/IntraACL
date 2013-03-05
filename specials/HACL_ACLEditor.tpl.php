@@ -28,7 +28,7 @@
   <p id="acl_pnhint" class="acl_error" style="display: none"><?= wfMsg('hacl_edit_enter_name_first') ?></p>
   <p id="acl_exists_hint" class="acl_info" style="display: none"><?= wfMsg('hacl_edit_sd_exists') ?></p>
   <p id="acl_define_rights" class="acl_error"><?= wfMsg('hacl_edit_define_rights') ?></p>
-  <p id="acl_define_manager" class="acl_warn"></p>
+  <p id="acl_define_manager" class="acl_error"></p>
  </td>
  <td style="vertical-align: top">
   <p><b><?= wfMsg('hacl_edit_modify_definition') ?></b></p>
@@ -74,6 +74,8 @@
 <script language="JavaScript" src="<?= $haclgHaloScriptPath ?>/scripts/HACL_ACLEditor.js"></script>
 <script language="JavaScript" src="<?= $haclgHaloScriptPath ?>/scripts/HACL_Toolbar.js"></script>
 
+<?/* TODO: Use ResourceLoader instead of manually passing messages to JS code */?>
+
 <script language="JavaScript">
 var AE;
 exAttach(window, 'load', function()
@@ -86,7 +88,7 @@ exAttach(window, 'load', function()
         ' indirect_grant indirect_grant_all indirect_grant_reg edit_sd_exists edit_define_rights'.
         ' edit_define_manager edit_define_tmanager edit_define_manager_np edit_ahint_all edit_ahint_manage'.
         ' edit_ahint_template edit_ahint_read edit_ahint_edit edit_ahint_create edit_ahint_delete'.
-        ' edit_ahint_move edit_goto_group'
+        ' edit_ahint_move edit_goto_group edit_lose'
     ) as $msg)
         print "        '$msg': '".addslashes(wfMsgNoTrans("hacl_$msg"))."',\n"; ?>
         'NS_ACL': '<?= $wgContLang->getNsText(HACL_NS_ACL) ?>',
@@ -103,6 +105,13 @@ exAttach(window, 'load', function()
     }
     ?>
     };
-    AE = new HACLACLEditor(msg, petPrefixes, "<?= $aclTitle ? addslashes($aclTitle->getText()) : '' ?>", '<?= $aclPEType ?>', <?= $aclArticle ? 1 : 0 ?>);
+    AE = new HACLACLEditor({
+        msg: msg,
+        petPrefixes: petPrefixes,
+        isSysop: <?= $this->isAdmin ? 1 : 0 ?>,
+        initialTitle: "<?= $aclTitle ? addslashes($aclTitle->getText()) : '' ?>",
+        initialType: '<?= $aclPEType ?>',
+        initialExists: <?= $aclArticle ? 1 : 0 ?>
+    });
 });
 </script>

@@ -48,6 +48,8 @@ class IntraACLSpecial extends SpecialPage
         'define' => array('right' => 1),
     );
 
+    var $isAdmin;
+
     /* Identical to Xml::element, but does no htmlspecialchars() on $contents */
     static function xelement($element, $attribs = null, $contents = '', $allowShortTag = true)
     {
@@ -76,10 +78,10 @@ class IntraACLSpecial extends SpecialPage
             wfLoadExtensionMessages('IntraACL');
             $wgOut->setPageTitle(wfMsg('hacl_special_page'));
             $groups = $wgUser->getGroups();
-            $admin = in_array('bureaucrat', $groups) || in_array('sysop', $groups);
+            $this->isAdmin = in_array('bureaucrat', $groups) || in_array('sysop', $groups);
             if (!isset($q['action']) ||
                 !isset(self::$actions[$q['action']]) ||
-                $q['action'] == 'rightgraph' && !$admin)
+                $q['action'] == 'rightgraph' && !$this->isAdmin)
                 $q['action'] = 'acllist';
             $f = 'html_'.$q['action'];
             $wgOut->addLink(array(
@@ -90,7 +92,7 @@ class IntraACLSpecial extends SpecialPage
             ));
             if ($f == 'html_acllist')
                 $wgOut->addHTML('<p style="margin-top: -8px">'.wfMsgExt('hacl_acllist_hello', 'parseinline').'</p>');
-            $this->_actions($q, $admin);
+            $this->_actions($q);
             $this->$f($q);
         }
         else
@@ -424,7 +426,8 @@ class IntraACLSpecial extends SpecialPage
     {
         global $wgOut, $wgUser, $wgScript, $haclgHaloScriptPath, $haclgContLang, $wgContLang, $wgScriptPath;
         $aclTitle = $aclArticle = NULL;
-        $aclContent = $aclPEName = $aclPEType = '';
+        $aclContent = '{{#manage rights: assigned to = User:'.$wgUser->getName().'}}';
+        $aclPEName = $aclPEType = '';
         if (!empty($q['sd']))
         {
             $aclTitle = Title::newFromText($q['sd'], HACL_NS_ACL);
@@ -496,7 +499,7 @@ class IntraACLSpecial extends SpecialPage
     }
 
     /* Add header with available actions */
-    public function _actions(&$q, $admin)
+    public function _actions(&$q)
     {
         global $wgScript, $wgOut, $wgUser;
         $act = $q['action'];
@@ -506,7 +509,7 @@ class IntraACLSpecial extends SpecialPage
             $act = 'groupedit';
         $html = array();
         $actions = array('acllist', 'acl', 'quickaccess', 'grouplist', 'group');
-        if ($admin)
+        if ($this->isAdmin)
             $actions[] = 'rightgraph';
         foreach ($actions as $action)
         {

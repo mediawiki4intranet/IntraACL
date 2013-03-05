@@ -10,15 +10,18 @@ var htmlspecialchars = function(s)
     return s;
 };
 
-/* msg: localisation messages
-   petPrefixes: PET_XX => prefix from haclgContLang
-   initialTitle: SD Title -> getText()
-   initialType: SD -> getPEType()
+/* msg:             Localisation messages (TODO: use ResourceLoader)
+   petPrefixes:     PET_XX => prefix from haclgContLang
+   isSysop:         Is current user a sysop or bureaucrat?
+   initialTitle:    SD Title -> getText()
+   initialType:     SD -> getPEType()
+   initialExists:   Does the SD exist?
 */
-var HACLACLEditor = function(msg, petPrefixes, initialTitle, initialType, initialExists)
+var HACLACLEditor = function(params)
 {
-    this.msg = msg;
-    this.pet_prefixes = petPrefixes;
+    this.msg = params.msg;
+    this.pet_prefixes = params.petPrefixes;
+    this.is_sysop = params.isSysop;
 
     this.group_cache = {};
     this.predef_cache = {};
@@ -33,8 +36,8 @@ var HACLACLEditor = function(msg, petPrefixes, initialTitle, initialType, initia
     this.target_hint = null;
     this.inc_hint = null;
 
-    this.regexp_user = msg.regexp_user ? new RegExp(msg.regexp_user, 'gi') : '';
-    this.regexp_group = msg.regexp_group ? new RegExp(msg.regexp_group, 'gi') : '';
+    this.regexp_user = this.msg.regexp_user ? new RegExp(this.msg.regexp_user, 'gi') : '';
+    this.regexp_group = this.msg.regexp_group ? new RegExp(this.msg.regexp_group, 'gi') : '';
     this.action_alias = {};
     this.all_actions = [];
 
@@ -47,7 +50,7 @@ var HACLACLEditor = function(msg, petPrefixes, initialTitle, initialType, initia
             this.all_actions.push(a);
     }
 
-    this.init(initialTitle, initialType, initialExists);
+    this.init(params.initialTitle, params.initialType, params.initialExists);
 };
 
 // target ACL page name/type change
@@ -111,6 +114,7 @@ HACLACLEditor.prototype.target_change = function(total_change)
     document.getElementById('acl_delete_link').style.display = t ? '' : 'none';
     document.getElementById('acl_pns').style.display = t ? '' : 'none';
     document.getElementById('acl_pnhint').style.display = t ? 'none' : '';
+    this.check_errors();
 };
 
 // haclSDExists_GetEmbedded callback
@@ -222,13 +226,15 @@ HACLACLEditor.prototype.parse_sd = function()
     }
     // Save this.rights_direct
     this.rights_direct = r;
-}
+};
 
 // Check for errors (now: at least 1 manager defined, at least 1 action defined)
 HACLACLEditor.prototype.check_errors = function()
 {
     var has_managers = false, has_rights = false;
     var merge = [ this.rights_direct, this.rights_indirect ];
+    var dontlose = false;
+    var curUser = 'User:'+mediaWiki.config.get('wgUserName');
     for (var h in merge)
     {
         h = merge[h];
@@ -245,6 +251,7 @@ HACLACLEditor.prototype.check_errors = function()
             if (has_rights && has_managers)
                 break;
         }
+        dontlose = dontlose || h[curUser] && (this.last_target_type == 'page' && h[curUser]['manage'] || h[curUser]['template']);
     }
     document.getElementById('acl_define_rights').style.display = has_rights ? 'none' : '';
     var m = document.getElementById('acl_define_manager');
@@ -253,9 +260,14 @@ HACLACLEditor.prototype.check_errors = function()
         'page': 'edit_define_manager',
         'category': 'edit_define_manager_np',
         'namespace': 'edit_define_manager_np',
-        'right': 'edit_define_tmanager',
+        'right': 'edit_define_tmanager'
     };
-    m.innerHTML = this.msg[managerErrorMessages[this.last_target_type]];
+    var msg = this.msg[managerErrorMessages[this.last_target_type]];
+    if (!dontlose)
+    {
+        msg = this.msg['edit_lose'] + '<br />' + msg;
+    }
+    m.innerHTML = msg;
 };
 
 // fill in this.rights_direct with closure data
@@ -293,6 +305,7 @@ HACLACLEditor.prototype.closure_groups_sd = function(d, sd)
             }
         }
     }
+    // TODO: Also check namespace/category 'manage' rights for page targets
     // Predefined rights
     for (var r in sd)
     {

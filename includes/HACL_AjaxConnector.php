@@ -125,7 +125,7 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
             if ($k >= 0 && (!$nl ||
                 mb_strtolower(mb_substr($v, 0, $nl)) == $n ||
                 mb_strtolower(mb_substr($name, 0, $nl)) == $n) &&
-                !$haclgUnprotectableNamespaceIds[$k])
+                empty($haclgUnprotectableNamespaceIds[$k]))
             {
                 $a[] = array($name, $v);
             }

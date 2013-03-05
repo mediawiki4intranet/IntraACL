@@ -440,8 +440,8 @@ class HACLEvaluator
                 }
                 else
                 {
-                    // Non-existing right templates and SDs for
-                    // namespaces/categories are editables by anyone
+                    // Anyone is allowed to edit non-existing right
+                    // templates and SDs for namespaces/categories
                     return true;
                 }
             }
