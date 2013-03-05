@@ -66,7 +66,6 @@ function enableIntraACL()
         'HACLRight'                 => "$haclgIP/includes/HACL_Right.php",
         'HACLQuickacl'              => "$haclgIP/includes/HACL_Quickacl.php",
         'HACLToolbar'               => "$haclgIP/includes/HACL_Toolbar.php",
-        'HACLDBHelper'              => "$haclgIP/storage/HACL_DBHelper.php",
 
         // UI
         'IntraACLSpecial'           => "$haclgIP/specials/HACL_ACLSpecial.php",
@@ -496,39 +495,24 @@ function haclfAddToolbarForEditPage($editpage, $out)
 // Hook into maintenance/update.php
 function haclfLoadExtensionSchemaUpdates($updater = NULL)
 {
-    global $wgMysqlUpdates, $wgUpdates;
+    global $wgExtNewTables, $wgDBtype;
+    $file = dirname(__FILE__).'/../storage/intraacl-tables.sql';
     if ($updater && $updater->getDB()->getType() == 'mysql')
-        $updater->addExtensionUpdate(array('haclfInitDatabase'));
-    elseif ($wgMysqlUpdates)
-        $wgMysqlUpdates[] = array('haclfInitDatabase');
-    elseif ($wgUpdates)
-        $wgUpdates['mysql'][] = array('haclfInitDatabase');
+    {
+        $updater->addExtensionUpdate(array('addTable', 'halo_acl_rights', $file, true));
+    }
+    elseif ($wgDBtype == 'mysql')
+    {
+        $wgExtNewTables[] = array('addTable', 'halo_acl_rights', $file);
+    }
     else
-        die("IntraACL: unsupported database or MW version");
+    {
+        die("IntraACL only supports MySQL at the moment");
+    }
+    // Defer creating 'Permission Denied' page until all schema updates are finished
+    global $egDeferCreatePermissionDenied;
+    $egDeferCreatePermissionDenied = new DeferCreatePermissionDenied();
     return true;
-}
-
-// This functions sets up IntraACL database tables
-// and is called from standard maintenance/update.php script
-function haclfInitDatabase()
-{
-    global $argv, $egDeferCreatePermissionDenied;
-    $delete = !empty($_ENV['HACL_DELETE_DB']);
-    if ($delete)
-    {
-        echo "Deleting database tables for IntraACL...";
-        HACLStorage::getDatabase()->dropDatabaseTables();
-        echo "done.\n";
-    }
-    else
-    {
-        echo "Setting up database tables for IntraACL...";
-        HACLStorage::getDatabase()->initDatabaseTables();
-        echo "done.\n";
-
-        // Defer creating 'Permission Denied' page until all schema updates are finished
-        $egDeferCreatePermissionDenied = new DeferCreatePermissionDenied();
-    }
 }
 
 // Creates 'Permission Denied' page during destruction

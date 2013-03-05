@@ -37,14 +37,7 @@ if (!defined('MEDIAWIKI'))
  */
 class HACLEvaluator
 {
-    //---- Constants for the modes of the evaluator ----
-    const NORMAL = 0;
-    const DENY_DIFF = 1;
-
     //--- Private fields ---
-
-    // The current mode of the evaluator
-    static $mMode = HACLEvaluator::NORMAL;
 
     // String with logging information
     static $mLog = "";
