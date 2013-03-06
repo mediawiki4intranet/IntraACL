@@ -131,15 +131,14 @@ class IntraACLSpecial extends SpecialPage
     {
         global $wgOut, $wgContLang;
         $patch = haclfDisableTitlePatch();
-        $st = HACLStorage::getDatabase();
         // Group members
-        $groups = $st->getGroupsByIds(NULL);
+        $groups = IACLStorage::get('Groups')->getGroupsByIds(NULL);
         $ids = array();
         foreach ($groups as $g)
             $ids[] = $g->group_id;
-        $members = $st->getMembersOfGroups($ids);
+        $members = IACLStorage::get('Groups')->getMembersOfGroups($ids);
         // Security descriptors
-        $sds = $st->getSDs2(NULL, NULL, NULL, false);
+        $sds = IACLStorage::get('SD')->getSDs2(NULL, NULL, NULL, false);
         $ids = array();
         foreach ($sds as $r)
         {
@@ -147,22 +146,22 @@ class IntraACLSpecial extends SpecialPage
                 $ids[] = $r->pe_id;
             $ids[] = $r->sd_id;
         }
-        $titles = $st->getTitles($ids, true);
+        $titles = IACLStorage::get('Util')->getTitles($ids, true);
         // Inline rights
-        $rights = $st->getAllRights();
+        $rights = IACLStorage::get('IR')->getAllRights();
         // Fetch categories and subcategories
         $cattitles = array();
         foreach ($sds as $r)
             if ($r->type == 'category' && isset($titles[$r->pe_id]))
                 $cattitles[] = $titles[$r->pe_id];
-        $cattitles = $st->getAllChildrenCategories($cattitles);
+        $cattitles = IACLStorage::get('Util')->getAllChildrenCategories($cattitles);
         $catkeys = array();
         foreach ($cattitles as $t)
         {
             $catkeys[$t->getArticleId()] = $t->getDBkey();
             $titles[$t->getArticleId()] = $t;
         }
-        $catlinks = $st->getCategoryLinks($catkeys);
+        $catlinks = IACLStorage::get('Util')->getCategoryLinks($catkeys);
         $catkeys = array_flip($catkeys);
         // Filter inconsistent SDs
         $newsds = array();
@@ -270,7 +269,7 @@ class IntraACLSpecial extends SpecialPage
                 $cluster['sd'.$r->sd_id] = '';
         }
         // Draw right hierarchy
-        $hier = $st->getFullSDHierarchy();
+        $hier = IACLStorage::get('SD')->getFullSDHierarchy();
         foreach ($hier as $row)
         {
             if (isset($sdbyid[$row->child_id]) && $sdbyid[$row->child_id]->type == 'page')
@@ -473,13 +472,13 @@ class IntraACLSpecial extends SpecialPage
             foreach ($args as $k => $v)
                 if (substr($k, 0, 3) == 'qa_')
                     $ids[] = substr($k, 3);
-            HACLStorage::getDatabase()->saveQuickAcl($wgUser->getId(), $ids, $args['qa_default']);
+            IACLStorage::get('QuickACL')->saveQuickAcl($wgUser->getId(), $ids, $args['qa_default']);
             wfGetDB(DB_MASTER)->commit();
             header("Location: $wgScript?title=Special:IntraACL&action=quickaccess&like=".urlencode($like));
             exit;
         }
         /* Load data */
-        $templates = HACLStorage::getDatabase()->getSDs2('right', $like);
+        $templates = IACLStorage::get('SD')->getSDs2('right', $like);
         $quickacl = HACLQuickacl::newForUserId($wgUser->getId());
         $quickacl_ids = array_flip($quickacl->getSD_IDs());
         foreach ($templates as $sd)
@@ -576,10 +575,9 @@ class IntraACLSpecial extends SpecialPage
             $sdid = $sdnameorid;
         if (!$sdid)
             return array();
-        $st = HACLStorage::getDatabase();
         $res = array();
         /* Inline rights */
-        $rights = $st->getInlineRightsOfSDs($sdid, true);
+        $rights = IACLStorage::get('SD')->getInlineRightsOfSDs($sdid, true);
         foreach ($rights as $r)
         {
             /* get action names */
@@ -602,11 +600,11 @@ class IntraACLSpecial extends SpecialPage
                 'group' => array_flip($r->getGroups()),
             );
             /* get groups closure */
-            $memberids = $st->getGroupMembersRecursive(array_keys($memberids['group']), $memberids);
+            $memberids = IACLStorage::get('Groups')->getGroupMembersRecursive(array_keys($memberids['group']), $memberids);
             $members = array();
-            foreach ($st->getUsers(array_keys($memberids['user'])) as $u)
+            foreach (IACLStorage::get('Util')->getUsers(array_keys($memberids['user'])) as $u)
                 $members[] = 'User:'.$u->user_name;
-            foreach ($st->getGroupsByIds(array_keys($memberids['group'])) as $g)
+            foreach (IACLStorage::get('Groups')->getGroupsByIds(array_keys($memberids['group'])) as $g)
                 $members[] = $g->group_name;
             /* merge into result */
             foreach ($members as $m)
@@ -614,7 +612,7 @@ class IntraACLSpecial extends SpecialPage
                     $res[$m][$a] = true;
         }
         /* Predefined rights */
-        $predef = $st->getPredefinedRightsOfSD($sdid, false);
+        $predef = IACLStorage::get('SD')->getPredefinedRightsOfSD($sdid, false);
         foreach ($predef as $id)
         {
             $sub = self::getRights($id);
@@ -633,7 +631,7 @@ class IntraACLSpecial extends SpecialPage
         global $wgScript, $wgTitle, $haclgHaloScriptPath, $haclgContLang, $wgUser;
         haclCheckScriptPath();
         // Load data
-        $sdpages = HACLStorage::getDatabase()->getSDPages($t, $n, $offset, $limit, $total);
+        $sdpages = IACLStorage::get('SD')->getSDPages($t, $n, $offset, $limit, $total);
         // Build SD data for template
         $lists = array();
         foreach ($sdpages as $r)
@@ -689,7 +687,7 @@ class IntraACLSpecial extends SpecialPage
         global $wgScript, $haclgHaloScriptPath;
         haclCheckScriptPath();
         /* Load data */
-        $groups = HACLStorage::getDatabase()->getGroups($n, $not_n);
+        $groups = IACLStorage::get('Groups')->getGroups($n, $not_n);
         foreach ($groups as &$g)
         {
             $gn = $g['group_name'];

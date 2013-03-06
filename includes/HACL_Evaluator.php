@@ -256,7 +256,7 @@ class HACLEvaluator
     public static function hasRight($titleID, $type, $userID, $actionID, $originNE = NULL)
     {
         // retrieve all appropriate rights from the database
-        $rights = HACLStorage::getDatabase()->getRights($titleID, $type, $actionID, $originNE);
+        $rights = IACLStorage::get('IR')->getRights($titleID, $type, $actionID, $originNE);
 
         // Check for all rights, if they are granted for the given user
         foreach ($rights as $right)
@@ -414,13 +414,13 @@ class HACLEvaluator
         if (self::hacl_type($t) == 'group')
         {
             // Group
-            $group = HACLStorage::getDatabase()->getGroupByID($t->getArticleID());
+            $group = IACLStorage::get('Groups')->getGroupByID($t->getArticleID());
             return $group ? $group->userCanModify($userID) : true;
         }
         else
         {
             // SD / right template
-            $sd = HACLStorage::getDatabase()->getSDByID($t->getArticleID());
+            $sd = IACLStorage::get('SD')->getSDByID($t->getArticleID());
             if ($sd)
                 return $sd->userCanModify($userID);
             else

@@ -123,10 +123,8 @@ HACLACLEditor.prototype.ajax_sd_exists = function(request)
     if (request.status != 200)
         return;
     var data = eval('('+request.responseText+')'); // json parse
-    if (data.exists)
-        document.getElementById('acl_exists_hint').style.display = '';
-    else
-        document.getElementById('acl_delete_link').style.display = 'none';
+    document.getElementById('acl_exists_hint').style.display = data.exists ? '' : 'none';
+    document.getElementById('acl_delete_link').style.display = data.exists ? '' : 'none';
     var emb = document.getElementById('acl_embed');
     emb.innerHTML = data.exists && data.embedded ? data.embedded : '';
     emb.style.display = data.exists && data.embedded ? '' : 'none';

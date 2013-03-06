@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/halo_acl_rights (
 
 CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/halo_acl_pe_rights (
     pe_id INT NOT NULL,
-    type ENUM('category', 'page', 'namespace', 'property') DEFAULT 'page' NOT NULL,
+    type ENUM('category', 'page', 'namespace') DEFAULT 'page' NOT NULL,
     right_id INT UNSIGNED NOT NULL,
     PRIMARY KEY (pe_id, type, right_id)
 ) /*$wgDBTableOptions*/;
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/halo_acl_rights_hierarchy (
 CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/halo_acl_security_descriptors (
     sd_id INT UNSIGNED NOT NULL PRIMARY KEY,
     pe_id INT,
-    type ENUM('category', 'page', 'namespace', 'property', 'right') DEFAULT 'page' NOT NULL,
+    type ENUM('category', 'page', 'namespace', 'right') DEFAULT 'page' NOT NULL,
     mr_groups TEXT,
     mr_users TEXT
 ) /*$wgDBTableOptions*/;

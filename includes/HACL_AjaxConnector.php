@@ -62,7 +62,7 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
     elseif ($t == 'group')
     {
         $ip = 'hi_';
-        $r = HACLStorage::getDatabase()->getGroups($n, $limit);
+        $r = IACLStorage::get('Groups')->getGroups($n, $limit);
         foreach ($r as $group)
         {
             $n = $group['group_name'];
@@ -159,7 +159,7 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
     elseif (substr($t, 0, 2) == 'sd')
     {
         $ip = 'ri_';
-        foreach (HACLStorage::getDatabase()->getSDs2($t == 'sd' ? NULL : substr($t, 3), $n, $limit) as $sd)
+        foreach (IACLStorage::get('SD')->getSDs2($t == 'sd' ? NULL : substr($t, 3), $n, $limit) as $sd)
         {
             $rn = $sd->getSDName();
             $a[] = array($rn, $rn);
@@ -222,17 +222,16 @@ function haclGrouplist()
 // predefined right names are joined by [ as it is forbidden by MediaWiki in titles
 function haclGroupClosure($groups, $predefined = '')
 {
-    $st = HACLStorage::getDatabase();
     $members = array();
     foreach (explode(',', $groups) as $k)
     {
         if ($k && ($i = HACLGroup::idForGroup($k)))
         {
-            $m = $st->getGroupMembersRecursive($i);
+            $m = IACLStorage::get('Groups')->getGroupMembersRecursive($i);
             $members[$k] = array();
-            foreach ($st->getUsers(array_keys($m['user'])) as $u)
+            foreach (IACLStorage::get('Util')->getUsers(array_keys($m['user'])) as $u)
                 $members[$k][] = 'User:'.$u->user_name;
-            foreach ($st->getGroupsByIds(array_keys($m['group'])) as $g)
+            foreach (IACLStorage::get('Groups')->getGroupsByIds(array_keys($m['group'])) as $g)
                 $members[$k][] = $g->group_name;
             sort($members[$k]);
         }
@@ -241,13 +240,11 @@ function haclGroupClosure($groups, $predefined = '')
     foreach (explode('[', $predefined) as $k)
         if ($k)
             $rights[$k] = IntraACLSpecial::getRights($k);
-    // FIXME json_encode requires PHP >= 5.2.0
     return json_encode(array('groups' => $members, 'rights' => $rights));
 }
 
 function haclSDExists_GetEmbedded($type, $name)
 {
-    $st = HACLStorage::getDatabase();
     $data = array(
         'exists' => false,
         'embedded' => '',

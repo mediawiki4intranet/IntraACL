@@ -60,7 +60,6 @@ function enableIntraACL()
         // Internals
         'HACLParserFunctions'       => "$haclgIP/includes/HACL_ParserFunctions.php",
         'HACLEvaluator'             => "$haclgIP/includes/HACL_Evaluator.php",
-        'HACLStorage'               => "$haclgIP/includes/HACL_Storage.php",
         'HACLGroup'                 => "$haclgIP/includes/HACL_Group.php",
         'HACLSecurityDescriptor'    => "$haclgIP/includes/HACL_SecurityDescriptor.php",
         'HACLRight'                 => "$haclgIP/includes/HACL_Right.php",
@@ -75,6 +74,15 @@ function enableIntraACL()
         'HACLGroupException'        => "$haclgIP/includes/HACL_Exception.php",
         'HACLSDException'           => "$haclgIP/includes/HACL_Exception.php",
         'HACLRightException'        => "$haclgIP/includes/HACL_Exception.php",
+
+        // Storage
+        'IACLStorage'               => "$haclgIP/storage/Storage.php",
+        'IntraACL_SQL_Groups'       => "$haclgIP/storage/SQL_Groups.php",
+        'IntraACL_SQL_IR'           => "$haclgIP/storage/SQL_IR.php",
+        'IntraACL_SQL_QuickACL'     => "$haclgIP/storage/SQL_QuickACL.php",
+        'IntraACL_SQL_SD'           => "$haclgIP/storage/SQL_SD.php",
+        'IntraACL_SQL_SpecialPage'  => "$haclgIP/storage/SQL_SpecialPage.php",
+        'IntraACL_SQL_Util'         => "$haclgIP/storage/SQL_Util.php",
     );
 
     // ACL update hooks are registered even in commandline.
@@ -476,7 +484,7 @@ function haclfArticleID($articleName, $defaultNS = NS_MAIN)
     if ($id === 0)
         $id = $t->getArticleID(Title::GAID_FOR_UPDATE);
     if ($id == 0 && $t->getNamespace() == NS_SPECIAL)
-        $id = HACLStorage::getDatabase()->idForSpecial($articleName);
+        $id = IACLStorage::get('SpecialPage')->idForSpecial($articleName);
     return $id;
 }
 

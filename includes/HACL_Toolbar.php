@@ -105,7 +105,7 @@ class HACLToolbar
             else
             {
                 // Get categories which have SDs and to which belongs this article (for hint)
-                $globalACL = array_merge($globalACL, HACLStorage::getDatabase()->getParentCategorySDs($title));
+                $globalACL = array_merge($globalACL, IACLStorage::get('SD')->getParentCategorySDs($title));
             }
         }
 
@@ -275,11 +275,10 @@ class HACLToolbar
     public static function getReadableCategories()
     {
         global $wgUser;
-        $st = HACLStorage::getDatabase();
-        $groups = $wgUser->getId() ? $st->getGroupsOfMember('user', $wgUser->getId()) : NULL;
+        $groups = $wgUser->getId() ? IACLStorage::get('Groups')->getGroupsOfMember('user', $wgUser->getId()) : NULL;
         list($uid) = haclfGetUserID($wgUser);
         // Lookup readable categories
-        $pe = $st->lookupRights($uid, $groups, HACLLanguage::RIGHT_READ, 'category');
+        $pe = IACLStorage::get('IR')->lookupRights($uid, $groups, HACLLanguage::RIGHT_READ, 'category');
         if ($pe)
         {
             foreach ($pe as &$e)
@@ -291,7 +290,7 @@ class HACLToolbar
             foreach ($res as $row)
                 $titles[] = Title::newFromRow($row);
             // Add child categories
-            $pe = $st->getAllChildrenCategories($titles);
+            $pe = IACLStorage::get('Util')->getAllChildrenCategories($titles);
         }
         return $pe;
     }
@@ -425,7 +424,6 @@ class HACLToolbar
             $selectedSD = NULL;
 
         // Check if current SD must be modified
-        $st = HACLStorage::getDatabase();
         if ($article->exists())
         {
             $pageSDId = HACLSecurityDescriptor::getSDForPE($article->getId(), HACLLanguage::PET_PAGE);
@@ -435,7 +433,7 @@ class HACLToolbar
                 if ($selectedSD == $pageSDId)
                     return true;
                 // Check if page's SD is single inclusion and it is passed as selected
-                $pageSD = $st->getSDbyId($pageSDId);
+                $pageSD = IACLStorage::get('SD')->getSDbyId($pageSDId);
                 if (($single = $pageSD->isSinglePredefinedRightInclusion()) &&
                     $selectedSD == $single)
                     return true;
@@ -448,7 +446,7 @@ class HACLToolbar
         // Check if other SD is a predefined right
         if ($selectedSD)
         {
-            $sd = $st->getSDByID($selectedSD);
+            $sd = IACLStorage::get('SD')->getSDByID($selectedSD);
             if ($sd->getPEType() != HACLLanguage::PET_RIGHT)
                 return true;
         }
@@ -499,12 +497,11 @@ class HACLToolbar
         $InsideSaveEmbedded = true;
 
         global $wgRequest, $wgOut, $haclgContLang, $wgUser;
-        $st = HACLStorage::getDatabase();
 
         $isACL = $article->getTitle()->getNamespace() == HACL_NS_ACL;
         if ($isACL)
         {
-            $articleSD = $st->getSDById($article->getId());
+            $articleSD = IACLStorage::get('SD')->getSDById($article->getId());
             if (!$articleSD || $articleSD->getPEType() != 'page')
             {
                 // This is not a page SD, do nothing.
@@ -521,7 +518,7 @@ class HACLToolbar
             if (!$articleSD)
                 return true;
             else
-                $articleSD = $st->getSDById($articleSD);
+                $articleSD = IACLStorage::get('SD')->getSDById($articleSD);
         }
 
         // Handle embedded content protection
@@ -608,11 +605,10 @@ class HACLToolbar
         global $haclgContLang, $wgRequest;
         if (!$sdID)
             $sdID = '';
-        $st = HACLStorage::getDatabase();
         // Retrieve the list of templates used on the page with id=$peID
-        $templatelinks = $st->getEmbedded($peID, $sdID, 'templatelinks');
+        $templatelinks = IACLStorage::get('SD')->getEmbedded($peID, $sdID, 'templatelinks');
         // Retrieve the list of images used on the page
-        $imagelinks = $st->getEmbedded($peID, $sdID, 'imagelinks');
+        $imagelinks = IACLStorage::get('SD')->getEmbedded($peID, $sdID, 'imagelinks');
         // Build HTML code for embedded content toolbar
         $links = array_merge($templatelinks, $imagelinks);
         $html = array();

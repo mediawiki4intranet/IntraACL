@@ -184,7 +184,7 @@ class HACLRight
      *             ... if there is no right with this ID in the database
      */
     public static function newFromID($rightID) {
-        $right = HACLStorage::getDatabase()->getRightByID($rightID);
+        $right = IACLStorage::get('IR')->getRightByID($rightID);
         if ($right == null) {
             throw new HACLRightException(HACLRightException::UNKNOWN_RIGHT, $rightID);
         }
@@ -293,9 +293,8 @@ class HACLRight
             return true;
 
         // Check if the user belongs to a group that gets this right
-        $db = HACLStorage::getDatabase();
         foreach ($this->mGroups as $groupID)
-            if ($db->hasGroupMember($groupID, $userID, HACLGroup::USER, true))
+            if (IACLStorage::get('Groups')->hasGroupMember($groupID, $userID, HACLGroup::USER, true))
                 return true;
         if ($throwException)
         {
@@ -404,7 +403,7 @@ class HACLRight
      *
      */
     public function save() {
-        $this->mRightID = HACLStorage::getDatabase()->saveRight($this);
+        $this->mRightID = IACLStorage::get('IR')->saveRight($this);
     }
 
     /**
@@ -422,7 +421,7 @@ class HACLRight
     public function delete($user = NULL)
     {
         $this->userCanModify($user, true);
-        return HACLStorage::getDatabase()->deleteRight($this->mRightID);
+        return IACLStorage::get('IR')->deleteRight($this->mRightID);
     }
 
     //--- protected methods ---

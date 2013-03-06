@@ -71,7 +71,7 @@ class HACLQuickacl
 
     public function getSDs()
     {
-        return HACLStorage::getDatabase()->getSDById(array_keys($this->sd_ids));
+        return IACLStorage::get('SD')->getSDById(array_keys($this->sd_ids));
     }
 
     public function addSD_ID($sdID)
@@ -81,16 +81,16 @@ class HACLQuickacl
 
     public static function newForUserId($user_id)
     {
-        return HACLStorage::getDatabase()->getQuickacl($user_id);
+        return IACLStorage::get('QuickACL')->getQuickacl($user_id);
     }
 
     public function save()
     {
-        return HACLStorage::getDatabase()->saveQuickacl($this->userid, array_keys($this->sd_ids), $this->default_sd_id);
+        return IACLStorage::get('QuickACL')->saveQuickacl($this->userid, array_keys($this->sd_ids), $this->default_sd_id);
     }
 
     public static function removeQuickAclsForSD($sdid)
     {
-        return HACLStorage::getDatabase()->deleteQuickaclForSD($sdid);
+        return IACLStorage::get('QuickACL')->deleteQuickaclForSD($sdid);
     }
 }

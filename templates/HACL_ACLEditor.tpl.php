@@ -10,7 +10,7 @@
   <p><textarea id="acl_def" name="wpTextbox1" rows="6" style="width: 500px" onchange="AE.parse_make_closure()"><?= htmlspecialchars($aclContent) ?></textarea></p>
   <p><b><?= wfMsg('hacl_edit_definition_target') ?></b></p>
   <p>
-   <select id="acl_what" onchange="AE.target_change(true)">
+   <select id="acl_what" onchange="AE.target_change(true)" style="max-width: 200px">
     <?php foreach($this->aclTargetTypes as $t => $l) { ?>
      <optgroup label="<?= wfMsg('hacl_edit_'.$t) ?>">
      <?php foreach($l as $k => $true) { ?>
@@ -19,7 +19,7 @@
      </optgroup>
     <?php } ?>
    </select>
-   <input type="text" autocomplete="off" id="acl_name" style="width: 200px" />
+   <input type="text" autocomplete="off" id="acl_name" style="width: 290px" />
   </p>
   <p id="acl_pns">
    <span><a id="acl_pn" class="acl_pn" href="#"></a></span>
@@ -33,7 +33,7 @@
  <td style="vertical-align: top">
   <p><b><?= wfMsg('hacl_edit_modify_definition') ?></b></p>
   <p>
-   <select id="to_type" onchange="AE.to_type_change()">
+   <select id="to_type" onchange="AE.to_type_change()" style="max-width: 200px">
     <option value="user"><?= wfMsg('hacl_edit_user') ?></option>
     <option value="group"><?= wfMsg('hacl_edit_group') ?></option>
     <option value="*"><?= wfMsg('hacl_edit_all') ?></option>

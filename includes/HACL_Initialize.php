@@ -32,7 +32,6 @@
 if (!defined('MEDIAWIKI'))
     die("This file is part of the IntraACL extension. It is not a valid entry point.");
 
-define('HACL_STORE_SQL', 'HaclStoreSQL');
 define('HACL_COMBINE_EXTEND', 'extend');
 define('HACL_COMBINE_SHRINK', 'shrink');
 define('HACL_COMBINE_OVERRIDE', 'override');
@@ -73,13 +72,6 @@ $haclgInclusionDeniedMessage = 'haloacl-inclusion-denied';
 #    If it is <false>, no access is granted at all. Only the latest author of an
 #    article can create a security descriptor.
 $haclgOpenWikiAccess = true;
-
-# By design several databases can be connected to IntraACL. However, now there
-# is only an implementation for MySQL. With this variable you can
-# specify which store will actually be used.
-# Possible values:
-# - HACL_STORE_SQL
-$haclgBaseStore = HACL_STORE_SQL;
 
 # Values of this array are treated as language-dependent names of namespaces which
 # can not be protected by IntraACL.

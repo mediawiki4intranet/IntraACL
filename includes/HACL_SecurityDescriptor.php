@@ -27,7 +27,6 @@
  * This file contains the class HACLSecurityDescriptor.
  *
  * @author Thomas Schweitzer
- * Date: 15.04.2009
  */
 if (!defined('MEDIAWIKI'))
     die("This file is part of the IntraACL extension. It is not a valid entry point.");
@@ -194,7 +193,7 @@ class HACLSecurityDescriptor
      */
     public static function newFromID($SDID, $throwError = true)
     {
-        $sd = HACLStorage::getDatabase()->getSDByID($SDID);
+        $sd = IACLStorage::get('SD')->getSDByID($SDID);
         if (!$sd && $throwError)
             throw new HACLSDException(HACLSDException::UNKNOWN_SD, $SDID);
         return $sd;
@@ -246,7 +245,7 @@ class HACLSecurityDescriptor
      */
     public static function exists($sdID)
     {
-        return HACLStorage::getDatabase()->sdExists($sdID);
+        return IACLStorage::get('SD')->sdExists($sdID);
     }
 
     /**
@@ -265,7 +264,7 @@ class HACLSecurityDescriptor
      */
     public static function getSDForPE($peID, $peType)
     {
-        return HACLStorage::getDatabase()->getSDForPE($peID, $peType);
+        return IACLStorage::get('SD')->getSDForPE($peID, $peType);
     }
 
     /**
@@ -443,7 +442,7 @@ class HACLSecurityDescriptor
 
         // Update the hierarchy of SDs/PRs
         foreach ($rights as $r)
-            HACLStorage::getDatabase()->addRightToSD($this->getSDID(), $r->getSDID());
+            IACLStorage::get('SD')->addRightToSD($this->getSDID(), $r->getSDID());
 
         // Assign rights to all protected elements
         $this->materializeRightsHierarchy();
@@ -487,7 +486,7 @@ class HACLSecurityDescriptor
      */
     public function removeAllRights($user = NULL)
     {
-        return HACLStorage::getDatabase()->deleteSD($this->mSDID, true);
+        return IACLStorage::get('SD')->deleteSD($this->mSDID, true);
     }
 
     /**
@@ -515,7 +514,7 @@ class HACLSecurityDescriptor
         else
             $sdIDs = array($this->getSDID());
         // Get all direct rights of this SDs
-        $ir = HACLStorage::getDatabase()->getInlineRightsOfSDs($sdIDs);
+        $ir = IACLStorage::get('SD')->getInlineRightsOfSDs($sdIDs);
         return $ir;
     }
 
@@ -531,7 +530,7 @@ class HACLSecurityDescriptor
      */
     public function getPredefinedRights($recursively = true)
     {
-        $pr = HACLStorage::getDatabase()->getPredefinedRightsOfSD($this->getSDID(), $recursively);
+        $pr = IACLStorage::get('SD')->getPredefinedRightsOfSD($this->getSDID(), $recursively);
         return $pr;
     }
 
@@ -560,7 +559,7 @@ class HACLSecurityDescriptor
      */
     public function getSDsIncludingPR()
     {
-        return HACLStorage::getDatabase()->getSDsIncludingPR($this->mSDID);
+        return IACLStorage::get('SD')->getSDsIncludingPR($this->mSDID);
     }
 
     /**
@@ -578,13 +577,12 @@ class HACLSecurityDescriptor
         $missingGroups = false;
         $missingUsers = false;
         $missingPR = false;
-        $db = HACLStorage::getDatabase();
 
         //== Check integrity of group managers ==
 
         // Check for missing groups
         foreach ($this->mManageGroups as $gid) {
-            if (!$db->groupExists($gid)) {
+            if (!IACLStorage::get('Groups')->groupExists($gid)) {
                 $missingGroups = true;
                 break;
             }
@@ -603,11 +601,11 @@ class HACLSecurityDescriptor
 
         $irIDs = $this->getInlineRights(false);
         foreach ($irIDs as $irID) {
-            $ir = $db->getRightByID($irID);
+            $ir = IACLStorage::get('IR')->getRightByID($irID);
             $groupIDs = $ir->getGroups();
             // Check for missing groups
             foreach ($groupIDs as $gid) {
-                if (!$db->groupExists($gid)) {
+                if (!IACLStorage::get('Groups')->groupExists($gid)) {
                     $missingGroups = true;
                     break;
                 }
@@ -625,7 +623,7 @@ class HACLSecurityDescriptor
         // Check for missing predefined rights
         $prIDs = $this->getPredefinedRights(false);
         foreach ($prIDs as $prid) {
-            if (!$db->sdExists($prid)) {
+            if (!IACLStorage::get('SD')->sdExists($prid)) {
                 $missingPR = true;
                 break;
             }
@@ -688,9 +686,8 @@ class HACLSecurityDescriptor
         }
 
         // Check if the user belongs to a group that can modify the SD
-        $db = HACLStorage::getDatabase();
         foreach ($this->mManageGroups as $groupID)
-            if ($db->hasGroupMember($groupID, $userID, HACLGroup::USER, true))
+            if (IACLStorage::get('Groups')->hasGroupMember($groupID, $userID, HACLGroup::USER, true))
                 return true;
 
         // Sysops and bureaucrats can modify anything
@@ -756,7 +753,7 @@ class HACLSecurityDescriptor
         // Check that SD refers to some page ID
         if ($this->mSDID == 0)
             throw new HACLSDException(HACLSDException::NO_SD_ID, $this->mSDName);
-        HACLStorage::getDatabase()->saveSD($this);
+        IACLStorage::get('SD')->saveSD($this);
     }
 
     /**
@@ -768,7 +765,7 @@ class HACLSecurityDescriptor
      */
     public function delete()
     {
-        return HACLStorage::getDatabase()->deleteSD($this->mSDID);
+        return IACLStorage::get('SD')->deleteSD($this->mSDID);
     }
 
     /**
@@ -790,6 +787,6 @@ class HACLSecurityDescriptor
         // Add all inline rights to all protected elements (i.e. materialize the
         // hierarchy of rights)
         if (!empty($ir) && !empty($sd))
-            HACLStorage::getDatabase()->setInlineRightsForProtectedElements($ir, $sd);
+            IACLStorage::get('SD')->setInlineRightsForProtectedElements($ir, $sd);
     }
 }

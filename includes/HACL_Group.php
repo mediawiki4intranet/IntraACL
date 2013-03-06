@@ -118,7 +118,7 @@ class HACLGroup
      */
     public static function newFromName($groupName, $throw_error = true)
     {
-        $group = HACLStorage::getDatabase()->getGroupByName($groupName);
+        $group = IACLStorage::get('Groups')->getGroupByName($groupName);
         if ($group === null && $throw_error)
             throw new HACLGroupException(HACLGroupException::UNKNOWN_GROUP, $groupName);
         return $group;
@@ -139,7 +139,7 @@ class HACLGroup
      *             ...if the requested group in the not the database.
      */
     public static function newFromID($groupID, $throw_error = true) {
-        $group = HACLStorage::getDatabase()->getGroupByID($groupID);
+        $group = IACLStorage::get('Groups')->getGroupByID($groupID);
         if ($group === null && $throw_error) {
             throw new HACLGroupException(HACLGroupException::INVALID_GROUP_ID, $groupID);
         }
@@ -183,7 +183,7 @@ class HACLGroup
      *         group defined in the database.
      */
     public static function nameForID($groupID) {
-        return HACLStorage::getDatabase()->groupNameForID($groupID);
+        return IACLStorage::get('Groups')->groupNameForID($groupID);
     }
 
     /**
@@ -197,7 +197,7 @@ class HACLGroup
      *         <false> otherwise
      */
     public static function exists($groupID) {
-        return HACLStorage::getDatabase()->groupExists($groupID);
+        return IACLStorage::get('Groups')->groupExists($groupID);
     }
 
     /**
@@ -214,13 +214,12 @@ class HACLGroup
     public function checkIntegrity() {
         $missingGroups = false;
         $missingUsers = false;
-        $db = HACLStorage::getDatabase();
 
         //== Check integrity of group managers ==
 
         // Check for missing managing groups
         foreach ($this->mManageGroups as $gid) {
-            if (!$db->groupExists($gid)) {
+            if (!IACLStorage::get('Groups')->groupExists($gid)) {
                 $missingGroups = true;
                 break;
             }
@@ -238,7 +237,7 @@ class HACLGroup
         $groupIDs = $this->getGroups(self::ID);
         // Check for missing groups
         foreach ($groupIDs as $gid) {
-            if (!$db->groupExists($gid)) {
+            if (!IACLStorage::get('Groups')->groupExists($gid)) {
                 $missingGroups = true;
                 break;
             }
@@ -326,9 +325,8 @@ class HACLGroup
         }
 
         // Check if the user belongs to a group that can modify the group
-        $db = HACLStorage::getDatabase();
         foreach ($this->mManageGroups as $groupID) {
-            if ($db->hasGroupMember($groupID, $userID, self::USER, true)) {
+            if (IACLStorage::get('Groups')->hasGroupMember($groupID, $userID, self::USER, true)) {
                 return true;
             }
         }
@@ -377,7 +375,7 @@ class HACLGroup
         // Get the page ID of the article that defines the group
         if ($this->mGroupID == 0)
             throw new HACLGroupException(HACLGroupException::NO_GROUP_ID, $this->mGroupName);
-        HACLStorage::getDatabase()->saveGroup($this);
+        IACLStorage::get('Groups')->saveGroup($this);
     }
 
     /**
@@ -480,7 +478,7 @@ class HACLGroup
     {
         // Check if $mgUser can modify this group.
         list($userID, $userName) = haclfGetUserID($user);
-        HACLStorage::getDatabase()->addUserToGroup($this->mGroupID, $userID);
+        IACLStorage::get('Groups')->addUserToGroup($this->mGroupID, $userID);
     }
 
     /**
@@ -505,7 +503,7 @@ class HACLGroup
         $groupID = self::idForGroup($group);
         if ($groupID == 0)
             throw new HACLGroupException(HACLGroupException::INVALID_GROUP_ID, $groupID);
-        HACLStorage::getDatabase()->addGroupToGroup($this->mGroupID, $groupID);
+        IACLStorage::get('Groups')->addGroupToGroup($this->mGroupID, $groupID);
     }
 
     /**
@@ -514,7 +512,7 @@ class HACLGroup
      */
     public function removeAllMembers()
     {
-        HACLStorage::getDatabase()->removeAllMembersFromGroup($this->mGroupID);
+        IACLStorage::get('Groups')->removeAllMembersFromGroup($this->mGroupID);
     }
 
     /**
@@ -530,7 +528,7 @@ class HACLGroup
     public function removeUser($user)
     {
         list($userID, $userName) = haclfGetUserID($user);
-        HACLStorage::getDatabase()->removeUserFromGroup($this->mGroupID, $userID);
+        IACLStorage::get('Groups')->removeUserFromGroup($this->mGroupID, $userID);
     }
 
     /**
@@ -549,7 +547,7 @@ class HACLGroup
         if ($groupID == 0)
             throw new HACLGroupException(HACLGroupException::INVALID_GROUP_ID, $groupID);
 
-        HACLStorage::getDatabase()->removeGroupFromGroup($this->mGroupID, $groupID);
+        IACLStorage::get('Groups')->removeGroupFromGroup($this->mGroupID, $groupID);
     }
 
     /**
@@ -567,7 +565,7 @@ class HACLGroup
     public function getUsers($mode)
     {
         // retrieve the IDs of all users in this group
-        $users = HACLStorage::getDatabase()->getMembersOfGroup($this->mGroupID, self::USER);
+        $users = IACLStorage::get('Groups')->getMembersOfGroup($this->mGroupID, self::USER);
 
         if ($mode === self::ID)
             return $users;
@@ -596,7 +594,7 @@ class HACLGroup
     public function getGroups($mode)
     {
         // retrieve the IDs of all groups in this group
-        $groups = HACLStorage::getDatabase()->getMembersOfGroup($this->mGroupID, self::GROUP);
+        $groups = IACLStorage::get('Groups')->getMembersOfGroup($this->mGroupID, self::GROUP);
         if ($mode === self::ID)
             return $groups;
         for ($i = 0; $i < count($groups); ++$i)
@@ -635,8 +633,7 @@ class HACLGroup
         $groupID = self::idForGroup($group);
         if ($groupID === 0)
             throw new HACLGroupException(HACLGroupException::INVALID_GROUP_ID, $groupID);
-        return HACLStorage::getDatabase()
-            ->hasGroupMember($this->mGroupID, $groupID, self::GROUP, $recursive);
+        return IACLStorage::get('Groups')->hasGroupMember($this->mGroupID, $groupID, self::GROUP, $recursive);
     }
 
     /**
@@ -661,8 +658,7 @@ class HACLGroup
     public function hasUserMember($user, $recursive)
     {
         $userID = haclfGetUserID($user);
-        return HACLStorage::getDatabase()
-            ->hasGroupMember($this->mGroupID, $userID[0], self::USER, $recursive);
+        return IACLStorage::get('Groups')->hasGroupMember($this->mGroupID, $userID[0], self::USER, $recursive);
     }
 
     /**
@@ -671,7 +667,7 @@ class HACLGroup
      */
     public function delete()
     {
-        return HACLStorage::getDatabase()->deleteGroup($this->mGroupID);
+        return IACLStorage::get('Groups')->deleteGroup($this->mGroupID);
     }
 
     /**
