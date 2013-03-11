@@ -40,7 +40,7 @@ class IACLStorage
 
     public static function explode($str)
     {
-        if (!$str)
+        if ($str === '')
         {
             return array();
         }
