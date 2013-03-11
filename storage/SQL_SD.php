@@ -132,7 +132,7 @@ class IntraACL_SQL_SD
 
         $irs = array();
         while ($row = $dbr->fetchObject($res))
-            $irs[] = $asObject ? self::rowToRight($row) : (int)$row->right_id;
+            $irs[] = $asObject ? IACLStorage::get('IR')->rowToRight($row) : (int)$row->right_id;
         return $irs;
     }
 
@@ -266,13 +266,13 @@ class IntraACL_SQL_SD
             __METHOD__
         );
         if (!is_array($SDID))
-            return self::rowToSD($dbr->fetchObject($res));
+            return $this->rowToSD($dbr->fetchObject($res));
         elseif (is_array($SDID))
         {
             $byid = array();
             foreach ($res as $row)
             {
-                $sd = self::rowToSD($row);
+                $sd = $this->rowToSD($row);
                 $byid[$sd->getSDId()] = $sd;
             }
             $r = array();
@@ -322,17 +322,17 @@ class IntraACL_SQL_SD
 
         // Delete all inline rights that are defined by the SD (and the
         // references to them)
-        $irs = self::getInlineRightsOfSDs($SDID);
+        $irs = $this->getInlineRightsOfSDs($SDID);
         foreach ($irs as $ir)
-            self::deleteRight($ir);
+            IACLStorage::get('IR')->deleteRight($ir);
 
         // Remove all inline rights from the hierarchy below $SDID from their
         // protected elements. This may remove too many rights => the parents
         // of $SDID must materialize their rights again
-        $prs = self::getPredefinedRightsOfSD($SDID, true);
-        $irs = self::getInlineRightsOfSDs($prs);
+        $prs = $this->getPredefinedRightsOfSD($SDID, true);
+        $irs = $this->getInlineRightsOfSDs($prs);
 
-        $parents = self::getSDsIncludingPR($SDID);
+        $parents = $this->getSDsIncludingPR($SDID);
         if (!empty($irs))
         {
             $sds = $parents;

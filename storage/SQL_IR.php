@@ -83,7 +83,7 @@ class IntraACL_SQL_IR
         $dbr = wfGetDB(DB_SLAVE);
         $res = $dbr->select('halo_acl_rights', '*', array('right_id' => $rightID), __METHOD__);
         if ($dbr->numRows($res) == 1)
-            return self::rowToRight($dbr->fetchObject($res));
+            return $this->rowToRight($dbr->fetchObject($res));
         return NULL;
     }
 
@@ -148,7 +148,7 @@ class IntraACL_SQL_IR
         $res = $dbr->query($sql, __METHOD__);
         $rights = array();
         foreach ($res as $row)
-            $rights[] = self::rowToRight($row);
+            $rights[] = $this->rowToRight($row);
 
         return $rights;
     }
@@ -164,7 +164,7 @@ class IntraACL_SQL_IR
         $res = $dbr->select('halo_acl_rights', '*', $sdids ? array('origin_id' => $sdids) : '1', __METHOD__);
         $rights = array();
         foreach ($res as $row)
-            $rights[$row->origin_id][] = self::rowToRight($row);
+            $rights[$row->origin_id][] = $this->rowToRight($row);
         return $rights;
     }
 
