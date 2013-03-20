@@ -146,9 +146,9 @@ function haclfSetupExtension()
     {
         // Also disable security checks in console mode
         // Also issue a warning as an insurance to not run Wiki in some bad setup
-        print '** WARNING: IntraACL security checks are disabled because
+        file_put_contents('php://stderr', '** WARNING: IntraACL security checks are disabled because
 ** $_SERVER[SERVER_NAME] is empty, which probably means we are in console
-';
+');
     }
 
     //--- Transform config (unprotectable namespace names to ids) ---
