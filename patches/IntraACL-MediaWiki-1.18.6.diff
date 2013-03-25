@@ -5,6 +5,8 @@ MediaWiki: REL1_18 1.18.6 7e508a3b9bfc532a0b4a1bd780c61f69ff4ccbda
 Patch needed for IntraACL extension. Enables read access checks
 in various parts of MediaWiki.
 
+2013-03-25 - Do not cloak page and category links in article content.
+
 diff --git a/includes/CategoryPage.php b/includes/CategoryPage.php
 index 6a0f613..53821d8 100644
 --- a/includes/CategoryPage.php
@@ -105,10 +107,35 @@ index 744a60c..9625083 100644
  		$time = $this->logTimestamp( $row );
  		// User links
 diff --git a/includes/OutputPage.php b/includes/OutputPage.php
-index 68c771b..d93be67 100644
+index 68c771b..a1238e5 100644
 --- a/includes/OutputPage.php
 +++ b/includes/OutputPage.php
-@@ -1978,7 +1978,14 @@ class OutputPage extends ContextSource {
+@@ -1068,6 +1068,12 @@ class OutputPage extends ContextSource {
+ 
+ 		# Add the remaining categories to the skin
+ 		if ( wfRunHooks( 'OutputPageMakeCategoryLinks', array( &$this, $categories, &$this->mCategoryLinks ) ) ) {
++			// <IntraACL>
++			// Do not cloak category links during display
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				$etc = haclfDisableTitlePatch();
++			}
++			// </IntraACL>
+ 			foreach ( $categories as $category => $type ) {
+ 				$origcategory = $category;
+ 				$title = Title::makeTitleSafe( NS_CATEGORY, $category );
+@@ -1081,6 +1087,11 @@ class OutputPage extends ContextSource {
+ 				$this->mCategories[] = $title->getText();
+ 				$this->mCategoryLinks[$type][] = Linker::link( $title, $text );
+ 			}
++			// <IntraACL>
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $etc );
++			}
++			// </IntraACL>
+ 		}
+ 	}
+ 
+@@ -1978,7 +1989,14 @@ class OutputPage extends ContextSource {
  		$this->setRobotPolicy( 'noindex,nofollow' );
  		$this->setArticleRelated( false );
  
@@ -123,7 +150,7 @@ index 68c771b..d93be67 100644
  		$returntoquery = array();
  		if( $returnto ) {
  			$returntoquery = array( 'returnto' => $returnto->getPrefixedText() );
-@@ -2214,7 +2221,9 @@ $templates
+@@ -2214,7 +2232,9 @@ $templates
  		} else {
  			$titleObj = Title::newFromText( $returnto );
  		}
@@ -459,11 +486,95 @@ index 63f5bf2..a4c2d35 100644
  		}
  
  		$this->sendMails();
+diff --git a/includes/parser/LinkHolderArray.php b/includes/parser/LinkHolderArray.php
+index 5418b6e..53fab05 100644
+--- a/includes/parser/LinkHolderArray.php
++++ b/includes/parser/LinkHolderArray.php
+@@ -55,6 +55,12 @@ class LinkHolderArray {
+ 	 * Recreate the Title objects
+ 	 */
+ 	function __wakeup() {
++		// <IntraACL>
++		// LinkHolderArray skips permission checks so page links in parsed content are never cloaked
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			$etc = haclfDisableTitlePatch();
++		}
++		// </IntraACL>
+ 		foreach ( $this->internals as &$nsLinks ) {
+ 			foreach ( $nsLinks as &$entry ) {
+ 				$entry['title'] = Title::newFromText( $entry['pdbk'] );
+@@ -67,6 +73,11 @@ class LinkHolderArray {
+ 			$entry['title'] = Title::newFromText( $entry['pdbk'] );
+ 		}
+ 		unset( $entry );
++		// <IntraACL>
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			haclfRestoreTitlePatch( $etc );
++		}
++		// </IntraACL>
+ 	}
+ 
+ 	/**
+@@ -266,6 +277,12 @@ class LinkHolderArray {
+ 
+ 		$linkcolour_ids = array();
+ 
++		// <IntraACL>
++		// LinkHolderArray skips permission checks so page links in parsed content are never cloaked
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			$etc = haclfDisableTitlePatch();
++		}
++		// </IntraACL>
+ 		# Generate query
+ 		$queries = array();
+ 		foreach ( $this->internals as $ns => $entries ) {
+@@ -386,6 +403,11 @@ class LinkHolderArray {
+ 
+ 		wfProfileOut( __METHOD__.'-replace' );
+ 		wfProfileOut( __METHOD__ );
++		// <IntraACL>
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			haclfRestoreTitlePatch( $etc );
++		}
++		// </IntraACL>
+ 	}
+ 
+ 	/**
 diff --git a/includes/parser/Parser.php b/includes/parser/Parser.php
-index 939d9e3..8762a05 100644
+index 939d9e3..f544008 100644
 --- a/includes/parser/Parser.php
 +++ b/includes/parser/Parser.php
-@@ -3101,6 +3101,17 @@ class Parser {
+@@ -1738,7 +1738,18 @@ class Parser {
+ 
+ 			wfProfileOut( __METHOD__."-misc" );
+ 			wfProfileIn( __METHOD__."-title" );
++			// <IntraACL>
++			// Do not check permissions for links, except image links
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				$etc = haclfDisableTitlePatch();
++			}
++			// </IntraACL>
+ 			$nt = Title::newFromText( $this->mStripState->unstripNoWiki( $link ) );
++			// <IntraACL>
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $etc );
++			}
++			// </IntraACL>
+ 			if ( $nt === null ) {
+ 				$s .= $prefix . '[[' . $line;
+ 				wfProfileOut( __METHOD__."-title" );
+@@ -1821,7 +1832,9 @@ class Parser {
+ 
+ 				if ( $ns == NS_FILE ) {
+ 					wfProfileIn( __METHOD__."-image" );
+-					if ( !wfIsBadImage( $nt->getDBkey(), $this->mTitle ) ) {
++					// <IntraACL>
++					if ( $nt->userCanRead() && !wfIsBadImage( $nt->getDBkey(), $this->mTitle ) ) {
++					// </IntraACL>
+ 						if ( $wasblank ) {
+ 							# if no parameters were passed, $text
+ 							# becomes something like "File:Foo.png",
+@@ -3101,6 +3114,17 @@ class Parser {
  				$ns = $this->mTitle->getNamespace();
  			}
  			$title = Title::newFromText( $part1, $ns );

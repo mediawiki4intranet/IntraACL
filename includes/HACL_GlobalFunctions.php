@@ -128,8 +128,8 @@ function haclfSetupExtension()
         $wgLanguageCode, $wgRequest, $wgContLang, $haclgUnprotectableNamespaces, $haclgUnprotectableNamespaceIds;
 
     /* Title patch is disabled until full initialization of extension.
-     * This was formerly done with haclfDisableTitleCheck() in the beginning
-     * of this file and haclfRestoreTitleCheck() here.
+     * This was formerly done with haclfDisableTitlePatch() in the beginning
+     * of this file and haclfRestoreTitlePatch() here.
      * But this does not allow changing $haclgEnableTitlePatch after enabling IntraACL.
      */
     if (!empty($_SERVER['SERVER_NAME']))
