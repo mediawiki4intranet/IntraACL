@@ -401,22 +401,17 @@ function haclfIsFileCacheable($article)
 
 /**
  * The hash for the page cache depends on the user.
+ * TODO: Rework this along with the new IntraACL caching system.
  *
  * @param string $hash
  *         A reference to the hash. This the ID of the current user is appended
  *         to this hash.
  */
-function haclfPageRenderingHash($hash)
+function haclfPageRenderingHash(&$hash)
 {
     global $wgUser, $wgTitle;
     if (is_object($wgUser))
         $hash .= '!'.$wgUser->getId();
-    if (is_object($wgTitle) && $wgTitle->getNamespace() == HACL_NS_ACL)
-    {
-        // How often do we have to say that articles in the namespace ACL
-        // can not be cached ?
-        $hash .= '!'.wfTimestampNow();
-    }
     return true;
 }
 
