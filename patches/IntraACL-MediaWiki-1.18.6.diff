@@ -6,6 +6,7 @@ Patch needed for IntraACL extension. Enables read access checks
 in various parts of MediaWiki.
 
 2013-03-25 - Do not cloak page and category links in article content.
+2013-03-29 - Still register dependencies for unreadable images and templates.
 
 diff --git a/includes/CategoryPage.php b/includes/CategoryPage.php
 index 6a0f613..53821d8 100644
@@ -541,7 +542,7 @@ index 5418b6e..53fab05 100644
  
  	/**
 diff --git a/includes/parser/Parser.php b/includes/parser/Parser.php
-index 939d9e3..f544008 100644
+index 939d9e3..54091ec 100644
 --- a/includes/parser/Parser.php
 +++ b/includes/parser/Parser.php
 @@ -1738,7 +1738,18 @@ class Parser {
@@ -563,23 +564,48 @@ index 939d9e3..f544008 100644
  			if ( $nt === null ) {
  				$s .= $prefix . '[[' . $line;
  				wfProfileOut( __METHOD__."-title" );
-@@ -1821,7 +1832,9 @@ class Parser {
+@@ -1821,7 +1832,10 @@ class Parser {
  
  				if ( $ns == NS_FILE ) {
  					wfProfileIn( __METHOD__."-image" );
 -					if ( !wfIsBadImage( $nt->getDBkey(), $this->mTitle ) ) {
 +					// <IntraACL>
-+					if ( $nt->userCanRead() && !wfIsBadImage( $nt->getDBkey(), $this->mTitle ) ) {
++					if ( !wfIsBadImage( $nt->getDBkey(), $this->mTitle ) &&
++						( $canRead = $nt->userCanRead() ) ) {
 +					// </IntraACL>
  						if ( $wasblank ) {
  							# if no parameters were passed, $text
  							# becomes something like "File:Foo.png",
-@@ -3101,6 +3114,17 @@ class Parser {
+@@ -1838,6 +1852,13 @@ class Parser {
+ 						# cloak any absolute URLs inside the image markup, so replaceExternalLinks() won't touch them
+ 						$s .= $prefix . $this->armorLinks(
+ 							$this->makeImage( $nt, $text, $holders ) ) . $trail;
++					// <IntraACL>
++					} elseif ( !$canRead ) {
++						# Still register dependency on a nonreadable image
++						$time = $sha1 = $descQuery = false;
++						list( $file, $nt ) = $this->fetchFileAndTitle( $nt, $time, $sha1 );
++						$s .= $prefix . $trail;
++					// </IntraACL>
+ 					} else {
+ 						$s .= $prefix . $trail;
+ 					}
+@@ -3100,7 +3121,28 @@ class Parser {
+ 			if ( $subpage !== '' ) {
  				$ns = $this->mTitle->getNamespace();
  			}
++			// <IntraACL>
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				$etc = haclfDisableTitlePatch();
++			}
  			$title = Title::newFromText( $part1, $ns );
-+			if ( method_exists( $title, 'userCanReadEx' ) && !$title->userCanReadEx() ) {
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $etc );
++			}
++			if ( $title->userCanRead() ) {
 +				global $haclgInclusionDeniedMessage;
++				// Still register dependency on an unreadable template
++				$this->fetchTemplateAndTitle( $title );
 +				$title = NULL;
 +				if ( $haclgInclusionDeniedMessage ) {
 +					$found = true;
@@ -589,6 +615,7 @@ index 939d9e3..f544008 100644
 +					$text = '';
 +				}
 +			}
++			// </IntraACL>
  			if ( $title ) {
  				$titleText = $title->getPrefixedText();
  				# Check for language variants if the template is not found
