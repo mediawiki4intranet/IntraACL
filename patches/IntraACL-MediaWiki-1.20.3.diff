@@ -1,0 +1,849 @@
+diff --git a/includes/CategoryViewer.php b/includes/CategoryViewer.php
+index 3bb2bc9..bb07f9d 100644
+--- a/includes/CategoryViewer.php
++++ b/includes/CategoryViewer.php
+@@ -177,6 +177,11 @@ class CategoryViewer extends ContextSource {
+ 	 */
+ 	function addSubcategory( Title $title, $sortkey, $pageLength ) {
+ 		wfDeprecated( __METHOD__, '1.17' );
++		// <IntraACL>
++		if ( !$title->userCanReadEx() ) {
++			return;
++		}
++		// </IntraACL>
+ 		$this->addSubcategoryObject( Category::newFromTitle( $title ), $sortkey, $pageLength );
+ 	}
+ 
+@@ -243,6 +248,11 @@ class CategoryViewer extends ContextSource {
+ 	 * @param $isRedirect bool
+ 	 */
+ 	function addPage( $title, $sortkey, $pageLength, $isRedirect = false ) {
++		/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++		if (!$title->userCanReadEx()) {
++			return;
++		}
++		/*op-patch|TS|2009-06-19|end*/  
+ 		global $wgContLang;
+ 
+ 		$link = Linker::link( $title );
+diff --git a/includes/ChangesFeed.php b/includes/ChangesFeed.php
+index ee4c2d6..3ee0f1c 100644
+--- a/includes/ChangesFeed.php
++++ b/includes/ChangesFeed.php
+@@ -74,15 +74,16 @@ class ChangesFeed {
+ 	 * @return null|bool True or null
+ 	 */
+ 	public function execute( $feed, $rows, $lastmod, $opts ) {
+-		global $wgLang, $wgRenderHashAppend;
+-
++		global $wgLang, $wgRenderHashAppend, $wgUser;
++		
+ 		if ( !FeedUtils::checkFeedOutput( $this->format ) ) {
+ 			return null;
+ 		}
+ 
++		$userid = $wgUser->getId();
+ 		$optionsHash = md5( serialize( $opts->getAllValues() ) ) . $wgRenderHashAppend;
+-		$timekey = wfMemcKey( $this->type, $this->format, $wgLang->getCode(), $optionsHash, 'timestamp' );
+-		$key = wfMemcKey( $this->type, $this->format, $wgLang->getCode(), $optionsHash );
++		$timekey = wfMemcKey( $this->type, $this->format, $userid, $wgLang->getCode(), $optionsHash, 'timestamp' );
++		$key = wfMemcKey( $this->type, $this->format, $userid, $wgLang->getCode(), $optionsHash );
+ 
+ 		FeedUtils::checkPurge( $timekey, $key );
+ 
+@@ -187,6 +188,11 @@ class ChangesFeed {
+ 
+ 		foreach( $sorted as $obj ) {
+ 			$title = Title::makeTitle( $obj->rc_namespace, $obj->rc_title );
++			// <IntraACL>
++			if( !$title || method_exists( $title, 'userCanReadEx' ) && !$title->userCanReadEx() ) {
++				continue;
++			}
++			// </IntraACL>
+ 			$talkpage = MWNamespace::canTalk( $obj->rc_namespace ) ? $title->getTalkPage()->getFullUrl() : '';
+ 			// Skip items with deleted content (avoids partially complete/inconsistent output)
+ 			if( $obj->rc_deleted ) continue;
+diff --git a/includes/FeedUtils.php b/includes/FeedUtils.php
+index 11b2675..3714a01 100644
+--- a/includes/FeedUtils.php
++++ b/includes/FeedUtils.php
+@@ -113,11 +113,8 @@ class FeedUtils {
+ 					$actiontext,
+ 					Linker::formatComment( $comment ) ) ) ) . "</p>\n";
+ 
+-		// NOTE: Check permissions for anonymous users, not current user.
+-		//       No "privileged" version should end up in the cache.
+-		//       Most feed readers will not log in anway.
+-		$anon = new User();
+-		$accErrors = $title->getUserPermissionsErrors( 'read', $anon, true );
++		// NOTE: Check permissions for current user. -- HaloACL
++		$accErrors = $title->getUserPermissionsErrors( 'read', $wgUser, true );
+ 
+ 		// Can't diff special pages, unreadable pages or pages with no new revision
+ 		// to compare against: just return the text.
+diff --git a/includes/Linker.php b/includes/Linker.php
+index 56626bd..fe8da85 100644
+--- a/includes/Linker.php
++++ b/includes/Linker.php
+@@ -1850,6 +1850,10 @@ class Linker {
+ 						array(),
+ 						array( 'action' => 'edit' )
+ 					);
++				// <IntraACL>
++				} elseif ( !$titleObj->userCanRead() ) {
++					continue;
++				// </IntraACL>
+ 				} else {
+ 					$editLink = self::link(
+ 						$titleObj,
+diff --git a/includes/OutputPage.php b/includes/OutputPage.php
+index b4a81bb..55fd7a8 100644
+--- a/includes/OutputPage.php
++++ b/includes/OutputPage.php
+@@ -1163,6 +1163,12 @@ class OutputPage extends ContextSource {
+ 
+ 		# Add the remaining categories to the skin
+ 		if ( wfRunHooks( 'OutputPageMakeCategoryLinks', array( &$this, $categories, &$this->mCategoryLinks ) ) ) {
++			// <IntraACL>
++			// Do not cloak category links during display
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				$etc = haclfDisableTitlePatch();
++			}
++			// </IntraACL>
+ 			foreach ( $categories as $category => $type ) {
+ 				$origcategory = $category;
+ 				$title = Title::makeTitleSafe( NS_CATEGORY, $category );
+@@ -1176,6 +1182,11 @@ class OutputPage extends ContextSource {
+ 				$this->mCategories[] = $title->getText();
+ 				$this->mCategoryLinks[$type][] = Linker::link( $title, $text );
+ 			}
++			// <IntraACL>
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $etc );
++			}
++			// </IntraACL>
+ 		}
+ 	}
+ 
+@@ -2092,7 +2103,14 @@ class OutputPage extends ContextSource {
+ 			# not especially useful as a returnto parameter. Use the title
+ 			# from the request instead, if there was one.
+ 			$request = $this->getRequest();
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				// IntraACL -- do not produce "&returnto=Access_Denied" links
++				$hacl = haclfDisableTitlePatch();
++			}
+ 			$returnto = Title::newFromURL( $request->getVal( 'title', '' ) );
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $hacl );
++			}
+ 			if ( $action == 'edit' ) {
+ 				$msg = 'whitelistedittext';
+ 				$displayReturnto = $returnto;
+@@ -2377,7 +2395,9 @@ $templates
+ 		} else {
+ 			$titleObj = Title::newFromText( $returnto );
+ 		}
+-		if ( !is_object( $titleObj ) ) {
++		/*patch|2011-04-05|IntraACL|start*/
++		if ( !$titleObj instanceof Title || method_exists( $titleObj, 'userCanReadEx' ) && !$titleObj->userCanReadEx() ) {
++		/*patch|2011-04-05|IntraACL|end*/
+ 			$titleObj = Title::newMainPage();
+ 		}
+ 
+diff --git a/includes/QueryPage.php b/includes/QueryPage.php
+index ac559dc..b9964c2 100644
+--- a/includes/QueryPage.php
++++ b/includes/QueryPage.php
+@@ -585,6 +585,12 @@ abstract class QueryPage extends SpecialPage {
+ 			# $res might contain the whole 1,000 rows, so we read up to
+ 			# $num [should update this to use a Pager]
+ 			for ( $i = 0; $i < $num && $row = $dbr->fetchObject( $res ); $i++ ) {
++				// <IntraACL>
++				$title = Title::makeTitleSafe( $row->namespace, $row->title );
++				if ( !$title || !$title->userCanReadEx() ) {
++					continue;
++				}
++				// </IntraACL>
+ 				$line = $this->formatResult( $skin, $row );
+ 				if ( $line ) {
+ 					$attr = ( isset( $row->usepatrol ) && $row->usepatrol && $row->patrolled == 0 )
+diff --git a/includes/Title.php b/includes/Title.php
+index 1b5e21d..f8a5da4 100644
+--- a/includes/Title.php
++++ b/includes/Title.php
+@@ -105,7 +105,9 @@ class Title {
+ 		$t = new Title();
+ 		$t->mDbkeyform = $key;
+ 		if ( $t->secureAndSplit() ) {
+-			return $t;
++			// <IntraACL>
++			return $t->checkAccessControl();
++			// </IntraACL>
+ 		} else {
+ 			return null;
+ 		}
+@@ -159,7 +161,10 @@ class Title {
+ 				$cachedcount++;
+ 				Title::$titleCache[$text] =& $t;
+ 			}
+-			return $t;
++			/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++						return $t->checkAccessControl();
++			/*op-patch|TS|2009-06-19|end*/  
++			// Preplaced by patch return $t;
+ 		} else {
+ 			$ret = null;
+ 			return $ret;
+@@ -193,7 +198,9 @@ class Title {
+ 
+ 		$t->mDbkeyform = str_replace( ' ', '_', $url );
+ 		if ( $t->secureAndSplit() ) {
+-			return $t;
++			// <IntraACL>
++			return $t->checkAccessControl();
++			// </IntraACL>
+ 		} else {
+ 			return null;
+ 		}
+@@ -312,7 +319,11 @@ class Title {
+ 		$t->mArticleID = ( $ns >= 0 ) ? -1 : 0;
+ 		$t->mUrlform = wfUrlencode( $t->mDbkeyform );
+ 		$t->mTextform = str_replace( '_', ' ', $title );
+-		return $t;
++		/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++		$t = $t->checkAccessControl();
++ 		return $t;
++		/*op-patch|TS|2009-06-19|end*/  
++		// Preplaced by patch		return $t;
+ 	}
+ 
+ 	/**
+@@ -334,7 +345,9 @@ class Title {
+ 		$t = new Title();
+ 		$t->mDbkeyform = Title::makeName( $ns, $title, $fragment, $interwiki );
+ 		if ( $t->secureAndSplit() ) {
+-			return $t;
++			// <IntraACL>
++			return $t->checkAccessControl();
++			// </IntraACL>
+ 		} else {
+ 			return null;
+ 		}
+@@ -4583,4 +4596,102 @@ class Title {
+ 		}
+ 		return $pageLang;
+ 	}
++	
++// <IntraACL>
++	/**
++	 * This function is called from the patches for HaloACL for secure listings
++	 * (e.g. Special:AllPages). It checks, whether the current user is allowed
++	 * to read the article for this title object. For normal pages this is
++	 * evaluate in the method <userCanRead>.
++	 * However, the special pages that generate listings, often create title
++	 * objects before the can check their accessibility. The fallback mechanism
++	 * of HaloACL creates the title "Permission denied" for the article that
++	 * must not be accessed. The listings would then show a link to "Permission
++	 * denied". So this function returns "false" for the title "Permission denied"
++	 * as well.
++	 *
++	 * @return
++	 * 		true, if this title can be read
++	 * 		false, if the title is protected or "Permission denied".
++	 */
++	public function userCanReadEx( $otherUser = NULL ) {
++		if ( !defined( 'HACL_HALOACL_VERSION' ) ) {
++			// IntraACL is disabled
++			return true;
++		}
++		global $haclgContLang;
++		if ( $this->mTextform === $haclgContLang->getPermissionDeniedPage() ) {
++			// Special handling of "Permission denied" page
++			return false;
++		}
++		if ( $otherUser ) {
++			$canRead = false;
++			$status = HACLEvaluator::userCan( $this, $otherUser, 'read', $canRead );
++			return $canRead;
++		}
++		return $this->userCanRead();
++	}
++
++	/**
++	 * This function checks, if this title is accessible for the action of the
++	 * current request. If the action is unknown it is assumed to be "read".
++	 * If the title is not accessible, the new title "Permission denied" is
++	 * returned. This is a fallback to protect titles if all other security
++	 * patches fail.
++	 *
++	 * While a page is rendered, the same title is often checked several times.
++	 * To speed things up, the results of an accessibility check are internally
++	 * cached.
++	 *
++	 * This function can be disabled in HACL_Initialize.php or LocalSettings.php
++	 * by setting the variable $haclgEnableTitleCheck = false.
++	 *
++	 * @return
++	 * 		$this, if access is granted on this title or
++	 * 		the title for "Permission denied" if not.
++	 */
++	private function checkAccessControl() {
++		if ( !defined( 'HACL_HALOACL_VERSION' ) ) {
++			// IntraACL is disabled or not fully initialized
++			return $this;
++		}
++		global $haclgEnableTitleCheck;
++		if ( isset( $haclgEnableTitleCheck ) && $haclgEnableTitleCheck === false ) {
++			return $this;
++		}
++		static $permissionCache = array();
++		
++		$action = 'read';
++		$index = $this->getFullText().'-'.$action;
++		$allowed = @$permissionCache[$index];
++		if ( !isset( $allowed ) ) {
++			switch ( $action ) {
++				case 'create':
++				case 'move':
++				case 'delete':
++					$allowed = $this->userCan($action);
++					break;
++				case 'edit':
++					// If the article does not exist and edit right was requested,
++					// check for create right.
++					$allowed = $this->userCan($this->exists() ? 'edit' : 'create');
++					break;
++				default:
++					// If the user has no read access to a non-existing page,
++					// but has the right to create it - allow him to "read" it
++					$allowed = $this->userCanRead() || !$this->exists() && $this->userCan('create');
++			}
++			$permissionCache[$index] = $allowed;
++		}
++		if ( $allowed === false ) {
++			global $haclgContLang;
++			$etc = $haclgEnableTitleCheck;
++			$haclgEnableTitleCheck = false;
++			$t = Title::newFromURL($haclgContLang->getPermissionDeniedPage());
++			$haclgEnableTitleCheck = $etc;
++			return $t;
++		}
++		return $this;
++	}
++// </IntraACL>
+ }
+diff --git a/includes/User.php b/includes/User.php
+index 0a3db4c..245f9b5 100644
+--- a/includes/User.php
++++ b/includes/User.php
+@@ -274,7 +274,13 @@ class User {
+ 				$this->loadDefaults();
+ 				break;
+ 			case 'name':
++				if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++					$hacl = haclfDisableTitlePatch();
++				}
+ 				$this->mId = self::idFromName( $this->mName );
++				if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++					haclfRestoreTitlePatch( $hacl );
++				}
+ 				if ( !$this->mId ) {
+ 					# Nonexistent user placeholder object
+ 					$this->loadDefaults( $this->mName );
+@@ -556,6 +562,12 @@ class User {
+ 	public static function isValidUserName( $name ) {
+ 		global $wgContLang, $wgMaxNameChars;
+ 
++		# Disable HaloACL title check as the main and/or
++		# user namespaces may be protected
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			$hacl = haclfDisableTitlePatch();
++		}
++		
+ 		if ( $name == ''
+ 		|| User::isIP( $name )
+ 		|| strpos( $name, '/' ) !== false
+@@ -563,6 +575,9 @@ class User {
+ 		|| $name != $wgContLang->ucfirst( $name ) ) {
+ 			wfDebugLog( 'username', __METHOD__ .
+ 				": '$name' invalid due to empty, IP, slash, length, or lowercase" );
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $hacl );
++			}
+ 			return false;
+ 		}
+ 
+@@ -575,6 +590,9 @@ class User {
+ 			|| strcmp( $name, $parsed->getPrefixedText() ) ) {
+ 			wfDebugLog( 'username', __METHOD__ .
+ 				": '$name' invalid due to ambiguous prefixes" );
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $hacl );
++			}
+ 			return false;
+ 		}
+ 
+@@ -591,9 +609,14 @@ class User {
+ 		if( preg_match( $unicodeBlacklist, $name ) ) {
+ 			wfDebugLog( 'username', __METHOD__ .
+ 				": '$name' invalid due to blacklisted characters" );
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $hacl );
++			}
+ 			return false;
+ 		}
+-
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			haclfRestoreTitlePatch( $hacl );
++		}
+ 		return true;
+ 	}
+ 
+@@ -765,6 +788,14 @@ class User {
+ 	 * @return bool|string
+ 	 */
+ 	public static function getCanonicalName( $name, $validate = 'valid' ) {
++		// <IntraACL>
++		# Disable IntraACL title check as the main and/or
++		# user namespaces may be protected
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			$hacl = haclfDisableTitlePatch();
++		}
++		// </IntraACL>
++		
+ 		# Force usernames to capital
+ 		global $wgContLang;
+ 		$name = $wgContLang->ucfirst( $name );
+@@ -780,6 +811,9 @@ class User {
+ 			Title::newFromText( $name ) : Title::makeTitle( NS_USER, $name );
+ 		# Check for invalid titles
+ 		if( is_null( $t ) ) {
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $hacl );
++			}
+ 			return false;
+ 		}
+ 
+@@ -808,6 +842,9 @@ class User {
+ 			default:
+ 				throw new MWException( 'Invalid parameter value for $validate in ' . __METHOD__ );
+ 		}
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			haclfRestoreTitlePatch( $hacl );
++		}
+ 		return $name;
+ 	}
+ 
+@@ -3448,7 +3485,13 @@ class User {
+ 	 */
+ 	protected function getTokenUrl( $page, $token ) {
+ 		// Hack to bypass localization of 'Special:'
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			$hacl = haclfDisableTitlePatch();
++		}
+ 		$title = Title::makeTitle( NS_MAIN, "Special:$page/$token" );
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			haclfRestoreTitlePatch($hacl);
++		}
+ 		return $title->getCanonicalUrl();
+ 	}
+ 
+diff --git a/includes/UserMailer.php b/includes/UserMailer.php
+index 01e7132..8d1ba40 100644
+--- a/includes/UserMailer.php
++++ b/includes/UserMailer.php
+@@ -564,7 +564,12 @@ class EmailNotification {
+ 				continue;
+ 			}
+ 			$user = User::newFromName( $name );
+-			$this->compose( $user );
++			/*op-patch|TS|2011-02-09|IntraACL|start*/
++			if ( !method_exists( $title, 'userCanReadEx' ) || $title->userCanReadEx( $user ) ) {
++				// Check IntraACL read access
++				$this->compose( $user );
++			}
++			/*op-patch|TS|2011-02-09|end*/
+ 		}
+ 
+ 		$this->sendMails();
+diff --git a/includes/logging/LogEventsList.php b/includes/logging/LogEventsList.php
+index 4de1a97..d1cf98e 100644
+--- a/includes/logging/LogEventsList.php
++++ b/includes/logging/LogEventsList.php
+@@ -308,6 +308,12 @@ class LogEventsList extends ContextSource {
+ 		$formatter->setShowUserToolLinks( !( $this->flags & self::NO_EXTRA_USER_LINKS ) );
+ 
+ 		$title = $entry->getTarget();
++		// <IntraACL>
++		if ( !$title->userCanReadEx() ) {
++			return '';
++		}
++		// </IntraACL>
++		
+ 		$time = htmlspecialchars( $this->getLanguage()->userTimeAndDate(
+ 			$entry->getTimestamp(), $this->getUser() ) );
+ 
+diff --git a/includes/parser/LinkHolderArray.php b/includes/parser/LinkHolderArray.php
+index d9356b4..fcdcacc 100644
+--- a/includes/parser/LinkHolderArray.php
++++ b/includes/parser/LinkHolderArray.php
+@@ -72,6 +72,12 @@ class LinkHolderArray {
+ 	 * Recreate the Title objects
+ 	 */
+ 	function __wakeup() {
++		// <IntraACL>
++		// LinkHolderArray skips permission checks so page links in parsed content are never cloaked
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			$etc = haclfDisableTitlePatch();
++		}
++		// </IntraACL>
+ 		foreach ( $this->internals as &$nsLinks ) {
+ 			foreach ( $nsLinks as &$entry ) {
+ 				$entry['title'] = Title::newFromText( $entry['pdbk'] );
+@@ -84,6 +90,11 @@ class LinkHolderArray {
+ 			$entry['title'] = Title::newFromText( $entry['pdbk'] );
+ 		}
+ 		unset( $entry );
++		// <IntraACL>
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			haclfRestoreTitlePatch( $etc );
++		}
++		// </IntraACL>
+ 	}
+ 
+ 	/**
+@@ -290,6 +301,13 @@ class LinkHolderArray {
+ 
+ 		$linkcolour_ids = array();
+ 
++		// <IntraACL>
++		// LinkHolderArray skips permission checks so page links in parsed content are never cloaked
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			$etc = haclfDisableTitlePatch();
++		}
++		// </IntraACL>
++		
+ 		# Generate query
+ 		$queries = array();
+ 		foreach ( $this->internals as $ns => $entries ) {
+@@ -410,6 +428,11 @@ class LinkHolderArray {
+ 
+ 		wfProfileOut( __METHOD__.'-replace' );
+ 		wfProfileOut( __METHOD__ );
++		// <IntraACL>
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			haclfRestoreTitlePatch( $etc );
++		}
++		// </IntraACL>
+ 	}
+ 
+ 	/**
+diff --git a/includes/parser/Parser.php b/includes/parser/Parser.php
+index 2a24bee..8be5b38 100644
+--- a/includes/parser/Parser.php
++++ b/includes/parser/Parser.php
+@@ -1876,7 +1876,18 @@ class Parser {
+ 
+ 			wfProfileOut( __METHOD__."-misc" );
+ 			wfProfileIn( __METHOD__."-title" );
++			// <IntraACL>
++			// Do not check permissions for links, except image links
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				$etc = haclfDisableTitlePatch();
++			}
++			// </IntraACL>
+ 			$nt = Title::newFromText( $this->mStripState->unstripNoWiki( $link ) );
++			// <IntraACL>
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $etc );
++			}
++			// </IntraACL>
+ 			if ( $nt === null ) {
+ 				$s .= $prefix . '[[' . $line;
+ 				wfProfileOut( __METHOD__."-title" );
+@@ -1958,7 +1969,10 @@ class Parser {
+ 
+ 				if ( $ns == NS_FILE ) {
+ 					wfProfileIn( __METHOD__."-image" );
+-					if ( !wfIsBadImage( $nt->getDBkey(), $this->mTitle ) ) {
++					// <IntraACL>
++					if ( !wfIsBadImage( $nt->getDBkey(), $this->mTitle ) &&
++						( $canRead = $nt->userCanRead() ) ) {
++					// </IntraACL>
+ 						if ( $wasblank ) {
+ 							# if no parameters were passed, $text
+ 							# becomes something like "File:Foo.png",
+@@ -1975,6 +1989,13 @@ class Parser {
+ 						# cloak any absolute URLs inside the image markup, so replaceExternalLinks() won't touch them
+ 						$s .= $prefix . $this->armorLinks(
+ 							$this->makeImage( $nt, $text, $holders ) ) . $trail;
++					// <IntraACL>
++					} elseif ( !$canRead ) {
++						# Still register dependency on a nonreadable image
++						$time = $sha1 = $descQuery = false;
++						list( $file, $nt ) = $this->fetchFileAndTitle( $nt, $time, $sha1 );
++						$s .= $prefix . $trail;
++					// </IntraACL>
+ 					} else {
+ 						$s .= $prefix . $trail;
+ 					}
+@@ -3284,7 +3305,18 @@ class Parser {
+ 			if ( $subpage !== '' ) {
+ 				$ns = $this->mTitle->getNamespace();
+ 			}
++			// <IntraACL>
++			// Template access check is done in statelessFetchTemplate()
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				$etc = haclfDisableTitlePatch();
++			}
++			// </IntraACL>
+ 			$title = Title::newFromText( $part1, $ns );
++			// <IntraACL>
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $etc );
++			}
++			// </IntraACL>
+ 			if ( $title ) {
+ 				$titleText = $title->getPrefixedText();
+ 				# Check for language variants if the template is not found
+@@ -3547,6 +3579,7 @@ class Parser {
+ 		$text = $skip = false;
+ 		$finalTitle = $title;
+ 		$deps = array();
++		$canRead = true;
+ 
+ 		# Loop to fetch the article, with up to 1 redirect
+ 		for ( $i = 0; $i < 2 && is_object( $title ); $i++ ) {
+@@ -3554,7 +3587,8 @@ class Parser {
+ 			$id = false; # Assume current
+ 			wfRunHooks( 'BeforeParserFetchTemplateAndtitle',
+ 				array( $parser, $title, &$skip, &$id ) );
+-
++			
++			$canRead = $canRead && $title->userCanRead();
+ 			if ( $skip ) {
+ 				$text = false;
+ 				$deps[] = array(
+@@ -3564,11 +3598,23 @@ class Parser {
+ 				);
+ 				break;
+ 			}
++			// <IntraACL>
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				$etc = haclfDisableTitlePatch();
++			}
++			// </IntraACL>
++
+ 			# Get the revision
+ 			$rev = $id
+ 				? Revision::newFromId( $id )
+ 				: Revision::newFromTitle( $title, false, Revision::READ_NORMAL );
+ 			$rev_id = $rev ? $rev->getId() : 0;
++			// <IntraACL>
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $etc );
++			}
++			// </IntraACL>
++			
+ 			# If there is no current revision, there is no page
+ 			if ( $id === false && !$rev ) {
+ 				$linkCache = LinkCache::singleton();
+@@ -3605,8 +3651,28 @@ class Parser {
+ 			}
+ 			# Redirect?
+ 			$finalTitle = $title;
++			// <IntraACL>
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				$etc = haclfDisableTitlePatch();
++			}
++			// </IntraACL>
+ 			$title = Title::newFromRedirect( $text );
++			// <IntraACL>
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $etc );
++			}
++			// </IntraACL>
++		}
++		// <IntraACL>
++		if ( !$canRead ) {
++			global $haclgInclusionDeniedMessage;
++			if ( $haclgInclusionDeniedMessage ) {
++				$text = wfMsg( $haclgInclusionDeniedMessage );
++			} elseif ( $haclgInclusionDeniedMessage === '' ) {
++				$text = '';
++			}
+ 		}
++		// </IntraACL>
+ 		return array(
+ 			'text' => $text,
+ 			'finalTitle' => $finalTitle,
+diff --git a/includes/specials/SpecialAllpages.php b/includes/specials/SpecialAllpages.php
+index 0f8b255..a8a28ea 100644
+--- a/includes/specials/SpecialAllpages.php
++++ b/includes/specials/SpecialAllpages.php
+@@ -379,6 +379,11 @@ class SpecialAllpages extends IncludableSpecialPage {
+ 				$out = Xml::openElement( 'table', array( 'class' => 'mw-allpages-table-chunk' ) );
+ 				while( ( $n < $this->maxPerPage ) && ( $s = $res->fetchObject() ) ) {
+ 					$t = Title::newFromRow( $s );
++					// <IntraACL>
++					if ( $t && !$t->userCanReadEx() ) {
++						continue;
++					}
++					// </IntraACL>
+ 					if( $t ) {
+ 						$link = ( $s->page_is_redirect ? '<div class="allpagesredirect">' : '' ) .
+ 							Linker::link( $t ) .
+diff --git a/includes/specials/SpecialListredirects.php b/includes/specials/SpecialListredirects.php
+index fe338a0..710b233 100644
+--- a/includes/specials/SpecialListredirects.php
++++ b/includes/specials/SpecialListredirects.php
+@@ -109,6 +109,11 @@ class ListredirectsPage extends QueryPage {
+ 		# Find out where the redirect leads
+ 		$target = $this->getRedirectTarget( $result );
+ 		if( $target ) {
++			// <IntraACL>
++			if ( !$target->userCanReadEx() ) {
++				return '';
++			}
++			// </IntraACL>
+ 			# Make a link to the destination page
+ 			$lang = $this->getLanguage();
+ 			$arr = $lang->getArrow() . $lang->getDirMark();
+diff --git a/includes/specials/SpecialNewpages.php b/includes/specials/SpecialNewpages.php
+index 8e15d55..c880340 100644
+--- a/includes/specials/SpecialNewpages.php
++++ b/includes/specials/SpecialNewpages.php
+@@ -311,6 +311,12 @@ class SpecialNewpages extends IncludableSpecialPage {
+ 		$lang = $this->getLanguage();
+ 		$dm = $lang->getDirMark();
+ 
++		// <IntraACL>
++		if ( !$title->userCanReadEx() ) {
++			return '';
++		}
++		// </IntraACL>
++		
+ 		$spanTime = Html::element( 'span', array( 'class' => 'mw-newpages-time' ),
+ 			$lang->userTimeAndDate( $result->rc_timestamp, $this->getUser() )
+ 		);
+diff --git a/includes/specials/SpecialPrefixindex.php b/includes/specials/SpecialPrefixindex.php
+index 7740b32..b8cc7fa 100644
+--- a/includes/specials/SpecialPrefixindex.php
++++ b/includes/specials/SpecialPrefixindex.php
+@@ -192,6 +192,11 @@ class SpecialPrefixindex extends SpecialAllpages {
+ 
+ 				while( ( $n < $this->maxPerPage ) && ( $s = $res->fetchObject() ) ) {
+ 					$t = Title::makeTitle( $s->page_namespace, $s->page_title );
++					/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++					if ($t && !$t->userCanReadEx()) {
++						continue; 
++					}
++					/*op-patch|TS|2009-06-19|end*/ 
+ 					if( $t ) {
+ 						$link = ($s->page_is_redirect ? '<div class="allpagesredirect">' : '' ) .
+ 							Linker::linkKnown(
+diff --git a/includes/specials/SpecialRandompage.php b/includes/specials/SpecialRandompage.php
+index 307088e..740b1d5 100644
+--- a/includes/specials/SpecialRandompage.php
++++ b/includes/specials/SpecialRandompage.php
+@@ -67,6 +67,10 @@ class RandomPage extends SpecialPage {
+ 			$this->getOutput()->addWikiMsg( strtolower( $this->getName() ) . '-nopages',
+ 				$this->getNsList(), count( $this->namespaces ) );
+ 			return;
++		} elseif ( method_exists( $title, 'userCanReadEx' ) && !$title->userCanReadEx() ) {
++			$article = new Article( $title );
++			$article->view();
++			return;
+ 		}
+ 
+ 		$redirectParam = $this->isRedirect() ? array( 'redirect' => 'no' ) : array();
+diff --git a/includes/specials/SpecialRecentchanges.php b/includes/specials/SpecialRecentchanges.php
+index 2bd8b0a..4531716 100644
+--- a/includes/specials/SpecialRecentchanges.php
++++ b/includes/specials/SpecialRecentchanges.php
+@@ -497,10 +497,15 @@ class SpecialRecentChanges extends IncludableSpecialPage {
+ 
+ 		$s = $list->beginRecentChangesList();
+ 		foreach( $rows as $obj ) {
++			// <IntraACL>
++			$rc = RecentChange::newFromRow( $obj );
++			if ( !$rc->getTitle()->userCanReadEx() ) {
++				continue;
++			}
++			// </IntraACL>
+ 			if( $limit == 0 ) {
+ 				break;
+ 			}
+-			$rc = RecentChange::newFromRow( $obj );
+ 			$rc->counter = $counter++;
+ 			# Check if the page has been updated since the last visit
+ 			if( $wgShowUpdatedMarker && !empty( $obj->wl_notificationtimestamp ) ) {
+diff --git a/includes/specials/SpecialSearch.php b/includes/specials/SpecialSearch.php
+index 5f5b6b4..1d9bdf3 100644
+--- a/includes/specials/SpecialSearch.php
++++ b/includes/specials/SpecialSearch.php
+@@ -512,7 +512,14 @@ class SpecialSearch extends SpecialPage {
+ 		$out .= "<ul class='mw-search-results'>\n";
+ 		$result = $matches->next();
+ 		while( $result ) {
+-			$out .= $this->showHit( $result, $terms );
++			/*op-patch|TS|2011-02-08|HaloACL|SafeTitle|start*/
++			if (($result->getTitle() != NULL) 
++			    && ($result->getTitle()->userCanReadEx())) {
++			/*op-patch|TS|2011-02-08|end*/  
++				$out .= $this->showHit( $result, $terms );
++			/*op-patch|TS|2011-02-08|HaloACL|SafeTitle|start*/
++			}
++			/*op-patch|TS|2011-02-08|end*/  
+ 			$result = $matches->next();
+ 		}
+ 		$out .= "</ul>\n";
+diff --git a/includes/specials/SpecialUserlogin.php b/includes/specials/SpecialUserlogin.php
+index 58da77d..1a0663f 100644
+--- a/includes/specials/SpecialUserlogin.php
++++ b/includes/specials/SpecialUserlogin.php
+@@ -961,7 +961,9 @@ class LoginForm extends SpecialPage {
+ 		}
+ 
+ 		$returnToTitle = Title::newFromText( $returnTo );
+-		if ( !$returnToTitle ) {
++		/*patch|2011-04-05|IntraACL|start*/
++		if ( !$titleObj instanceof Title || method_exists( $titleObj, 'userCanReadEx' ) && !$titleObj->userCanReadEx() ) {
++		/*patch|2011-04-05|IntraACL|end*/
+ 			$returnToTitle = Title::newMainPage();
+ 		}
+ 
+diff --git a/includes/specials/SpecialWatchlist.php b/includes/specials/SpecialWatchlist.php
+index 5dfc113..cfef364 100644
+--- a/includes/specials/SpecialWatchlist.php
++++ b/includes/specials/SpecialWatchlist.php
+@@ -412,6 +412,11 @@ class SpecialWatchlist extends SpecialPage {
+ 		foreach ( $res as $obj ) {
+ 			# Make RC entry
+ 			$rc = RecentChange::newFromRow( $obj );
++			// <IntraACL>
++			if ( !$rc->getTitle()->userCanReadEx() ) {
++				continue;
++			}
++			// </IntraACL>
+ 			$rc->counter = $counter++;
+ 
+ 			if ( $wgShowUpdatedMarker ) {
+diff --git a/includes/specials/SpecialWhatlinkshere.php b/includes/specials/SpecialWhatlinkshere.php
+index f135649..de0b125 100644
+--- a/includes/specials/SpecialWhatlinkshere.php
++++ b/includes/specials/SpecialWhatlinkshere.php
+@@ -257,7 +257,11 @@ class SpecialWhatLinksHere extends SpecialPage {
+ 		$out->addHTML( $this->listStart( $level ) );
+ 		foreach ( $rows as $row ) {
+ 			$nt = Title::makeTitle( $row->page_namespace, $row->page_title );
+-
++			/*op-patch|TS|2009-06-19|HaloACL|SafeTitle|start*/
++			if (!$nt->userCanReadEx()) {
++				continue;
++			}
++			/*op-patch|TS|2009-06-19|end*/  
+ 			if ( $row->rd_from && $level < 2 ) {
+ 				$out->addHTML( $this->listItem( $row, $nt, true ) );
+ 				$this->showIndirectLinks( $level + 1, $nt, $wgMaxRedirectLinksRetrieved );
