@@ -626,6 +626,11 @@ $messages['ru'] = array(
  * German
  */
 $messages['de'] = array(
+
+ // General
+    'intraacl'                            => 'IntraACL',
+    'hacl_special_page'                   => 'IntraACL',  // Name of the special page for administration
+    'specialpages-group-hacl_group'       => 'IntraACL',
     'hacl_unknown_user'                   => 'Der Benutzer "$1" ist unbekannt.',
     'hacl_unknown_group'                  => 'Die Gruppe "$1" ist unbekannt.',
     'hacl_missing_parameter'              => 'Der Parameter "$1" fehlt.',
@@ -640,9 +645,7 @@ $messages['de'] = array(
     'hacl_right_must_have_managers'       => 'Ein Recht oder eine Sicherheitsbeschreibung müssen mindestens einen Verwalter haben (Gruppe oder Benutzer).',
     'hacl_pf_rightname_title'             => '===$1==='."\n",
     'hacl_pf_rights_title'                => '===Recht(e): $1==='."\n",
-    'hacl_pf_rights'                      => ':;Recht(e):
-:: $1
-',
+    'hacl_pf_rights'                      => ":;Recht(e):\n:: $1\n",
     'hacl_pf_right_managers_title'        => '===Rechteverwalter==='."\n",
     'hacl_pf_predefined_rights_title'     => '===Rechtevorlagen==='."\n",
     'hacl_pf_group_managers_title'        => '===Gruppenverwalter==='."\n",
@@ -658,11 +661,227 @@ $messages['de'] = array(
     'hacl_definitions_will_not_be_saved'  => '(Wegen der folgenden Fehler werden die Definitionen dieses Artikel nicht gespeichert und haben keine Auswirkungen.)',
     'hacl_will_not_work_as_expected'      => '(Wegen der folgenden Warnungen wird die Definition nicht wie erwartet angewendet.)',
     'hacl_errors_in_definition'           => 'Die Definitionen in diesem Artikel sind fehlerhaft. Bitte schauen Sie sich die folgenden Details an!',
-    'hacl_anonymous_users'                => 'anonyme Benutzer',
+    'hacl_all_users'                      => 'alle Benutzer',
     'hacl_registered_users'               => 'registrierte Benutzer',
     'hacl_acl_element_not_in_db'          => 'Zu diesem Artikel gibt es keinen Eintrag in der Rechtedatenbank. Vermutlich wurde er gelöscht und wiederhergestellt. Bitte speichern Sie ihn und alle Artikel die ihn verwenden neu.',
+    'hacl_acl_element_inconsistent'       => 'Dieser Artikel enthält eine inkonsistente ACL Definition. Bitte erneut speichern.',
     'hacl_unprotectable_namespace'        => 'Dieser Namensraum kann nicht geschützt werden. Bitte fragen Sie Ihren Wikiadministrator.',
-    'hacl_permission_denied'              => 'Sie dürfen die gewünschte Aktion auf dieser Seite nicht durchführen.
+    'hacl_permission_denied'              => "Sie dürfen die gewünschte Aktion auf dieser Seite nicht durchführen.\n\nZurück zur [[Hauptseite]].",
+    'hacl_move_acl'                       => 'ACL mit artikel verschoben',
+    'hacl_move_acl_include'               => 'Verschieberecht wurde inkludiert.',
+    'hacl_nonreadable_create'             => '<div style="border: 0.2em solid red; padding: 0 0.5em 0.5em"><span style="color: red; font-weight: bold">Warnung!</span>Der Namensraum, in dem der Artikel erstellt werden soll, kann mit ihren Berechtigungen nicht gelesen werden.<ul><li>Fügen Sie den Artikel einer von Ihnen berechtigten Kategorie hinzu: $1</li><li>oder aktivieren Sie "<b>Nicht lesbaren Artikel erstellen</b>"</li></ul></div>',
+    'hacl_nonreadable_create_nocat'       => '<div style="border: 0.2em solid red; padding: 0 0.5em 0.5em"><span style="color: red; font-weight: bold">Warnung!</span>Der Namensraum, in dem der Artikel erstellt werden soll, kann mit ihren Berechtigungen nicht gelesen werden.Um trotzdem fortzufahren, aktivieren Sie "<b>Nicht lesbaren Artikel erstellen</b>".</div>',
+    'hacl_nonreadable_upload'             => '<div style="border: 0.2em solid red; padding: 0.2em 0.5em 0.5em; display: inline-block; width: 50%"><span style="color: red; font-weight: bold">Warnung!</span>Der Namensraum <tt>Datei</tt> kann mit ihren Berechtigungen nicht gelesen werden.<br />Bitte fügen Sie einer der folgenden Kategorien zur Beschreibung der Datei hinzu oder die Datei wird nach dem Upload <b>nicht</b> mehr für Sie lesbar sein:&nbsp;$1</div>',
+    'hacl_nonreadable_upload_nocat'       => '<div style="border: 0.2em solid red; padding: 0.2em 0.5em 0.5em; display: inline-block; width: 50%"><span style="color: red; font-weight: bold">Warnung!</span>Der Namensraum <tt>Datei</tt> kann mit ihren Berechtigungen nicht gelesen werden.</div>',
+  
+    /**** IntraACL: ****/
+  
+    'tog-showacltab'                    => '"Rechte" Tab immer anzeigen',
+  
+    // General
+    'hacl_invalid_prefix'               => 'Diese Seite selbst schützt keine Artikel, bitte erstellen Sie neue Rechte oder Rechtevorlagen. Entweder soll diese Seite in eine andere Rechtedefinition eingebunden werden oder sie wurde falsch erstellt. Wenn Artikel geschützt werden sollen, muss die Rechteseite wie folgt heißen: ACL:Page/*, ACL:Category/*, ACL:Namespace/*, ACL:Right/*.',
+    'hacl_pe_not_exists'                => 'Das Element, das mit diesen Rechten geschützt werden soll, existiert nicht.',
+    'hacl_edit_with_special'            => '<p><a href="$1"><img src="$2" width="16" height="16" alt="Ändern" /> Diese Rechtedefinition mit IntraACL Editor ändern.</a></p><hr />',
+    'hacl_create_with_special'          => '<p><a href="$1"><img src="$2" width="16" height="16" alt="Erstellen" /> Diese Rechtedefinition mit IntraACL Editor erstellen.</a></p><hr />',
+    'hacl_tab_acl'                      => 'Rechte',
+    'hacl_tab_page'                     => 'Seite',
+    'hacl_tab_category'                 => 'Kategorie',
+ 
+    // Special:IntraACL actions
+    'hacl_action_acllist'               => 'Rechte verwalten',
+    'hacl_action_acl'                   => 'Neue Rechtedefinition erstellen',
+    'hacl_action_quickaccess'           => 'Schnellrechte',
+    'hacl_action_grouplist'             => 'Rechtegruppen verwalten',
+    'hacl_action_group'                 => 'Rechtegruppe anlegen',
+    'hacl_action_rightgraph'            => 'Grafische Darstellung der Rechte',
+ 
+    // ACL Editor
+    'hacl_autocomplete_no_users'        => 'Keine Benutzer gefunden',
+    'hacl_autocomplete_no_groups'       => 'Keine Gruppen gefunden',
+    'hacl_autocomplete_no_pages'        => 'Keine Artikel gefunden',
+    'hacl_autocomplete_no_namespaces'   => 'Keine Namensräume gefunden',
+    'hacl_autocomplete_no_categorys'    => 'Keine Kategorien gefunden',
+    'hacl_autocomplete_no_sds'          => 'Keine Rechtedefinition gefunden',
 
-Zurück zur [[Hauptseite]].',
+    'hacl_login_first_title'            => 'Bitte anmelden',
+    'hacl_login_first_text'             => 'Bitte [[Special:Userlogin|anmelden]] um IntraACL zu benutzen.',
+    'hacl_acl_create'                   => 'Rechtedefinition erstellen',
+    'hacl_acl_create_title'             => 'Rechtedefinition erstellen: $1',
+    'hacl_acl_edit'                     => 'Rechtedefinition ändern: $1',
+    'hacl_edit_definition_text'         => 'Quelltext:',
+    'hacl_edit_definition_target'       => 'Art:',
+    'hacl_edit_modify_definition'       => 'Rechtedefinition ändern:',
+    'hacl_edit_include_right'           => 'Andere Rechtedefinitionen erben:',
+    'hacl_edit_include_do'              => 'erben',
+    'hacl_edit_save'                    => 'Rechtedefinition Speichern',
+    'hacl_edit_create'                  => 'Rechtedefinition erstellen',
+    'hacl_edit_delete'                  => 'Rechtedefinition löschen',
+    'hacl_edit_protect'                 => 'Schützen:',
+    'hacl_edit_define'                  => 'Vorlage:',
+ 
+    'hacl_edit_sd_exists'               => 'Rechtedefinition existiert bereits.',
+    'hacl_edit_enter_name_first'        => 'Fehler: Bitte Namen angeben!',
+    'hacl_edit_define_rights'           => 'Fehler: Rechtedefinition muss min. ein Recht enthalten!',
+    'hacl_edit_lose'                    => 'WARNUNG! Sie können diese Rechtedefinition nach dem Speichern NICHT MEHR ÄNDERN!',
+    'hacl_edit_define_manager'          => 'Wenn die Rechtedefinition keine Verwalter enthält, kann sie nur von Administratoren oder Benutzern mit administrativen Rechten auf diesem Namensraum geändert werden.',
+    'hacl_edit_define_manager_np'       => 'Wenn die Rechtedefinition keine Verwalter enthält, kann sie nur von Administratoren geändert werden.',
+    'hacl_edit_define_tmanager'         => 'Wenn die Rechtevorlage keine Verwalter enthält, kann sie nur von Administratoren geändert werden.',
+  
+    'hacl_start_typing_page'            => 'Eingabe starten, um Artikel anzuzeigen...',
+    'hacl_start_typing_category'        => 'Eingabe starten, um Kategorien anzuzeigen...',
+    'hacl_start_typing_user'            => 'Eingabe starten, um Benutzer anzuzeigen...',
+    'hacl_start_typing_group'           => 'Eingabe starten, um Gruppen anzuzeigen...',
+    'hacl_edit_users_affected'          => 'Benutzer betroffen:',
+    'hacl_edit_groups_affected'         => 'Gruppen betroffen:',
+    'hacl_edit_no_users_affected'       => 'Keine Benutzer betroffen.',
+    'hacl_edit_no_groups_affected'      => 'Keine Gruppen betroffen.',
+    'hacl_edit_goto_group'              => 'Zur Rechtedefinition $1 gehen',
+ 
+    'hacl_edit_user'                    => 'Benutzer',
+    'hacl_edit_group'                   => 'Gruppe',
+    'hacl_edit_all'                     => 'Alle Benutzer',
+    'hacl_edit_reg'                     => 'Alle registrierten Benutzer',
+ 
+    'hacl_edit_action_all'              => 'Alle',
+    'hacl_edit_action_manage'           => 'Rechteverwaltung Artikel',
+    'hacl_edit_action_template'         => 'Rechteverwaltung Vorlagen',
+    'hacl_edit_action_read'             => 'Lesen',
+    'hacl_edit_action_edit'             => 'Bearbeiten',
+    'hacl_edit_action_create'           => 'Erstellen',
+    'hacl_edit_action_delete'           => 'Löschen',
+    'hacl_edit_action_move'             => 'Verschieben',
+ 
+    'hacl_edit_ahint_all'               => 'Alle Rechte: lesen, ändern, erstellen, löschen, verschieben. Erlaubt NICHT, die Recht zu ändern.',
+    'hacl_edit_ahint_manage'            => 'Erlaubt NICHT, diese Definition zu ändern, erlaubt aber andere Rechte dieser Definition, außer Rechtevorlagen, zu ändern.',
+    'hacl_edit_ahint_template'          => 'Erlaubt NUR das Ändern DIESER Definition. Erlaubt NICHT das Ändern anderer Rechte.',
+    'hacl_edit_ahint_read'              => 'Dies ist das Recht Artikel zu lesen.',
+    'hacl_edit_ahint_edit'              => 'Dies ist das Recht Artikel zu ändern.',
+    'hacl_edit_ahint_create'            => 'Dies ist das Recht Artikel im derzeitigen Namensraum zu erstellen.', // FIXME ( ... and category )
+    'hacl_edit_ahint_delete'            => 'Dies ist das Recht bestehende Artikel zu löschen.',
+    'hacl_edit_ahint_move'              => 'Dies ist das Recht bestehende Artikel zu verschieben (umzubenennen).',
+  
+    'hacl_define_page'                  => 'Artikel schützen:',
+    'hacl_define_namespace'             => 'Namensraum schützen:',
+    'hacl_define_category'              => 'Kategorie schützen:',
+    'hacl_define_right'                 => 'Vorlage:',
+ 
+    // ACL list
+    'hacl_acllist'                      => 'Intranet Access Control Lists',
+    'hacl_acllist_hello'                => 'Hi, dies ist \'\'\'[http://wiki.4intra.net/IntraACL IntraACL]\'\'\', die beste MediaWiki Rechteverwaltung. Sie können [http://wiki.4intra.net/IntraACL hier] Hilfe bekommen. Wählen Sie eine Funktion:',
+    'hacl_acllist_empty'                => '<span style="color:red;font-weight:bold">Keine zutreffenden Rechte gefunden.</span>',
+    'hacl_acllist_filter_name'          => 'Filtern nach Name:',
+    'hacl_acllist_filter_type'          => 'Filtern nach Typ:',
+    'hacl_acllist_hint_single'          => 'Das Recht $1 ist nur von $2 geerbt.',
+    'hacl_acllist_perpage'              => 'Auf dem Artikel:',
+    'hacl_acllist_result_page'          => 'Artikel:',
+    'hacl_acllist_prev'                 => '&larr; Vorheriger Artikel',
+    'hacl_acllist_next'                 => 'Nächster Artikel &rarr;',
+    'hacl_acllist_typegroup_all'        => 'Alle Definitionen',
+    'hacl_acllist_typegroup_protect'    => 'Rechte für:',
+    'hacl_acllist_typegroup_define'     => 'Vorlagen:',
+
+    'hacl_acllist_type_page'            => 'Seite',
+    'hacl_acllist_type_namespace'       => 'Namensraum',
+    'hacl_acllist_type_category'        => 'Kategorie',
+    'hacl_acllist_type_right'           => 'Vorlagen für Rechte',
+    'hacl_acllist_type_template'        => 'Benutzervorlagen',
+
+    'hacl_acllist_page'                 => 'Rechte für Artikel:',
+    'hacl_acllist_namespace'            => 'Rechte für Namensräume:',
+    'hacl_acllist_category'             => 'Rechte für Kategorien:',
+    'hacl_acllist_right'                => 'Rechtevorlagen:',
+    'hacl_acllist_edit'                 => 'Ändern',
+    'hacl_acllist_view'                 => 'Lesen',
+
+    // Quick ACL list editor
+    'hacl_qacl_filter_sds'              => 'Vorlagen nach Namen filtern',
+    'hacl_qacl_filter'                  => 'Name beginnt mit:',
+    'hacl_qacl_filter_submit'           => 'übernehmen',
+    'hacl_qacl_manage'                  => 'IntraACL: Quick Access Listen verwalten',
+    'hacl_qacl_manage_text'             => 'Dies ist eine Liste aller Rechtevorlagen, die mittels "Quick Access" benutzt werden können. "Quick Access" wird als Auswahlfeld in der Rechteverwaltung beim ändern eines Artikels angezeigt. Die Rechtevorlage, die als Standard definiert ist, wird automatisch für neue Artikel übernommen.',
+    'hacl_qacl_save'                    => 'Selektion speichern',
+    'hacl_qacl_hint'                    => 'Bitte Rechtevorlagen wählen und "Speichern" auswählen:',
+    'hacl_qacl_empty'                   => '"Quick Access" kann keine Rechtevorlagen finden. Sie können mittels <b>Neue Rechtevorlage erstellen</b> erstellt werden.',
+    'hacl_qacl_empty_default'           => 'Kein Schutz',
+    'hacl_qacl_col_select'              => 'Auswählen',
+    'hacl_qacl_col_default'             => 'Standard',
+    'hacl_qacl_col_name'                => 'Name',
+    'hacl_qacl_col_actions'             => 'Aktionen',
+
+    // Group list
+    'hacl_grouplist'                    => 'IntraACL Gruppen',
+    'hacl_grouplist_filter_name'        => 'Name enthält:',
+    'hacl_grouplist_filter_not_name'    => 'Name enthält nicht:',
+    'hacl_grouplist_empty'              => '<span style="color:red;font-weight:bold">Keine zutreffenden IntraACL Gruppen gefunden.</span>',
+    'hacl_grouplist_view'               => 'Lesen',
+    'hacl_grouplist_edit'               => 'Ändern',
+
+    // Group editor
+    'hacl_grp_creating'                 => 'IntraACL Gruppe erstellen',
+    'hacl_grp_editing'                  => 'IntraACL Gruppe ändern: $1',
+    'hacl_grp_create'                   => 'Gruppe erstellen',
+    'hacl_grp_save'                     => 'Gruppe speichern',
+    'hacl_grp_delete'                   => 'Gruppe löschen',
+    'hacl_grp_name'                     => 'Gruppenname:',
+    'hacl_grp_definition_text'          => 'Gruppenbeschreibung:',
+    'hacl_grp_member_all'               => 'Alle Benutzer',
+    'hacl_grp_member_reg'               => 'Registrierte Benutzer',
+    'hacl_grp_members'                  => 'Gruppenmitglieder:',
+    'hacl_grp_managers'                 => 'Gruppenverwalter:',
+    'hacl_grp_users'                    => 'Benutzer:',
+    'hacl_grp_groups'                   => 'Gruppen:',
+
+    'hacl_grp_exists'                   => 'Diese Gruppe existiert bereits.',
+    'hacl_grp_enter_name_first'         => 'Fehler: Namen zum Speichern eingeben!',
+    'hacl_grp_define_members'           => 'Fehler: Gruppe muss min. 1 Mitglied haben!',
+    'hacl_grp_define_managers'          => 'Fehler: Gruppe muss min. 1 Verwalter haben!',
+
+    'hacl_no_member_user'               => 'Keine Benutzer definiert.',
+    'hacl_no_member_group'              => 'Keine Gruppen definiert.',
+    'hacl_no_manager_user'              => 'Keine Verwaltungsbenutzer definiert.',
+    'hacl_no_manager_group'             => 'Keine Verwaltungsgruppen definiert.',
+    'hacl_current_member_user'          => 'Benutzer enthalten:',
+    'hacl_current_member_group'         => 'Gruppen enthalten:',
+    'hacl_current_manager_user'         => 'Verwaltungsbenutzer:',
+    'hacl_current_manager_group'        => 'Verwaltungsgruppen:',
+    'hacl_regexp_user'                  => '',
+    'hacl_regexp_group'                 => '(^|,\s*)Gruppe:',
+
+    // Toolbar and parts
+    'hacl_toolbar_advanced_edit'        => 'Rechte bearbeiten',
+    'hacl_toolbar_advanced_create'      => 'Rechte erstellen',
+    'hacl_toolbar_goto'                 => 'Zu $1 gehen.',
+    'hacl_toolbar_global_acl'           => 'Zusätzliche Rechte &darr;',
+    'hacl_toolbar_global_acl_tip'       => 'Diese Rechtedefinition hat keine Auswirkungen in diesem Artikel:',
+    'hacl_toolbar_embedded_acl'         => 'Benutzte Inhalte &darr;',
+    'hacl_toolbar_loading'              => 'Lade...',
+    'hacl_toolbar_page_prot'            => 'Artikelschutz:',
+    'hacl_toolbar_cannot_modify'        => 'Sie sind nicht berechtigt, den Artikelschutz zu bearbeiten.',
+    'hacl_toolbar_no_right_templates'   => 'Keine Rechtedefinitionen gefunden.',
+    'hacl_toolbar_unprotected'          => 'Keine Rechte gefunden',
+    'hacl_toolbar_used_on'              => 'Benutzt auf <a href="$2">$1 Seiten</a>',
+    'hacl_toolbar_protect_embedded'     => 'Für verlinkte Bilder und Templates den selben Schutz übernehmen (andere Rechte werden <span style="color:red;font-weight:bold">überschrieben</span>):',
+    'hacl_toolbar_emb_already_prot'     => 'Bereits geschützt',
+    'hacl_toolbar_emb_custom_prot'      => '<a href="$1">Rechte</a> defined',
+    'hacl_toolbar_emb_all'              => 'Alle Berechtigungen <span style="color:red;font-weight:bold">überschreiben</span>',
+    'hacl_toolbar_emb_all_already'      => 'Alle Elemente sind geschützt',
+    'hacl_toolbar_qacl'                 => 'Quick Access Listen verwalten',
+    'hacl_toolbar_select_qacl'          => 'Um eine geschützte Seite zu erstellen, bitte zuerst eine <a href="$1">Quick ACL</a> wählen.',
+    'hacl_toolbar_qacl_title'           => 'Rechtevorlagen bearbeiten ist immer im Auswahlfeld verfügbar.',
+    'hacl_comment_protect_with'         => 'Artikel mit $1 geschützt.',
+    'hacl_comment_unprotect'            => 'Rechtedefinition entfernt.',
+    'hacl_comment_protect_embedded'     => 'Artikel durch geerbte Rechte von $1 geschützt.',
+    'hacl_embedded_error_canedit'       => 'Zugriff verweigert',
+    'hacl_embedded_error_invalidsd'     => 'Ungültige Rechte!',
+    'hacl_embedded_error_midair'        => 'mid-air collision',
+    'hacl_embedded_not_saved_title'     => 'Enthaltene Rechtedefinitionen nicht gespeichert!',
+    'hacl_embedded_not_saved'           => 'Rechte für die folgenden eingebetteten Elemente wurden nicht gespeichert: $1.
+  
+Gründe hierfür könnten sein:
+* Zugriff verweigert: Sie haben nicht das Recht, die enthaltenen Elemente zu ändern.
+* Änderungskonflikt: Jemand anders hat zwischenzeitlich die enthaltenen Rechtedefinitionen geändert.
+* Element gelöscht: Jemand anders hat zwischenzeitlich die enthaltenen Rechtedefinitionen gelöscht.
+* Ungültiger Schutz: Ein Datenübermittlungsfehler ist aufgetreten.
+  
+Bitte gehen Sie zu [[$2]] zurück und überprüfen Sie die Elemente.',
 );
