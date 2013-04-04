@@ -374,7 +374,7 @@ class IntraACLSpecial extends SpecialPage
             }
         }
         // Render the graph
-        $graph = "<graph>\ndigraph G {\nedge [penwidth=2 color=blue];\nnode [fontname=sans-serif];\nsplines=polyline;\noverlap=false;\nranksep=2;\nrankdir=LR;\ncompound=true;\n$graph\n}\n</graph>\n";
+        $graph = "<graphviz>\ndigraph G {\nedge [penwidth=2 color=blue];\nnode [fontname=courier];\nsplines=polyline;\noverlap=false;\nranksep=2;\nrankdir=LR;\ncompound=true;\n$graph\n}\n</graphviz>\n";
         $wgOut->addWikiText($graph);
         $wgOut->addHTML("<pre>$graph</pre>");
         haclfRestoreTitlePatch($patch);
