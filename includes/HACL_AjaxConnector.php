@@ -229,7 +229,7 @@ function haclGroupClosure($groups, $predefined = '')
         {
             $m = IACLStorage::get('Groups')->getGroupMembersRecursive($i);
             $members[$k] = array();
-            foreach (IACLStorage::get('Util')->getUsers(array_keys($m['user'])) as $u)
+            foreach (IACLStorage::get('Util')->getUsers(array('user_id' => array_keys($m['user']))) as $u)
                 $members[$k][] = 'User:'.$u->user_name;
             foreach (IACLStorage::get('Groups')->getGroupsByIds(array_keys($m['group'])) as $g)
                 $members[$k][] = $g->group_name;

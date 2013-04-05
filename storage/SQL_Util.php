@@ -30,13 +30,13 @@ class IntraACL_SQL_Util
      * Massively retrieves users with IDs $user_ids from the DB
      * @return array(object), indexed by user ID
      */
-    public function getUsers($user_ids)
+    public function getUsers($where)
     {
         $dbr = wfGetDB(DB_SLAVE);
         $rows = array();
         if ($user_ids)
         {
-            $res = $dbr->select('user', '*', array('user_id' => $user_ids), __METHOD__);
+            $res = $dbr->select('user', '*', $where, __METHOD__);
             foreach ($res as $r)
                 $rows[$r->user_id] = $r;
         }

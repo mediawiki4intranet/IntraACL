@@ -180,7 +180,7 @@ class HACLEvaluator
             $sd = HACLSecurityDescriptor::getSDForPE($articleID, HACLLanguage::PET_PAGE);
             if ($sd)
             {
-                $r = self::hasRight($articleID, HACLLanguage::PET_PAGE, $userID, $actionID);
+                $r = $sd->userCan($userID, $actionID);
                 $msg[] = 'Access '.($r ? 'allowed' : 'denied').' by page SD';
                 if ($haclgCombineMode == HACL_COMBINE_OVERRIDE ||
                     $haclgCombineMode == HACL_COMBINE_EXTEND && $r ||
@@ -194,7 +194,7 @@ class HACLEvaluator
                 $sd = HACLSecurityDescriptor::getSDForPE($articleID, HACLLanguage::PET_CATEGORY);
                 if ($sd)
                 {
-                    $r = self::hasRight($articleID, HACLLanguage::PET_CATEGORY, $userID, $actionID);
+                    $r = $sd->userCan($userID, $actionID);
                     $msg[] = 'Access '.($r ? 'allowed' : 'denied').' by category SD for category page';
                     if ($haclgCombineMode == HACL_COMBINE_OVERRIDE ||
                         $haclgCombineMode == HACL_COMBINE_EXTEND && $r ||
@@ -233,35 +233,6 @@ class HACLEvaluator
             return array(implode(', ', $msg), $haclgCombineMode == HACL_COMBINE_SHRINK, true);
 
         return array('', false, false);
-    }
-
-    /**
-     * Checks if the given user has the right to perform the given action on
-     * the given title. The hierarchy of categories is not considered here.
-     *
-     * @param  int $titleID
-     *         ID of the protected object
-     * @param  string $peType
-     *         The type of the protection to check for the title. One of HACLLanguage::PET_*
-     * @param  int $userID
-     *         ID of the user who wants to perform an action
-     * @param  int $actionID
-     *         The action, the user wants to perform. One of HACLLanguage::RIGHT_*
-     * @return bool
-     *         <true>, if the user has the right to perform the action
-     *         <false>, otherwise
-     */
-    public static function hasRight($titleID, $type, $userID, $actionID, $originNE = NULL)
-    {
-        // retrieve all appropriate rights from the database
-        $rights = IACLStorage::get('IR')->getRights($titleID, $type, $actionID, $originNE);
-
-        // Check for all rights, if they are granted for the given user
-        foreach ($rights as $right)
-            if ($right->grantedForUser($userID))
-                return true;
-
-        return false;
     }
 
     //--- Private methods ---
@@ -321,7 +292,7 @@ class HACLEvaluator
                 if ($sd)
                 {
                     $hasSD = true;
-                    $r = self::hasRight($id, HACLLanguage::PET_CATEGORY, $userID, $actionID);
+                    $r = $sd->userCan($userID, $actionID);
                     if ($r)
                         return array(true, true);
                 }
@@ -370,10 +341,10 @@ class HACLEvaluator
      */
     public static function checkNamespaceRight($nsID, $userID, $actionID)
     {
-        $hasSD = HACLSecurityDescriptor::getSDForPE($nsID, HACLLanguage::PET_NAMESPACE) !== false;
-        if (!$hasSD)
+        $sd = HACLSecurityDescriptor::getSDForPE($nsID, HACLLanguage::PET_NAMESPACE);
+        if (!$sd)
             return array(false, false);
-        return array(self::hasRight($nsID, HACLLanguage::PET_NAMESPACE, $userID, $actionID), $hasSD);
+        return array($sd->userCan($userID, $actionID), $hasSD);
     }
 
     /**
@@ -421,7 +392,21 @@ class HACLEvaluator
             // SD / right template
             $sd = IACLStorage::get('SD')->getSDByID($t->getArticleID());
             if ($sd)
-                return $sd->userCanModify($user);
+            {
+                // Check if the user can modify the SD
+                if ($sd->userCan($userID, IACL_RIGHT_MANAGE))
+                {
+                    return true;
+                }
+                // Check for RIGHT_GRANT_PAGE inherited from namespaces and categories
+                if ($sd['type'] == HACLLanguage::PET_PAGE &&
+                    ($sd->userCan($userID, IACL_RIGHT_GRANT_PAGE) ||
+                    self::checkIndirectManageRight($sd, $userID)))
+                {
+                    return true;
+                }
+                return false;
+            }
             else
             {
                 list($name, $type) = HACLSecurityDescriptor::nameOfPE($t->getText());
@@ -445,6 +430,45 @@ class HACLEvaluator
                 }
             }
         }
+
+        return false;
+    }
+
+    protected static function checkIndirectManageRight($sd, $userID)
+    {
+        $etc = haclfDisableTitlePatch();
+        $title = Title::newFromId($sd['pe_id']);
+        haclfRestoreTitlePatch($etc);
+        $ns_sd = IACLSecurityDescriptor::getSDForPE($title->getNamespace(), HACLLanguage::PET_NAMESPACE);
+        if ($title && $ns_sd && $ns_sd->userCan($userID, HACLLanguage::RIGHT_GRANT_PAGE))
+            return true;
+        list($r) = self::hasCategoryRight($title, $userID, HACLLanguage::RIGHT_GRANT_PAGE);
+        return $r;
+    }
+
+    /**
+     * Checks if the given user can modify this SD.
+     *
+     * @param User/string/int $user
+     *         User-object, name of a user or ID of a user who wants to modify this
+     *         SD. If <null>, the currently logged in user is assumed.
+     *
+     * @return boolean
+     *         One of these values is returned if no exception is thrown:
+     *         <true>, if the user can modify this SD and
+     *         <false>, if not
+     */
+    public function userCanModify($user = false)
+    {
+        global $wgUser;
+        if (!$user)
+        {
+            $user = $wgUser;
+        }
+
+        // Get the ID of the user who wants to add/modify the SD
+        list($userID, $userName) = haclfGetUserID($user);
+
 
         return false;
     }

@@ -605,7 +605,7 @@ class IntraACLSpecial extends SpecialPage
             /* get groups closure */
             $memberids = IACLStorage::get('Groups')->getGroupMembersRecursive(array_keys($memberids['group']), $memberids);
             $members = array();
-            foreach (IACLStorage::get('Util')->getUsers(array_keys($memberids['user'])) as $u)
+            foreach (IACLStorage::get('Util')->getUsers(array('user_id' => array_keys($memberids['user']))) as $u)
                 $members[] = 'User:'.$u->user_name;
             foreach (IACLStorage::get('Groups')->getGroupsByIds(array_keys($memberids['group'])) as $g)
                 $members[] = $g->group_name;

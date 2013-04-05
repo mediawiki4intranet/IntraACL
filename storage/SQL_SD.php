@@ -26,207 +26,69 @@
 
 class IntraACL_SQL_SD
 {
-    /**
-     * Saves the given SD in the database.
-     *
-     * @param HACLSecurityDescriptor $sd
-     *         This object defines the SD that wil be saved.
-     *
-     * @throws
-     *         Exception
-     *
-     */
-    public function saveSD(HACLSecurityDescriptor $sd)
-    {
-        $dbw = wfGetDB(DB_MASTER);
-        $mgGroups = implode(',', $sd->getManageGroups());
-        $mgUsers = implode(',', $sd->getManageUsers());
-        $dbw->replace('halo_acl_security_descriptors', NULL, array(
-            'sd_id'     => $sd->getSDID(),
-            'pe_id'     => $sd->getPEID(),
-            'type'      => $sd->getPEType(),
-            'mr_groups' => $mgGroups,
-            'mr_users'  => $mgUsers), __METHOD__);
-    }
-
-    /**
-     * Adds a predefined right to a security descriptor or a predefined right.
-     *
-     * The table "halo_acl_rights_hierarchy" stores the hierarchy of rights. There
-     * is a tuple for each parent-child relationship.
-     *
-     * @param int $parentRightID
-     *         ID of the parent right or security descriptor
-     * @param int $childRightID
-     *         ID of the right that is added as child
-     * @throws
-     *         Exception
-     *         ... on database failure
-     */
-    public function addRightToSD($parentRightID, $childRightID)
-    {
-        $dbw = wfGetDB(DB_MASTER);
-        $dbw->replace('halo_acl_rights_hierarchy', NULL, array(
-            'parent_right_id' => $parentRightID,
-            'child_id'        => $childRightID), __METHOD__);
-    }
-
-    /**
-     * Adds the given inline rights to the protected elements of the given
-     * security descriptors.
-     *
-     * The table "halo_acl_pe_rights" stores for each protected element (e.g. a
-     * page) its type of protection and the IDs of all inline rights that are
-     * assigned.
-     *
-     * @param array<int> $inlineRights
-     *         This is an array of IDs of inline rights. All these rights are
-     *         assigned to all given protected elements.
-     * @param array<int> $securityDescriptors
-     *         This is an array of IDs of security descriptors that protect elements.
-     * @throws
-     *         Exception
-     *         ... on database failure
-     */
-    public function setInlineRightsForProtectedElements($ir_ids, $sd_ids)
-    {
-        $dbw = wfGetDB(DB_MASTER);
-        foreach ($sd_ids as $sd)
-        {
-            // retrieve the protected element and its type
-            $obj = $dbw->selectRow('halo_acl_security_descriptors', 'pe_id, type', array('sd_id' => $sd), __METHOD__);
-            if (!$obj)
-                continue;
-            foreach ($ir_ids as $ir)
-            {
-                $dbw->replace('halo_acl_pe_rights', NULL, array(
-                    'pe_id'    => $obj->pe_id,
-                    'type'     => $obj->type,
-                    'right_id' => $ir), __METHOD__);
-            }
-        }
-    }
-
-    /**
-     * Returns all direct inline rights of all given security
-     * descriptor IDs.
-     *
-     * @param array<int> $sdIDs
-     *         Array of security descriptor IDs.
-     * @param boolean $asObject
-     *         If true, return an array of HACLRight objects.
-     *         If false, return an array of right IDs.
-     *
-     * @return array<int>
-     *         An array of inline right IDs or HACLRight objects.
-     */
-    public function getInlineRightsOfSDs($sdIDs, $asObject = false)
-    {
-        if (empty($sdIDs))
-            return array();
-        $dbr = wfGetDB(DB_SLAVE);
-        $res = $dbr->select(
-            'halo_acl_rights', '*',
-            array('origin_id' => $sdIDs), __METHOD__
-        );
-
-        $irs = array();
-        while ($row = $dbr->fetchObject($res))
-            $irs[] = $asObject ? IACLStorage::get('IR')->rowToRight($row) : (int)$row->right_id;
-        return $irs;
-    }
-
-    /**
-     * Returns the IDs of all predefined rights of the given security
-     * descriptor ID.
-     *
-     * @param int $sdID
-     *         ID of the security descriptor.
-     * @param bool $recursively
-     *         <true>: The whole hierarchy of rights is returned.
-     *         <false>: Only the direct rights of this SD are returned.
-     *
-     * @return array<int>
-     *         An array of predefined right IDs without duplicates.
-     */
-    public function getPredefinedRightsOfSD($sdID, $recursively) {
-        $dbr = wfGetDB( DB_SLAVE );
-
-        $parentIDs = array($sdID);
-        $childIDs = array();
-        $exclude = array();
-        while (true) {
-            if (empty($parentIDs)) {
-                break;
-            }
-            $res = $dbr->select(
-                'halo_acl_rights_hierarchy', 'child_id',
-                array('parent_right_id' => $parentIDs), __METHOD__,
-                array('DISTINCT')
-            );
-
-            $exclude = array_merge($exclude, $parentIDs);
-            $parentIDs = array();
-
-            while ($row = $dbr->fetchObject($res)) {
-                $cid = (int) $row->child_id;
-                if (!in_array($cid, $childIDs)) {
-                    $childIDs[] = $cid;
-                }
-                if (!in_array($cid, $exclude)) {
-                    // Add a new parent for the next level in the hierarchy
-                    $parentIDs[] = $cid;
-                }
-            }
-            $numRows = $dbr->numRows($res);
-            $dbr->freeResult($res);
-            if ($numRows == 0 || !$recursively) {
-                // No further children found
-                break;
-            }
-        }
-        return $childIDs;
-    }
-
-    /**
-     * Finds all (real) security descriptors that are related to the given
-     * predefined right. The IDs of all SDs that include this right (via the
-     * hierarchy of rights) are returned.
-     *
-     * @param  int $prID
-     *         IDs of the protected right
-     *
-     * @return array<int>
-     *         An array of IDs of all SD that include the PR via the hierarchy
-     *         of PRs.
-     */
-    public function getSDsIncludingPR($prID)
+    function getRules($where)
     {
         $dbr = wfGetDB(DB_SLAVE);
-
-        $result = array($prID => true);
-        $childIDs = array($prID);
-        while ($childIDs)
+        $res = $dbr->select('intraacl_rules', '*', $where, __METHOD__);
+        $rows = array();
+        while ($r = $res->fetchRow())
         {
-            $res = $dbr->select(
-                'halo_acl_rights_hierarchy', 'parent_right_id',
-                array('child_id' => $childIDs), __METHOD__,
-                array('DISTINCT')
-            );
-            $childIDs = array();
-            foreach ($res as $row)
+            $rows[] = $r;
+        }
+        return $rows;
+    }
+
+    function addRules($rows)
+    {
+        $dbw = wfGetDB(DB_MASTER);
+        $dbw->insert('intraacl_rules', $rows);
+    }
+
+    function deleteRules($rows)
+    {
+        $this->deleteWhere('intraacl_rules', $rows, __METHOD__);
+    }
+
+    /**
+     * Common format:
+     * $rows = array('field' => 'value')
+     * or
+     * $rows = array(array('f1' => 'v11', 'f2' => 'v12'), array('f1' => 'v21', 'f2' => 'v22'), ...)
+     */
+    function deleteWhere($table, $rows, $method)
+    {
+        $dbw = wfGetDB(DB_MASTER);
+        if (isset($rows[0]) && is_array($rows[0]))
+        {
+            // By rows
+            $list = array();
+            $key = array_keys($rows[0]);
+            foreach ($rows as $r)
             {
-                $prid = (int)$row->parent_right_id;
-                if (!$result[$prid])
+                $in = array();
+                foreach ($key as $k)
                 {
-                    $childIDs[] = $prid;
-                    $result[$prid] = true;
+                    $in[] = $dbw->addQuotes($r[$k]);
                 }
+                $in = '('.implode(',', $in).')';
+                $list[] = $in;
             }
+            $dbw->query(
+                'DELETE FROM '.$dbw->tableName($table).' WHERE '.
+                '('.implode(',', $key).') IN ('.implode(',', $list).')',
+                $method
+            );
         }
-
-        return array_keys($result);
+        else
+        {
+            // By conditions
+            $dbw->delete($table, $rows, $method);
+        }
     }
+
+
+
+    // OLD METHODS
 
     /**
      * Retrieves the full hierarchy of SDs from the DB
@@ -239,208 +101,6 @@ class IntraACL_SQL_SD
         foreach ($res as $row)
             $rows[] = $row;
         return $rows;
-    }
-
-    /**
-     * Retrieves the SD object(s) with the ID(s) $SDID from the database.
-     *
-     * @param  int $SDID
-     *         ID of the requested SD.
-     *         Optionally an array of SD ids.
-     *
-     * @return HACLSecurityDescriptor
-     *         A new SD object or <NULL> if there is no such SD in the
-     *         database.
-     *         If $SDID is an array, then return value will also be an array
-     *         with SD objects in the preserved order.
-     */
-    public function getSDByID($SDID)
-    {
-        if (!$SDID)
-            return is_array($SDID) ? array() : NULL;
-        $dbr = wfGetDB(DB_SLAVE);
-        $res = $dbr->select(
-            array('sd' => 'halo_acl_security_descriptors', 'page'),
-            'sd.*, page_title',
-            array('sd_id' => $SDID, 'page_id=sd_id'),
-            __METHOD__
-        );
-        if (!is_array($SDID))
-            return $this->rowToSD($dbr->fetchObject($res));
-        elseif (is_array($SDID))
-        {
-            $byid = array();
-            foreach ($res as $row)
-            {
-                $sd = $this->rowToSD($row);
-                $byid[$sd->getSDId()] = $sd;
-            }
-            $r = array();
-            foreach ($SDID as $id)
-                if (isset($byid[$id]))
-                    $r[] = $byid[$id];
-            return $r;
-        }
-        return NULL;
-    }
-
-    /* Create HACLSecurityDescriptor from DB row object */
-    public function rowToSD($row)
-    {
-        if (!$row)
-            return NULL;
-        if (!$row->page_title)
-            $row->page_title = HACLSecurityDescriptor::nameForID($sdID);
-        return new HACLSecurityDescriptor(
-            (int)$row->sd_id,
-            str_replace('_', ' ', $row->page_title),
-            (int)$row->pe_id,
-            $row->type,
-            IACLStorage::explode($row->mr_groups),
-            IACLStorage::explode($row->mr_users)
-        );
-    }
-
-    /**
-     * Deletes the SD with the ID $SDID from the database. The right remains as
-     * child in the hierarchy of rights, as it is still defined as child in the
-     * articles that define its parents.
-     *
-     * @param int $SDID
-     *         ID of the SD that is removed from the database.
-     * @param bool $rightsOnly
-     *         If <true>, only the rights that $SDID contains are deleted from
-     *         the hierarchy of rights, but $SDID is not removed.
-     *         If <false>, the complete $SDID is removed (but remains as child
-     *         in the hierarchy of rights).
-     *
-     */
-    public function deleteSD($SDID, $rightsOnly = false)
-    {
-        $dbw = wfGetDB(DB_MASTER);
-        wfDebug("-- deleteSD $SDID $rightsOnly\n");
-
-        // Delete all inline rights that are defined by the SD (and the
-        // references to them)
-        $irs = $this->getInlineRightsOfSDs($SDID);
-        foreach ($irs as $ir)
-            IACLStorage::get('IR')->deleteRight($ir);
-
-        // Remove all inline rights from the hierarchy below $SDID from their
-        // protected elements. This may remove too many rights => the parents
-        // of $SDID must materialize their rights again
-        $prs = $this->getPredefinedRightsOfSD($SDID, true);
-        $irs = $this->getInlineRightsOfSDs($prs);
-
-        $parents = $this->getSDsIncludingPR($SDID);
-        if (!empty($irs))
-        {
-            $sds = $parents;
-            foreach ($sds as $sd)
-            {
-                // retrieve the protected element and its type
-                $obj = $dbw->selectRow('halo_acl_security_descriptors', 'pe_id, type',
-                    array('sd_id' => $sd), __METHOD__);
-                if (!$obj)
-                    continue;
-
-                $dbw->delete('halo_acl_pe_rights', array(
-                    'right_id' => $irs,
-                    'pe_id' => $obj->pe_id,
-                    'type' => $obj->type), __METHOD__);
-            }
-        }
-
-        // Delete the SD from the hierarchy of rights in halo_acl_rights_hierarchy
-        //if (!$rightsOnly)
-        //    $dbw->delete('halo_acl_rights_hierarchy', array('child_id' => $SDID));
-        $dbw->delete('halo_acl_rights_hierarchy', array('parent_right_id' => $SDID), __METHOD__);
-
-        // Rematerialize the rights of the parents of $SDID
-        foreach ($parents as $p)
-        {
-            if ($p != $SDID &&
-                ($sd = HACLSecurityDescriptor::newFromID($p, false)))
-            {
-                $sd->materializeRightsHierarchy();
-            }
-        }
-
-        // Delete definition of SD from halo_acl_security_descriptors
-        if (!$rightsOnly)
-            $dbw->delete('halo_acl_security_descriptors', array('sd_id' => $SDID), __METHOD__);
-    }
-
-    /**
-     * Checks if the SD with the ID $sdID exists in the database.
-     *
-     * @param int $sdID
-     *         ID of the SD
-     *
-     * @return bool
-     *         <true> if the SD exists
-     *         <false> otherwise
-     */
-    public function sdExists($sdID) {
-        $dbr = wfGetDB( DB_SLAVE );
-        $obj = $dbr->selectRow('halo_acl_security_descriptors', 'sd_id',
-            array('sd_id' => $sdID), __METHOD__);
-        return ($obj !== false);
-    }
-
-    /**
-     * Tries to find the ID of the security descriptor for the protected element
-     * with the ID $peID.
-     *
-     * @param int $peID
-     *         ID of the protected element
-     * @param int $peType
-     *         Type of the protected element
-     *
-     * @return mixed int|bool
-     *         int: ID of the security descriptor
-     *         <false>, if there is no SD for the protected element
-     */
-    public function getSDForPE($peID, $peType)
-    {
-        $dbr = wfGetDB( DB_SLAVE );
-        $obj = $dbr->selectRow('halo_acl_security_descriptors', 'sd_id',
-            array('pe_id' => $peID, 'type' => $peType), __METHOD__);
-        return ($obj === false) ? false : $obj->sd_id;
-    }
-
-    /**
-     * Retrieves security descriptors from the database
-     */
-    public function getSDs2($type = NULL, $prefix = NULL, $limit = NULL, $as_object = true)
-    {
-        $dbr = wfGetDB(DB_SLAVE);
-        $options = array('ORDER BY' => 'page_title');
-        if ($limit)
-            $options['LIMIT'] = $limit;
-        $where = array('sd_id=page_id');
-        if ($type !== NULL)
-            $where['type'] = $type;
-        if (strlen($prefix))
-            $where[] = 'page_title LIKE '.$dbr->addQuotes('%'.str_replace(' ', '_', $prefix).'%');
-        $res = $dbr->select(array('halo_acl_security_descriptors', 'page'),
-            'sd_id, pe_id, type, mr_groups, mr_users, page_namespace, page_title',
-            $where, __METHOD__,
-            $options
-        );
-        $rights = array();
-        foreach ($res as $r)
-        {
-            if ($as_object)
-                $rights[] = new HACLSecurityDescriptor(
-                    $r->sd_id, $r->page_title, $r->pe_id,
-                    $r->type, $r->mr_groups ? $r->mr_groups : array(),
-                    $r->mr_users ? $r->mr_users : array()
-                );
-            else
-                $rights[] = $r;
-        }
-        return $rights;
     }
 
     /**
