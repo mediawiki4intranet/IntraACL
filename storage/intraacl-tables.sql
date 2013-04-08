@@ -1,24 +1,11 @@
-CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/halo_acl_pe_rights (
-    pe_id INT NOT NULL,
-    type ENUM('category', 'page', 'namespace') DEFAULT 'page' NOT NULL,
-    right_id INT UNSIGNED NOT NULL,
-    PRIMARY KEY (pe_id, type, right_id)
-) /*$wgDBTableOptions*/;
-
-CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/intraacl_definitions (
-    sd_id INT UNSIGNED NOT NULL PRIMARY KEY,
-    pe_id INT,
-    type ENUM('category', 'page', 'namespace', 'right', 'group') DEFAULT 'page' NOT NULL,
-    UNIQUE KEY (type, pe_id)
-) /*$wgDBTableOptions*/;
-
+-- Highly optimised right/group rule storage table
 CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/intraacl_rules (
-    sd_id INT UNSIGNED NOT NULL,
-    rule_type TINYINT(1) NOT NULL, -- user_right=1 group_right=2 child_sd=3
-    action_id TINYINT(1) NOT NULL, -- only for user/group rights
-    child_id INT UNSIGNED NOT NULL,
-    is_direct TINYINT(1) NOT NULL DEFAULT 0,
-    PRIMARY KEY (sd_id, rule_type, action_id, child_id)
+    pe_type TINYINT(1) NOT NULL,    -- category=1   page=2   namespace=3   right=4      group=5
+    pe_id INT UNSIGNED NOT NULL,    -- cat_page_id  page_id  namespace_id  def_page_id  def_page_id
+    child_type TINYINT(1) NOT NULL, -- category=1   page=2   namespace=3   right=4      group=5      user=6
+    child_id INT UNSIGNED NOT NULL, -- cat_page_id  page_id  namespace_id  def_page_id  def_page_id  user_id
+    actions SMALLINT UNSIGNED NOT NULL,  -- bit mask, lower byte is for direct rights, higher byte is for indirect rights
+    PRIMARY KEY (sd_id, child_type, child_id)
 ) /*$wgDBTableOptions*/;
 
 CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/halo_acl_special_pages (

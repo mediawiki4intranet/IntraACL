@@ -3,37 +3,38 @@
 if (!defined('MEDIAWIKI'))
     die("This file is part of the IntraACL extension. It is not a valid entry point.");
 
-/**
-// Current storage format version
-const VERSION = 1;
+/*
 
- * $sd_data format, version 1: array(
- *     'V' => 1,
- *     'U' => array(action_id => array(user_id => true)),
- *     'G' => array(action_id => array(group_id => true)),
- *     'I' => array(inc_id => is_direct), // is_direct is true for directly included SDs
- * );
- *
- * The format is determined by the set of operations we need to do with SDs (and do them fast):
- * 1) Merge and intersect - for right evaluation
- * 2) Check if the current user is granted some action
- * 3) Fetch included SDs (consequence of 2)
- * 4) Find and invalidate SDs which include given SD / user / group (!!!)
+For small databases:
 
-    // Unserializes stored sd_data
-    function get_sd_data_obj()
-    {
-        $o = $this->add['sd_data_obj'] = unserialize($this->row['sd_data']);
-        if (!isset($o['V']) || $o['V'] != self::VERSION)
-        {
-            throw new Exception('Serialized data version is incorrect. Please reindex all pages in ACL namespace');
-        }
-        $this->add['child_ids'] = $o['I'];
-        $this->add['user_rights'] = $o['U'];
-        $this->add['group_rights'] = $o['G'];
-        return $o;
-    }
- */
+1) Materialize everything
+2) On first request load ALL grants for current user
+   Memory consumption: O(n_groups_of_user + n_rights_of_user)
+3) => Every check is a SINGLE hash check without DB round-trips
+4) Update complexity: O((n_parent_groups + n_parent_rights) * n_users_in_group)
+   Most complex update is the update of a low-level group
+
+For big databases:
+
+1) Still materialize everything. It is unlikely that for a given definition
+   there will be a very big number of other definitions that use it. So update
+   complexity should be OK.
+2) But there can be a big (and growing) number of individually protected pages a given user can access.
+   So loading ALL grants for current user can be very memory consuming.
+   In PHP [5.4], each single integer stored in an array takes ~80 bytes
+   => 1000 indexed defs will take 80kb, and 10000 - 800kb.
+3) So we cache only N recent definitions for current user (N is configurable),
+   and starting with (N+1)th we make DB queries for each protected element.
+   Also we pre-cache rules for embedded elements (image/template/category links).
+
+'Manage rights' use cases:
+
+1) Create right/group and then be able to edit it
+2) Allow/restrict protecting of individual pages in namespace/category
+3) Allow some users to edit ALL right definitions
+   Probably solvable with MW right 'sysop'
+
+*/
 
 /**
  * 'Definition' is either a Security Descriptor or a Group
@@ -47,22 +48,42 @@ const VERSION = 1;
  * Group may contain users and/or other groups as its members, and also
  * users and/or other groups as their managers.
  */
+
+class IACL
+{
+    /**
+     * Definition/child types
+     */
+    const PE_CATEGORY   = 1;    // Category security descriptor, identified by category page ID
+    const PE_PAGE       = 2;    // Page security descriptor, identified by page ID
+    const PE_NAMESPACE  = 3;    // Namespace security descriptor, identified by namespace index
+    const PE_RIGHT      = 4;    // Right template, identified by ACL definition (ACL:XXX) page ID
+    const PE_GROUP      = 5;    // Group, identified by group (ACL:Group/XXX) page ID
+    const PE_USER       = 6;    // User, identified by user ID. Used only as child, not as definition (obviously)
+
+    /**
+     * Action/child relation details, stored as bitmap in rules table
+     */
+    const ACTION_READ           = 0x01;     // Allows to read pages
+    const ACTION_EDIT           = 0x02;     // Allows to edit pages. Implies read right
+    const ACTION_CREATE         = 0x04;     // Allows to create articles in the namespace
+    const ACTION_MOVE           = 0x08;     // Allows to move pages with history
+    const ACTION_DELETE         = 0x10;     // Allows to delete pages with history
+    const ACTION_MANAGE         = 0x20;     // Allows to modify right definition or group. Implies read/edit/create/move/delete rights
+    const ACTION_PROTECT_PAGES  = 0x80;     // Allows to modify affected page right definitions. Implies read/edit/create/move/delete pages
+    const ACTION_GROUP_MEMBER   = 0x01;     // Used in group definitions: specifies that the child is a group member
+
+    /**
+     * Bit offset of indirect rights in 'actions' column
+     * I.e., 8 means higher byte is for indirect rights
+     */
+    const INDIRECT_OFFSET       = 8;
+}
+
 class IACLDefinition implements ArrayAccess
 {
-    const RIGHT_READ            = 0x01;
-    const RIGHT_EDIT            = 0x02;
-    const RIGHT_CREATE          = 0x04;
-    const RIGHT_MOVE            = 0x08;
-    const RIGHT_DELETE          = 0x10;
-    const RIGHT_MANAGE          = 0x20;     // Allows to modify THIS and every other affected SD
-    const RIGHT_GRANT_PAGE      = 0x80;     // Only allows to modify affected page SDs
-    const RULE_USER             = 1;
-    const RULE_GROUP            = 2;
-    const RULE_SD               = 3;
-    const RIGHT_GROUP_MEMBER    = 0x01;
-    const RIGHT_GROUP_MANAGER   = 0x40;
+    // Definition has no DB row itself as it would be degenerate
 
-    var $row = array();             // SD row
     var $add = array();             // All additional data
     var $collection;                // Remembered mass-fetch collection
     var $rw;                        // Is this a read-write (dirty) copy?

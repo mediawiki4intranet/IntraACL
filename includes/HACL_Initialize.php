@@ -107,6 +107,9 @@ $haclgCombineMode = HACL_COMBINE_EXTEND;
 # relatively complex right model).
 $haclgSuperGroups = array('bureaucrat', 'sysop');
 
+# Preload no more than 1000 rules for current user.
+$iaclGrantLimit = 1000;
+
 # See also $wgWhitelistRead - IntraACL opens whitelisted pages for reading
 
 // load global functions
