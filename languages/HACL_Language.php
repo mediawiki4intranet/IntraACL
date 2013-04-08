@@ -6,8 +6,7 @@
  * http://wiki.4intra.net/IntraACL
  * $Id$
  *
- * Based on HaloACL
- * Copyright 2009, ontoprise GmbH
+ * Loosely based on HaloACL (c) 2009, ontoprise GmbH
  *
  * The IntraACL-Extension is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,45 +40,6 @@
 
 abstract class HACLLanguage
 {
-    ///////////////
-    // CONSTANTS //
-    ///////////////
-
-    //--- IDs of parser functions ---
-    const PF_ACCESS             = 1;
-    const PF_MANAGE_RIGHTS      = 2;
-    const PF_MANAGE_GROUP       = 3;
-    const PF_PREDEFINED_RIGHT   = 4;
-    const PF_MEMBER             = 7;
-
-    //--- IDs of parser function parameters ---
-    const PFP_ASSIGNED_TO       = 8;
-    const PFP_ACTIONS           = 9;
-    const PFP_DESCRIPTION       = 10;
-    const PFP_RIGHTS            = 11;
-    const PFP_MEMBERS           = 13;
-    const PFP_NAME              = 14;
-
-    //---- Actions ----
-    // RIGHT_FORMEDIT, RIGHT_WYSIWYG and RIGHT_ANNOTATE are considered useless and removed
-    // RIGHT_MANAGE is the right to edit the security descriptor.
-    // RIGHT_MANAGE must not be confused with {{#manage rights: }} ^-)
-    // RIGHT_MANAGE is inherited through predefined right inclusion, while {{#manage rights: }} is not.
-    // RIGHT_MANAGE does not have the effect on predefined rights itself, while {{#manage rights: }} has.
-    const RIGHT_MANAGE      = 0x80;
-    const RIGHT_ALL_ACTIONS = 0x1F; // all = read + edit + create + move + delete
-    const RIGHT_READ        = 0x10; // read page
-    const RIGHT_EDIT        = 0x08; // edit page
-    const RIGHT_CREATE      = 0x04; // create new page
-    const RIGHT_MOVE        = 0x02; // move(rename) page
-    const RIGHT_DELETE      = 0x01; // delete page
-
-    //---- Types of protected elements ----
-    const PET_PAGE      = 'page';       // Protect pages
-    const PET_CATEGORY  = 'category';   // Protect instances of a category
-    const PET_NAMESPACE = 'namespace';  // Protect instances of a namespace
-    const PET_RIGHT     = 'right';      // Not an actual SD but a right template equal to SD by structure
-
     //////////////////////////////////
     // LANGUAGE-INDEPENDENT ALIASES //
     //////////////////////////////////
@@ -91,34 +51,16 @@ abstract class HACLLanguage
     // Default content for "Permission denied" page, is filled during installation
     public $mPermissionDeniedPageContent = "{{:MediaWiki:hacl_permission_denied}}";
 
-    // Parser function names
-    public $mParserFunctions = array(
-        self::PF_ACCESS             => 'access',
-        self::PF_MANAGE_RIGHTS      => 'manage rights',
-        self::PF_MANAGE_GROUP       => 'manage group',
-        self::PF_PREDEFINED_RIGHT   => 'predefined right',
-        self::PF_MEMBER             => 'member'
-    );
-
-    // Parser function parameter names
-    public $mParserFunctionsParameters = array(
-        self::PFP_ASSIGNED_TO   => 'assigned to',
-        self::PFP_ACTIONS       => 'actions',
-        self::PFP_DESCRIPTION   => 'description',
-        self::PFP_RIGHTS        => 'rights',
-        self::PFP_MEMBERS       => 'members',
-        self::PFP_NAME          => 'name'
-    );
-
     // Action names
     public $mActionNames = array(
-        self::RIGHT_READ        => 'read',
-        self::RIGHT_EDIT        => 'edit',
-        self::RIGHT_CREATE      => 'create',
-        self::RIGHT_MOVE        => 'move',
-        self::RIGHT_DELETE      => 'delete',
-        self::RIGHT_ALL_ACTIONS => '*',
-        self::RIGHT_MANAGE      => 'manage',
+        IACL::RIGHT_READ            => 'read',
+        IACL::RIGHT_EDIT            => 'edit',
+        IACL::RIGHT_CREATE          => 'create',
+        IACL::RIGHT_MOVE            => 'move',
+        IACL::RIGHT_DELETE          => 'delete',
+        IACL::RIGHT_ALL_ACTIONS     => '*',
+        IACL::RIGHT_MANAGE          => 'manage',
+        IACL::RIGHT_PROTECT_PAGES   => 'protect_pages',
     );
 
     // Lookup array: ACL:Prefix/Name --> lowercased prefix --> type (sd, group, right)
@@ -145,16 +87,14 @@ abstract class HACLLanguage
     // "Permission denied" page, inaccessible Title's are replaced with it
     public $mPermissionDeniedPage = 'Permission denied';
 
-    // SD page prefixes (ACL:Prefix/Name) for different protected element types
+    // SD page prefixes (ACL:<Prefix>/<Name>) for different protected element types
     public $mPetPrefixes = array(
-        self::PET_PAGE      => 'Page',
-        self::PET_CATEGORY  => 'Category',
-        self::PET_NAMESPACE => 'Namespace',
-        self::PET_RIGHT     => 'Right',
+        IACL::PE_PAGE       => 'Page',
+        IACL::PE_CATEGORY   => 'Category',
+        IACL::PE_NAMESPACE  => 'Namespace',
+        IACL::PE_RIGHT      => 'Right',
+        IACL::PE_GROUP      => 'Group',
     );
-
-    // Group page prefix (ACL:Group/Name)
-    public $mGroupPrefix = 'Group';
 
     // Lookup array: ACL:Prefix/Name --> lowercased prefix --> protected element type constant
     // Add language-dependent protected element type names here
@@ -197,35 +137,6 @@ abstract class HACLLanguage
     public function getPermissionDeniedPageContent()
     {
         return $this->mPermissionDeniedPageContent;
-    }
-
-    /**
-     * This method returns the language dependent name of a parser function.
-     *
-     * @param  int $parserFunctionID
-     *         ID of the parser function i.e. one of self::PF_*
-     *
-     * @return string
-     *         The language dependent name of the parser function.
-     */
-    public function getParserFunction($parserFunctionID)
-    {
-        return $this->mParserFunctions[$parserFunctionID];
-    }
-
-    /**
-     * This method returns the language dependent name of a parser function
-     * parameter.
-     *
-     * @param int $parserFunctionParameterID
-     *         ID of the parser function parameter i.e. one of self::PFP_*
-     *
-     * @return string
-     *         The language dependent name of the parser function.
-     */
-    public function getParserFunctionParameter($parserFunctionParameterID)
-    {
-        return $this->mParserFunctionsParameters[$parserFunctionParameterID];
     }
 
     /**

@@ -38,7 +38,6 @@ if (!defined('MEDIAWIKI'))
  * - member
  * - manage group
  */
-// TODO remove parser function localisation
 class HACLParserFunctions
 {
     //--- Constants ---
@@ -868,35 +867,30 @@ class HACLParserFunctions
 
         if (count($this->mInlineRights) > 0) {
             if ($type == 'group') {
-                $msg[] = wfMsgForContent("hacl_invalid_parser_function",
-                    $haclgContLang->getParserFunction(HACLLanguage::PF_ACCESS));
+                $msg[] = wfMsgForContent("hacl_invalid_parser_function", 'access');
             }
         }
         if (count($this->mPredefinedRights) > 0) {
             if ($type == 'group') {
-                $msg[] = wfMsgForContent("hacl_invalid_parser_function",
-                    $haclgContLang->getParserFunction(HACLLanguage::PF_PREDEFINED_RIGHT));
+                $msg[] = wfMsgForContent("hacl_invalid_parser_function", 'predefined right');
             }
         }
         if (count($this->mRightManagerGroups) > 0 ||
             count($this->mRightManagerUsers) > 0) {
             if ($type == 'group') {
-                $msg[] = wfMsgForContent("hacl_invalid_parser_function",
-                    $haclgContLang->getParserFunction(HACLLanguage::PF_MANAGE_RIGHTS));
+                $msg[] = wfMsgForContent("hacl_invalid_parser_function", 'manage rights');
             }
         }
         if (count($this->mGroupManagerGroups) > 0 ||
             count($this->mGroupManagerUsers) > 0) {
             if ($type == 'right' || $type == 'sd') {
-                $msg[] = wfMsgForContent("hacl_invalid_parser_function",
-                    $haclgContLang->getParserFunction(HACLLanguage::PF_MANAGE_GROUP));
+                $msg[] = wfMsgForContent("hacl_invalid_parser_function", 'manage group');
             }
         }
         if (count($this->mUserMembers) > 0 ||
             count($this->mGroupMembers) > 0) {
             if ($type == 'right' || $type == 'sd') {
-                $msg[] = wfMsgForContent("hacl_invalid_parser_function",
-                    $haclgContLang->getParserFunction(HACLLanguage::PF_MEMBER));
+                $msg[] = wfMsgForContent("hacl_invalid_parser_function", 'member');
             }
         }
         return $msg;
@@ -951,9 +945,7 @@ class HACLParserFunctions
         $users = array();
         $groups = array();
 
-        $assignedToPN = $isAssignedTo
-            ? $haclgContLang->getParserFunctionParameter(HACLLanguage::PFP_ASSIGNED_TO)
-            : $haclgContLang->getParserFunctionParameter(HACLLanguage::PFP_MEMBERS);
+        $assignedToPN = $isAssignedTo ? 'assigned to' : 'members';
         if (!array_key_exists($assignedToPN, $params))
         {
             // The parameter "assigned to" is missing.
@@ -1054,7 +1046,7 @@ class HACLParserFunctions
         $errMsgs = array();
         $actions = array();
 
-        $actionsPN = $haclgContLang->getParserFunctionParameter(HACLLanguage::PFP_ACTIONS);
+        $actionsPN = 'actions';
         if (!array_key_exists($actionsPN, $params))
         {
             // The parameter "actions" is missing.
@@ -1098,7 +1090,7 @@ class HACLParserFunctions
         $warnings = array();
         $rights = array();
 
-        $rightsPN = $haclgContLang->getParserFunctionParameter(HACLLanguage::PFP_RIGHTS);
+        $rightsPN = 'rights';
         if (!array_key_exists($rightsPN, $params)) {
             // The parameter "rights" is missing.
             $errMsgs[] = wfMsgForContent('hacl_missing_parameter', $rightsPN);

@@ -54,10 +54,10 @@ class IACL
     /**
      * Definition/child types
      */
-    const PE_CATEGORY   = 1;    // Category security descriptor, identified by category page ID
-    const PE_PAGE       = 2;    // Page security descriptor, identified by page ID
-    const PE_NAMESPACE  = 3;    // Namespace security descriptor, identified by namespace index
-    const PE_RIGHT      = 4;    // Right template, identified by ACL definition (ACL:XXX) page ID
+    const PE_NAMESPACE  = 1;    // Namespace security descriptor, identified by namespace index
+    const PE_CATEGORY   = 2;    // Category security descriptor, identified by category page ID
+    const PE_RIGHT      = 3;    // Right template, identified by ACL definition (ACL:XXX) page ID
+    const PE_PAGE       = 4;    // Page security descriptor, identified by page ID
     const PE_GROUP      = 5;    // Group, identified by group (ACL:Group/XXX) page ID
     const PE_USER       = 6;    // User, identified by user ID. Used only as child, not as definition (obviously)
 
@@ -78,12 +78,15 @@ class IACL
      * I.e., 8 means higher byte is for indirect rights
      */
     const INDIRECT_OFFSET       = 8;
+
+    const ALL_USERS             = 0;
+    const REGISTERED_USERS      = -1;
 }
 
 class IACLDefinition implements ArrayAccess
 {
-    // Definition has no DB row itself as it would be degenerate
-
+    // Definition has no DB row by itself as it would be degenerate
+    var $row = array();             // Only for pe_type and pe_id, not stored in the DB
     var $add = array();             // All additional data
     var $collection;                // Remembered mass-fetch collection
     var $rw;                        // Is this a read-write (dirty) copy?
@@ -97,12 +100,7 @@ class IACLDefinition implements ArrayAccess
 
     function offsetGet($k)
     {
-        if (isset($this->row[$k]))
-        {
-            // sd_id, pe_id, type, sd_data
-            return $this->row[$k];
-        }
-        elseif (isset($this->add[$k]))
+        if (isset($this->add[$k]))
         {
             return $this->add[$k];
         }
@@ -116,11 +114,7 @@ class IACLDefinition implements ArrayAccess
         {
             $this->makeDirty();
         }
-        if ($k == 'sd_id' || $k == 'pe_id' || $k == 'type')
-        {
-            return $this->row[$k] = $v;
-        }
-        elseif ($k == 'child_ids')
+        if ($k == 'child_ids')
         {
             unset($this->add['children']);
         }
@@ -129,7 +123,7 @@ class IACLDefinition implements ArrayAccess
 
     function offsetExists($k)
     {
-        return isset($this->row[$k]) || isset($this->add[$k]) || method_exists($this, 'get_'.$k);
+        return $k == 'pe_id' || $k == 'pe_type' || isset($this->add[$k]) || method_exists($this, 'get_'.$k);
     }
 
     function offsetUnset($k)
@@ -137,80 +131,55 @@ class IACLDefinition implements ArrayAccess
         return $this->offsetSet($k, NULL);
     }
 
+    /**
+     * $where['pe'] = array(array(<pe_type>, <pe_id>), ...)
+     */
     static function select($where, $options = array())
     {
         $byid = array();
-        if (isset($where['sd_id']))
+        if (isset($where['pe']))
         {
-            $where['sd_id'] = (array)$where['sd_id'];
-            foreach ($where['sd_id'] as $k => $id)
+            $pe = $where['pe'];
+            unset($where['pe']);
+            if (!is_array(@$pe[0]))
             {
-                if (isset(self::$clean[$id]))
+                $pe = array($pe);
+            }
+            foreach ($pe as $i => $id)
+            {
+                $key = $id[0].'-'.$id[1];
+                if (isset(self::$clean[$key]))
                 {
-                    $byid[$id] = self::$clean[$id];
-                    unset($where['sd_id'][$k]);
+                    $byid[$key] = self::$clean[$key];
+                    unset($pe[$i]);
                 }
             }
-            if (!$where['sd_id'])
+            if (!$pe)
             {
                 // All objects already fetched from cache
                 return $byid;
             }
+            $where['(pe_type, pe_id)'] = $pe;
         }
-        $rows = IACLStorage::get('SD')->getSDs($where, $options);
-        foreach ($rows as $row)
-        {
-            self::$clean[$row->sd_id] = $byid[$row->sd_id] = $obj = new self($row);
-            $obj->collection = &$byid;
-        }
-        return $byid;
-    }
-
-    // TODO use instead of concatenated keys
-    static function ruleKey($rule, $action = NULL, $child = NULL)
-    {
-        if (is_array($rule))
-        {
-            return pack('CCV', $rule['rule_type'], $rule['action_id'], $rule['child_id']);
-        }
-        return pack('CCV', $rule, $action, $child);
-    }
-
-    // Get rules
-    protected function get_rules()
-    {
-        $sds = $this->collection ?: array($this->row['sd_id'] => $this);
-        $ids = array();
-        foreach ($sds as $sd)
-        {
-            if (!isset($sd->add['rules']))
-            {
-                $ids[] = $sd->row['sd_id'];
-                $sd->add['rules'] = array();
-                $sd->add['user_rights'] = array();
-                $sd->add['group_rights'] = array();
-                $sd->add['child_ids'] = array();
-            }
-        }
-        $rules = IACLStorage::get('SD')->getRules(array('sd_id' => $ids));
+        $rules = IACLStorage::get('SD')->getRules($where);
+        $coll = array();
         foreach ($rules as $rule)
         {
-            $a = &$sds[$rule['sd_id']]->add;
-            $a['rules'][$rule['rule_type'].'-'.$rule['action_id'].'-'.$rule['child_id']] = $rule;
-            if ($rule['rule_type'] == self::RULE_USER)
+            $key = $rule['pe_type'].'-'.$rule['pe_id'];
+            if (!isset($byid[$key]))
             {
-                $a['user_rights'][$rule['action_id']][$rule['child_id']] = $rule['is_direct'];
+                self::$clean[$key] = $coll[$key] = $byid[$key] = $obj = new self();
+                $obj->add['pe_type'] = $rule['pe_type'];
+                $obj->add['pe_id'] = $rule['pe_id'];
+                $obj->collection = &$coll;
             }
-            elseif ($rule['rule_type'] == self::RULE_GROUP)
+            else
             {
-                $a['group_rights'][$rule['action_id']][$rule['child_id']] = $rule['is_direct'];
+                $obj = $byid[$key];
             }
-            elseif ($rule['rule_type'] == self::RULE_SD)
-            {
-                $a['child_ids'][$rule['child_id']] = $rule['is_direct'];
-            }
+            $obj->add['rules'][$rule['child_type']][$rule['child_id']] = $rule;
         }
-        return $this->add['rules'];
+        return $coll;
     }
 
     // Parent SDs are SDs that include this SD
@@ -276,25 +245,34 @@ class IACLDefinition implements ArrayAccess
         return $this->add['children'];
     }
 
-    // Returns array(action_id => array(user_id => true))
+    // Returns array(user_id => rule)
     protected function get_user_rights()
     {
-        $this['rules'];
-        return $this->add['user_rights'];
+        return $this['rules'][IACL::PE_USER];
     }
 
-    // Returns array(action_id => array(group_id => true))
+    // Returns array(group_id => rule)
     protected function get_group_rights()
     {
-        $this['rules'];
-        return $this->add['group_rights'];
+        return $this['rules'][IACL::PE_GROUP];
     }
 
-    // Returns array(child_id => true)
+    // Returns array('<type>-<id>' => rule)
     protected function get_child_ids()
     {
-        $this['rules'];
-        return $this->add['child_ids'];
+        $r = $this['rules'];
+        $res = array();
+        foreach (array(IACL::PE_CATEGORY, IACL::PE_PAGE, IACL::PE_NAMESPACE, IACL::PE_RIGHT) as $k)
+        {
+            if (isset($r[$k]))
+            {
+                foreach ($r[$k] as $sd => $rule)
+                {
+                    $res["$k-$sd"] = $rule;
+                }
+            }
+        }
+        return $res;
     }
 
     /**
@@ -354,44 +332,68 @@ class IACLDefinition implements ArrayAccess
     }
 
     /**
-     * Check if the given user is granted some action
+     * Check (with caching) if a given user is granted some action
      */
-    function userCan($userID, $actionID)
+    static function userCan($userID, $peType, $peID, $actionID)
     {
-        if (isset($this['user_rights'][$actionID][$userID]))
+        static $userCache = array();
+        static $incomplete = array();
+        if (!isset($userCache[$userID]))
         {
-            return true;
-        }
-        ??? user groups
-        foreach ($groups as $gid)
-        {
-            if (isset($this['group_rights'][$actionID][$userID]))
+            global $iaclPreloadLimit;
+            // Prefer more general (pe_type ASC) and more recent (pe_id DESC) rules when preloading
+            // IACL::REGISTERED_USERS entry acts as a default access level entry
+            // TODO Maybe exclude groups till $peType != group? (because it usually has no effect on permission check speed)
+            $rules = IACLStorage::get('SD')->getRules(
+                array(
+                    'child_type' => IACL::PE_USER,
+                    'child_id' => array($userID, IACL::REGISTERED_USERS)
+                ),
+                array(
+                    'LIMIT' => $iaclPreloadLimit,
+                    'ORDER BY' => 'pe_type ASC, pe_id DESC, child_id ASC'
+                )
+            );
+            $incomplete[$userID] = count($rules) >= $iaclPreloadLimit;
+            $userCache[$userID] = array();
+            foreach ($rules as $rule)
             {
-                return true;
+                $userCache[$userID][$rule['pe_type']][$rule['pe_id']] = $rule['actions'];
             }
         }
-        return false;
+        if ($incomplete[$userID] && !isset($userCache[$userID][$peType][$peID]))
+        {
+            $rules = IACLStorage::get('SD')->getRules(array(
+                'pe_type' => $peType,
+                'pe_id' => $peID,
+                'child_type' => IACL::PE_USER,
+                'child_id' => array($userID, IACL::REGISTERED_USERS),
+            ));
+            foreach ($rules as $rule)
+            {
+                if ($rule['child_id'] == $userID)
+                {
+                    $userCache[$userID][$peType][$peID] = $rule[0]['actions'];
+                    break;
+                }
+            }
+        }
+        return isset($userCache[$userID][$peType][$peID]) &&
+            ($userCache[$userID][$peType][$peID] & $actionID);
     }
 
     /**
-     * Returns the ID of a protected element that is given by its name. The ID
-     * depends on the type of the protected element:
-     * - PET_PAGE: ID of the article that is protected
-     * - PET_NAMESPACE: ID of the namespace that is protected
-     * - PET_CATEGORY: ID of the category article whose instances are protected
-     * - PET_RIGHT: not applicable
+     * Returns the ID of a protection object that is given by its name.
+     * The ID depends on the type.
      *
-     * @param  string $peName
-     *         Name of the protected object. Category:XXX for categories.
-     * @param  int $peType
-     *         Type of the protected element. See HACLLanguage::PET_*
-     * @return int/bool
-     *         ID of the protected element or <false>, if it does not exist.
+     * @param  string $peName   Object name
+     * @param  int $peType      Object type (IACL::PE_*)
+     * @return int/bool         Object id or <false> if it does not exist
      */
     public static function peIDforName($peName, $peType)
     {
         $ns = NS_MAIN;
-        if ($peType === HACLLanguage::PET_NAMESPACE)
+        if ($peType === IACL::PE_NAMESPACE)
         {
             // $peName is a namespace => get its ID
             global $wgContLang;
@@ -401,136 +403,113 @@ class IACLDefinition implements ArrayAccess
                 return (strtolower($peName) == 'main') ? 0 : false;
             return $idx;
         }
-        elseif ($peType === HACLLanguage::PET_RIGHT)
-            return 0;
-        elseif ($peType === HACLLanguage::PET_CATEGORY)
+        elseif ($peType === IACL::PE_RIGHT)
+            $ns = NS_ACL;
+        elseif ($peType === IACL::PE_CATEGORY)
             $ns = NS_CATEGORY;
-        // return the page id
+        elseif ($peType === IACL::PE_USER)
+            $ns = NS_USER;
+        elseif ($peType === IACL::PE_GROUP)
+            $ns = NS_ACL;
+        // Return the page id
+        // TODO add caching here
         $id = haclfArticleID($peName, $ns);
         return $id == 0 ? false : $id;
     }
 
     /**
-     * Tries to find the ID of the security descriptor for the protected element
-     * with the ID $peID.
+     * Tries to get definition by its composite ID (type, ID).
      *
-     * @param  int $peID
-     *         ID of the protected element
-     *
-     * @param  int $peType
-     *         Type of the protected element
-     *
-     * @return mixed int|bool
-     *         int: ID of the security descriptor
-     *         <false>, if there is no SD for the protected element
+     * @param  int $peID    ID of the protected element
+     * @param  int $peType  Type of the protected element
+     * @return object|bool  Definition object or <false> if it does not exist
      */
     public static function getSDForPE($peID, $peType)
     {
-        $r = self::select(array('pe_id' => $peID, 'type' => $peType));
+        $r = self::select(array('pe' => array($peType, $peID)));
         return $r ? $r[0] : false;
     }
 
     /**
-     * The name of the security descriptor determines which element it protects.
-     * This method returns the name and type of the element that is protected
-     * by the security descriptor with the name $nameOfSD.
+     * Determine protected element name and type by definition page title
      *
-     * @param string $nameOfSD
-     *         Name of the security descriptor that protects an element (with or
-     *         without namespace).
+     *  ACL:Page/<Page title>               PE_PAGE
+     *  ACL:Category/<Category name>        PE_CATEGORY
+     *  ACL:Namespace/<Namespace name>      PE_NAMESPACE
+     *  ACL:Namespace/Main
+     *  ACL:Group/<Group name>              PE_GROUP
+     *  ACL:<Right template name>           PE_RIGHT
      *
-     * @return array(string, string)
-     *         Name of the protected element and its type (one of HACLLanguage::PET_CATEGORY
-     *         etc). It the type is HACLLanguage::PET_RIGHT, the name is <null>.
+     * @param string $defTitle  Definition title, with or without ACL: namespace
+     * @return array(string $name, int $type)   Name of the protected element and its type.
      */
-    public static function nameOfPE($nameOfSD)
+    public static function nameOfPE($defTitle)
     {
         global $wgContLang, $haclgContLang;
-        $ns = $wgContLang->getNsText(HACL_NS_ACL).':';
-
         // Ignore the namespace
-        if (strpos($nameOfSD, $ns) === 0)
-            $nameOfSD = substr($nameOfSD, strlen($ns));
-
-        $p = strpos($nameOfSD, '/');
-        if (!$p)
-            return array(NULL, HACLLanguage::PET_RIGHT);
-
-        $prefix = substr($nameOfSD, 0, $p);
-        if ($type = $haclgContLang->getPetAlias($prefix))
+        $ns = $wgContLang->getNsText(HACL_NS_ACL).':';
+        if (strpos($defTitle, $ns) === 0)
         {
-            $peName = substr($nameOfSD, $p+1);
-            if ($type == HACLLanguage::PET_CATEGORY)
-                $peName = $wgContLang->getNsText(NS_CATEGORY).':'.$peName;
-            elseif ($type == HACLLanguage::PET_RIGHT)
-                $peName = NULL;
+            $defTitle = substr($defTitle, strlen($ns));
+        }
+        $p = strpos($defTitle, '/');
+        if (!$p)
+        {
+            return array($defTitle, IACL::PE_RIGHT);
+        }
+        $prefix = substr($defTitle, 0, $p);
+        $type = $haclgContLang->getPetAlias($prefix);
+        if ($type != IACL::PE_RIGHT)
+        {
+            $peName = substr($defTitle, $p+1);
             return array($peName, $type);
         }
-
         // Right by default
-        return array(NULL, 'right');
+        return array($defTitle, IACL::PE_RIGHT);
     }
 
     /**
-     * The name of the protected element and its type determine the name of
-     * its security descriptor.
-     * This method returns the complete name of the SD (with namespace) for a
-     * given protected element.
+     * Determine ACL definition page title by protected element type and name
      *
-     * @param string $nameOfPE
-     *         The full name of the protected element
-     * @param string $peType
-     *         The type of the protected element which is one of HACLLanguage::PET_*
-     *
-     * @return array(string, string)
-     *         Name of the protected element and its type (one of HACLLanguage::PET_*
-     *         etc). It the type is HACLLanguage::PET_RIGHT, the name is <null>.
+     * @param string $nameOfPE  PE name
+     * @param string $peType    PE type
+     * @return string $defTitle Definition title
      */
     public static function nameOfSD($nameOfPE, $peType)
     {
         global $wgContLang, $haclgContLang;
-        $ns = $wgContLang->getNsText(HACL_NS_ACL).':';
-        $prefix = $haclgContLang->getPetPrefix($peType).'/';
-        $sdName = $ns.$prefix.$nameOfPE;
-        return $sdName;
+        $defTitle = $wgContLang->getNsText(HACL_NS_ACL).':';
+        $prefix = $haclgContLang->getPetPrefix($peType);
+        if ($prefix)
+        {
+            $defTitle .= $prefix.'/';
+        }
+        return $defTitle . $nameOfPE;
     }
 
     /**
-     * Saves this SD into database
+     * Saves this definition into database
      */
-    public function save(&$preventLoop = array())
+    public function save($cascade = true)
     {
-        // Save ID and parents before saving, as the SD may be deleted
+        // Load ID and parents before saving, as the definition may be deleted next
         $parents = $this->getDirectParents();
-        $id = $this['sd_id'];
+        $peType = $this['pe_type'];
+        $peID = $this['pe_id'];
         $st = IACLStorage::get('SD');
         if (!$this->exists)
         {
-            $st->deleteRules(array('sd_id' => $this->row['sd_id']));
-            $st->deleteSDs(array('sd_id' => $this->row['sd_id']));
             $this->add = $this->row = array();
+            $delRules = array(array('pe_type' => $peType, 'pe_id' => $peID));
+            $addRules = array();
         }
         else
         {
-            $st->replaceSDs(array(
-                'sd_id' => $this->row['sd_id'],
-                'type'  => $this->row['type'],
-                'pe_id' => $this->row['pe_id'],
-            ));
             if (isset($this->add['user_rights']) ||
                 isset($this->add['group_rights']) ||
                 isset($this->add['child_ids']))
             {
-                $oldRules = $this->clean()['rules'];
-                $addRules = $this->add['rules'] = $this->buildRules();
-                foreach ($oldRules as $k => $rule)
-                {
-                    if (isset($addRules[$k]['is_direct']) && $addRules[$k]['is_direct'] == $rule['is_direct'])
-                    {
-                        unset($addRules[$k]);
-                        unset($oldRules[$k]);
-                    }
-                }
+                list($delRules, $addRules) = $this->diffRules();
                 if ($oldRules)
                 {
                     $st->deleteRules($oldRules);
@@ -554,6 +533,21 @@ class IACLDefinition implements ArrayAccess
             }
         }
         // TODO Invalidate cache (if any)
+    }
+
+    protected function diffRules()
+    {
+        $oldRules = $this->clean()['rules'];
+        $addRules = $this->add['rules'] = $this->buildRules();
+        foreach ($oldRules as $k => $rule)
+        {
+            if (isset($addRules[$k]) && $addRules[$k]['actions'] == $rule['actions'])
+            {
+                unset($addRules[$k]);
+                unset($oldRules[$k]);
+            }
+        }
+        return array($oldRules, $addRules);
     }
 
     protected function buildRules()
