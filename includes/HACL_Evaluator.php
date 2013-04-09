@@ -6,8 +6,7 @@
  * http://wiki.4intra.net/IntraACL
  * $Id$
  *
- * Based on HaloACL
- * Copyright 2009, ontoprise GmbH
+ * Loosely based on HaloACL (c) 2009, ontoprise GmbH
  *
  * The IntraACL-Extension is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,77 +30,54 @@ if (!defined('MEDIAWIKI'))
  * It implements the function "userCan" that is called from MW for granting or
  * denying access to articles.
  *
- * @author Thomas Schweitzer
  */
 class HACLEvaluator
 {
-    //--- Private fields ---
-
     // String with logging information
     static $mLog = "";
 
-    // Is logging IntraACL's activities enabled?
+    // Are IntraACL's logging activities enabled?
     static $mLogEnabled = false;
-
-    // Empty constructor
-    function __construct() {}
-
-    //--- Public methods ---
 
     /**
      * This function is called from the userCan-hook of MW. This method decides
      * if the article for the given title can be accessed.
      * See further information at: http://www.mediawiki.org/wiki/Manual:Hooks/userCan
      *
-     * @param Title $title
-     *        The title object for the article that will be accessed.
-     * @param User $user
-     *        Reference to the current user.
-     * @param string $action
-     *        Action concerning the title in question
-     * @param boolean $result
-     *        Reference to the result propagated along the chain of hooks.
-     *
-     * @return boolean
-     *         true
+     * @param Title $title      The title object for the article that will be accessed.
+     * @param User $user        Reference to the current user.
+     * @param string $action    Action concerning the title in question
+     * @param boolean $result   Reference to the result propagated along the chain of hooks.
      */
     public static function userCan($title, $user, $action, &$result)
     {
-        global $haclgOpenWikiAccess, $wgRequest;
-        $etc = haclfDisableTitlePatch();
+        global $haclgOpenWikiAccess;
 
-        $grant = array('', false, false);
         self::startLog($title, $user, $action);
 
-        $grant = self::userCan_Switches($title, $user, $action);
-
-        // Articles with no SD are not protected if $haclgOpenWikiAccess is
-        // true. Otherwise access is denied for non-superusers.
-        if (!$grant[2])
-        {
-            $grant[2] = $grant[1] = $haclgOpenWikiAccess;
-            if ($grant[0])
-                $grant[0] .= ' ';
-            $grant[0] .= 'No security descriptor for article found. IntraACL is configured to '.
-                ($haclgOpenWikiAccess ? 'Open' : 'Closed').' Wiki access';
-        }
-        elseif (!$grant[1])
-        {
-            // Other extensions can not allow access anymore
-            $grant[2] = false;
-        }
-
+        $etc = haclfDisableTitlePatch();
+        list($msg, $result) = self::userCan_Switches($title, $user, $action);
         haclfRestoreTitlePatch($etc);
-        $result = $grant[1];
-        self::finishLog($grant[0], $grant[1], $grant[2]);
 
-        // If the user has no read access to a non-existing page,
-        // but has the right to create it - allow him to "read" it,
-        // because Wiki needs it to show the creation form.
-        if ($action == 'read' && !$result && !$grant[2] && !$title->exists())
-            $grant[2] = self::userCan($title, $user, 'create', $result);
+        if ($msg)
+        {
+            self::log($msg);
+        }
+        // Articles with no SD are not protected if $haclgOpenWikiAccess is
+        // true. Otherwise access is denied for non-bureaucrats/sysops.
+        if ($result < 0)
+        {
+            $result = $haclgOpenWikiAccess;
+            self::log(
+                'No security descriptor for article found. IntraACL is configured to '.
+                ($haclgOpenWikiAccess ? 'Open' : 'Closed').' Wiki access'
+            );
+        }
+        self::log("The action is " . ($result ? "allowed.\n\n" : "forbidden.\n\n"));
+        self::finishLog();
 
-        return $grant[2];
+        // Always continue hook processing
+        return true;
     }
 
     // Returns array(final log message, access granted?, continue hook processing?)
@@ -109,57 +85,76 @@ class HACLEvaluator
     {
         global $haclgContLang, $haclgSuperGroups;
         if (!$title)
-            return array("Title is <null>.", true, true);
-
-        // Do not check interwiki links
+        {
+            return array('Title is <null>', 1);
+        }
         if ($title->getInterwiki() !== '')
-            return array('Interwiki title', true, true);
+        {
+            // Do not check interwiki links
+            return array('Interwiki title', 1);
+        }
 
         $groups = $user->getGroups();
         if ($groups && array_intersect($groups, $haclgSuperGroups))
-            return array('User is a superuser and can do anything.', true, true);
+        {
+            return array('User is a superuser and can do anything.', 1);
+        }
 
-        // no access to the page "Permission denied" is allowed.
-        // together with the TitlePatch which returns this page, this leads
-        // to MediaWiki's "Permission error"
         if ($title->getPrefixedText() == $haclgContLang->getPermissionDeniedPage())
-            return array('Special handling of "Permission denied" page.', false, true);
+        {
+            // no access to the page "Permission denied" emitted by TitlePatch is allowed
+            return array('Special handling of "Permission denied" page', 0);
+        }
 
         // Check action
-        $actionID = HACLRight::getActionID($action);
-        if ($actionID == 0)
+        $actionID = IACL::getActionID($action);
+        if (!$actionID)
         {
-            // unknown action => nothing can be said about this
-            return array('Unknown action.', true, true);
+            // Unknown action => nothing can be said about this
+            return array('Unknown action', 1);
         }
 
         // Check rights for managing ACLs
         if ($title->getNamespace() == HACL_NS_ACL)
-            return array('Checked ACL modification rights.', self::checkACLManager($title, $user, $actionID), true);
+        {
+            return array('Checked ACL modification rights', self::checkACLManager($title, $user, $actionID));
+        }
 
         // If there is a whitelist, then allow user to read the page
         global $wgWhitelistRead;
-        if ($wgWhitelistRead && $actionID == HACLLanguage::RIGHT_READ && in_array($title, $wgWhitelistRead, false))
-            return array('Page is in MediaWiki whitelist', true, true);
+        if ($wgWhitelistRead && $actionID == IACL::ACTION_READ && in_array($title, $wgWhitelistRead, false))
+        {
+            return array('Page is in MediaWiki whitelist', 1);
+        }
 
         // haclfArticleID also returns IDs for special pages
         $articleID = haclfArticleID($title);
         $userID = $user->getId();
-        if ($articleID && $actionID == HACLLanguage::RIGHT_CREATE)
-            $actionID = HACLLanguage::RIGHT_EDIT;
+        if ($articleID && $actionID == IACL::ACTION_CREATE)
+        {
+            // create=edit for existing articles
+            $actionID = IACL::ACTION_EDIT;
+        }
         elseif (!$articleID)
         {
-            if ($actionID == HACLLanguage::RIGHT_EDIT)
+            if ($actionID == IACL::ACTION_EDIT)
             {
+                // edit=create for non-existing articles
                 self::log('Article does not exist yet. Checking right to create.');
-                $actionID = HACLLanguage::RIGHT_CREATE;
+                $actionID = IACL::ACTION_CREATE;
             }
             elseif ($actionID == HACLLanguage::RIGHT_DELETE ||
                 $actionID == HACLLanguage::RIGHT_MOVE)
-                return array('Can\'t move or delete non-existing article.', true, true);
-            // Check if the title belongs to a namespace with an SD
-            list($r, $sd) = self::checkNamespaceRight($title->getNamespace(), $userID, $actionID);
-            return array("Checked namespace access right: ($r,$sd)", $r, $sd);
+            {
+                return array('Moving/deleting non-existing article is pointless', 1);
+            }
+            $r = IACLDefinition::userCan($userID, IACL::PE_NAMESPACE, $title->getNamespace(), $actionID);
+            if ($r <= 0 && $actionID == IACL::ACTION_READ)
+            {
+                // Read right is needed to show edit form
+                $r = IACLDefinition::userCan($userID, IACL::PE_NAMESPACE, $title->getNamespace(), IACL::ACTION_CREATE);
+            }
+            return array('Checked namespace access right', $r);
         }
 
         return self::hasSD($title, $articleID, $userID, $actionID);
@@ -172,67 +167,56 @@ class HACLEvaluator
     public static function hasSD($title, $articleID, $userID, $actionID)
     {
         global $haclgCombineMode;
-        $msg = array();
 
+        $seq = array();
         if ($articleID)
         {
             // First check page rights
-            $sd = HACLSecurityDescriptor::getSDForPE($articleID, HACLLanguage::PET_PAGE);
-            if ($sd)
-            {
-                $r = $sd->userCan($userID, $actionID);
-                $msg[] = 'Access '.($r ? 'allowed' : 'denied').' by page SD';
-                if ($haclgCombineMode == HACL_COMBINE_OVERRIDE ||
-                    $haclgCombineMode == HACL_COMBINE_EXTEND && $r ||
-                    $haclgCombineMode == HACL_COMBINE_SHRINK && !$r)
-                    return array(implode(', ', $msg), $r, true);
-            }
-
-            // If the page is a category page, check that category's rights
+            $seq[] = array('page SD', IACL::PE_PAGE, $articleID);
             if ($title->getNamespace() == NS_CATEGORY)
             {
-                $sd = HACLSecurityDescriptor::getSDForPE($articleID, HACLLanguage::PET_CATEGORY);
-                if ($sd)
-                {
-                    $r = $sd->userCan($userID, $actionID);
-                    $msg[] = 'Access '.($r ? 'allowed' : 'denied').' by category SD for category page';
-                    if ($haclgCombineMode == HACL_COMBINE_OVERRIDE ||
-                        $haclgCombineMode == HACL_COMBINE_EXTEND && $r ||
-                        $haclgCombineMode == HACL_COMBINE_SHRINK && !$r)
-                        return array(implode(', ', $msg), $r, true);
-                }
+                // If the page is a category page, check that category's rights
+                $seq[] = array('category SD for category page', IACL::PE_CATEGORY, $articleID);
             }
-
             // Check category rights
-            list($r, $sd) = self::hasCategoryRight($title, $userID, $actionID);
-            if ($sd)
+            $seq[] = array('category SD', IACL::PE_CATEGORY, self::getParentCategoryIDs($articleID));
+        }
+        $seq[] = array('namespace SD', IACL::PE_NAMESPACE, $title->getNamespace());
+
+        $msg = array();
+        foreach ($seq as $pe)
+        {
+            $r = IACLDefinition::userCan($userID, $pe[1], $pe[2], $actionID);
+            if ($r >= 0)
             {
-                $msg[] = 'Access '.($r ? 'allowed' : 'denied').' by category SD';
-                if ($haclgCombineMode == HACL_COMBINE_OVERRIDE ||
-                    $haclgCombineMode == HACL_COMBINE_EXTEND && $r ||
-                    $haclgCombineMode == HACL_COMBINE_SHRINK && !$r)
-                    return array(implode(', ', $msg), $r, true);
+                $msg[] = 'Access '.($r > 0 ? 'allowed' : 'denied').' by '.$pe[0];
+            }
+            if ($haclgCombineMode == HACL_COMBINE_OVERRIDE && $r >= 0 ||
+                $haclgCombineMode == HACL_COMBINE_EXTEND && $r > 0 ||
+                $haclgCombineMode == HACL_COMBINE_SHRINK && $r == 0)
+            {
+                return array(implode("\n", $msg), $r);
             }
         }
 
-        // Check namespace rights
-        list($r, $sd) = self::checkNamespaceRight($title->getNamespace(), $userID, $actionID);
-        if ($sd)
+        // If $msg is not empty and mode is extend => denying SD was found.
+        // If $msg is not empty and mode is shrink => allowing SD was found.
+        // If $msg is not empty and mode is shrink => we've already returned.
+        if ($msg)
         {
-            $msg[] = 'Access '.($r ? 'allowed' : 'denied').' by namespace SD';
-            if ($haclgCombineMode == HACL_COMBINE_OVERRIDE ||
-                $haclgCombineMode == HACL_COMBINE_EXTEND && $r ||
-                $haclgCombineMode == HACL_COMBINE_SHRINK && !$r)
-                return array(implode(', ', $msg), $r, true);
+            return array(implode("\n", $msg), $haclgCombineMode == HACL_COMBINE_SHRINK ? 1 : 0);
         }
 
-        // If mode is extend and we are here, maybe a denying SD was found.
-        // If mode is shrink and we are here, maybe an allowing SD was found.
-        // If it is found, $msg is not empty.
-        if ($msg && $haclgCombineMode != HACL_COMBINE_OVERRIDE)
-            return array(implode(', ', $msg), $haclgCombineMode == HACL_COMBINE_SHRINK, true);
+        return array('', -1);
+    }
 
-        return array('', false, false);
+    /**
+     * Returns IDs of all parent categories for article with ID $articleID
+     * (including non-direct inclusions)
+     */
+    protected function getParentCategoryIDs($articleID)
+    {
+        
     }
 
     //--- Private methods ---
@@ -321,33 +305,6 @@ class HACLEvaluator
     }
 
     /**
-     * Checks if access is granted to the namespace of the given title.
-     *
-     * @param int $nsID
-     *        Namespace index
-     * @param int $userID
-     *        ID of the user who want to access the namespace
-     * @param int $actionID
-     *        ID of the action the user wants to perform
-     *
-     * @return array(bool rightGranted, bool hasSD)
-     *         rightGranted:
-     *             <true>, if the user has the right to perform the action
-     *             <false>, otherwise
-     *         hasSD:
-     *             <true>, if there is an SD for the article
-     *             <false>, if not
-     *
-     */
-    public static function checkNamespaceRight($nsID, $userID, $actionID)
-    {
-        $sd = HACLSecurityDescriptor::getSDForPE($nsID, HACLLanguage::PET_NAMESPACE);
-        if (!$sd)
-            return array(false, false);
-        return array($sd->userCan($userID, $actionID), $hasSD);
-    }
-
-    /**
      * This method checks if a user wants to create/modify
      * an article in the ACL namespace.
      *
@@ -367,124 +324,59 @@ class HACLEvaluator
     {
         global $haclgSuperGroups;
         $userID = $user->getId();
-        // No access for anonymous users to ACL pages
         if (!$userID)
+        {
+            // No access for anonymous users to ACL pages
             return false;
-
-        // Read access for all registered users
-        // FIXME if not OpenWikiAccess, then false for users who can't read the article
-        if ($actionID == HACLLanguage::RIGHT_READ)
-            return true;
-
-        // Superusers can modify all ACL definitions
-        $groups = $user->getGroups();
-        if (array_intersect($groups, $haclgSuperGroups))
-            return true;
-
-        if (self::hacl_type($t) == 'group')
-        {
-            // Group
-            $group = IACLStorage::get('Groups')->getGroupByID($t->getArticleID());
-            return $group ? $group->userCanModify($user) : true;
-        }
-        else
-        {
-            // SD / right template
-            $sd = IACLStorage::get('SD')->getSDByID($t->getArticleID());
-            if ($sd)
-            {
-                // Check if the user can modify the SD
-                if ($sd->userCan($userID, IACL_RIGHT_MANAGE))
-                {
-                    return true;
-                }
-                // Check for RIGHT_GRANT_PAGE inherited from namespaces and categories
-                if ($sd['type'] == HACLLanguage::PET_PAGE &&
-                    ($sd->userCan($userID, IACL_RIGHT_GRANT_PAGE) ||
-                    self::checkIndirectManageRight($sd, $userID)))
-                {
-                    return true;
-                }
-                return false;
-            }
-            else
-            {
-                list($name, $type) = HACLSecurityDescriptor::nameOfPE($t->getText());
-                if ($type == HACLLanguage::PET_PAGE)
-                {
-                    // Page ACL manage rights are inherited from RIGHT_MANAGE
-                    // of categories and namespaces
-                    $title = Title::newFromText($name);
-                    $articleID = haclfArticleID($title);
-                    $R = self::hasSD($title, $articleID, $userID, HACLLanguage::RIGHT_MANAGE);
-                    if (!is_array($R))
-                        die('IntraACL internal error: HACLEvaluator::hasSD returned non-array value');
-                    // If there is no SD, allow action by default
-                    return $R[1] || !$R[2];
-                }
-                else
-                {
-                    // Anyone is allowed to edit non-existing right
-                    // templates and SDs for namespaces/categories
-                    return true;
-                }
-            }
         }
 
+        if ($actionID == IACL::ACTION_READ)
+        {
+            // Read access for all registered users
+            // FIXME if not OpenWikiAccess, then return false for users who can't read the article
+            return true;
+        }
+
+        $peId = IACLDefinition::nameOfPE($t);
+        if (!$peId)
+        {
+            return false;
+        }
+        $peId[0] = IACLDefinition::peIDforName($peId[0]);
+        if (IACLDefinition::userCan($userID, $peId[1], $peId[0], IACL::ACTION_MANAGE))
+        {
+            return true;
+        }
+
+        // "protect page" right is a hole
+        // 1) user A has read+edit access to article X
+        // 2) he adds [[Category:HisOwnCategory]] marker to article X
+        // 3) ACL:Category/HisOwnCategory grants PROTECT_PAGES to him
+        // 4) he gets the right to change ACL:Page/X
+        // 5) he removes all other users from ACL:Page/X => no one more can see the article :-(
+        // 6) okay, but per-namespace "protect page" right is also a hole
+        // 7) and "move page" right with namespace rights is also a hole
+        // 8) and user who can edit the article always can remove all categories from it
+        // 9) soooooooooo...
+        // "move page" right is a hole
+        // category rights are a hole - any editor can change them
+
+        // Check for RIGHT_GRANT_PAGE inherited from namespaces and categories
+        if ($peId[1] == IACL::PE_PAGE && self::checkProtectPageRight($peId[0], $userID)))
+        {
+            return true;
+        }
         return false;
     }
 
-    protected static function checkIndirectManageRight($sd, $userID)
+    protected static function checkProtectPageRight($pageID, $userID)
     {
         $etc = haclfDisableTitlePatch();
-        $title = Title::newFromId($sd['pe_id']);
+        $title = Title::newFromId($pageID);
         haclfRestoreTitlePatch($etc);
-        $ns_sd = IACLSecurityDescriptor::getSDForPE($title->getNamespace(), HACLLanguage::PET_NAMESPACE);
-        if ($title && $ns_sd && $ns_sd->userCan($userID, HACLLanguage::RIGHT_GRANT_PAGE))
-            return true;
-        list($r) = self::hasCategoryRight($title, $userID, HACLLanguage::RIGHT_GRANT_PAGE);
-        return $r;
-    }
-
-    /**
-     * Checks if the given user can modify this SD.
-     *
-     * @param User/string/int $user
-     *         User-object, name of a user or ID of a user who wants to modify this
-     *         SD. If <null>, the currently logged in user is assumed.
-     *
-     * @return boolean
-     *         One of these values is returned if no exception is thrown:
-     *         <true>, if the user can modify this SD and
-     *         <false>, if not
-     */
-    public function userCanModify($user = false)
-    {
-        global $wgUser;
-        if (!$user)
-        {
-            $user = $wgUser;
-        }
-
-        // Get the ID of the user who wants to add/modify the SD
-        list($userID, $userName) = haclfGetUserID($user);
-
-
-        return false;
-    }
-
-    /* Check is $title corresponds to some IntraACL definition page
-       Returns 'group', 'sd' or FALSE */
-    public static function hacl_type($title)
-    {
-        global $haclgContLang;
-        $text = is_object($title) ? $title->getText() : $title;
-        if (($p = strpos($text, '/')) === false)
-            return false;
-        $prefix = substr($text, 0, $p);
-        if ($t = $haclgContLang->getPrefix($prefix))
-            return $t;
-        return false;
+        return
+            IACLDefinition::userCan($userID, IACL::PE_NAMESPACE, $title->getNamespace(), IACL::ACTION_PROTECT_PAGES) > 0 ||
+            IACLDefinition::userCan($userID, IACL::PE_CATEGORY, self::getParentCategoryIDs($pageID), IACL::ACTION_PROTECT_PAGES) > 0;
     }
 
     /**
@@ -497,16 +389,13 @@ class HACLEvaluator
     private static function startLog($title, $user, $action)
     {
         global $wgRequest, $haclgEvaluatorLog, $haclgCombineMode;
-
         self::$mLogEnabled = $haclgEvaluatorLog && $wgRequest->getVal('hacllog', 'false') == 'true';
-
         if (!self::$mLogEnabled)
         {
             // Logging is disabled
             return;
         }
         self::$mLog = "";
-
         self::$mLog .= "IntraACL Evaluation Log\n";
         self::$mLog .= "======================\n\n";
         self::$mLog .= "Title: ". (is_null($title) ? "null" : $title->getFullText()). "\n";
@@ -516,31 +405,20 @@ class HACLEvaluator
 
     /**
      * Adds a message to the evaluation log.
-     *
-     * @param string $msg
-     *         The message to add.
+     * @param string $msg   The message to add.
      */
     private static function log($msg)
     {
         if (self::$mLogEnabled)
+        {
             self::$mLog .= "$msg\n";
+        }
     }
 
     /**
      * Finishes the log for an evaluation.
-     *
-     * @param string $msg
-     *     This message is added to the log.
-     * @param bool $result
-     *     The result of the evaluation:
-     *     true - action is allowed
-     *     false - action is forbidden
-     * @param bool $returnVal
-     *     Return value of the userCan-hook:
-     *     true - IntraACL allows the right or has no opinion about it. Other extensions must decide.
-     *     false - IntraACL found a right and stops the chain of userCan-hooks.
      */
-    private static function finishLog($msg, $result, $returnVal)
+    private static function finishLog()
     {
         if (!self::$mLogEnabled)
         {
@@ -548,17 +426,7 @@ class HACLEvaluator
             return;
         }
 
-        self::$mLog .= "$msg\n";
-        self::$mLog .= "The action is ". ($result ? "allowed.\n" : "forbidden.\n");
-        if ($returnVal)
-        {
-            // IntraACL has no opinion about the requested right.
-            self::$mLog .= "The system and other extensions can still decide if this action is allowed.\n";
-        }
-        else
-            self::$mLog .= "The right is determined by IntraACL. No other extensions can influence this.\n";
-        self::$mLog .= "\n\n";
-
+        // FIXME emit this in <pre> and after the page content
         echo self::$mLog;
     }
 }

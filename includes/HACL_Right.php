@@ -192,44 +192,6 @@ class HACLRight
     }
 
     /**
-     * Returns the ID of an action for the given name of an action
-     *
-     * @param string $actionName
-     *         The action, the user wants to perform. One of "read",
-     *         "edit", "create" and "delete".
-     *
-     * @return int
-     *         The ID of the action or 0 if the names is invalid.
-     *
-     */
-    public static function getActionID($actionName)
-    {
-        $actionID = 0;
-        switch ($actionName)
-        {
-            case "read":
-                $actionID = HACLLanguage::RIGHT_READ;
-                break;
-            case "edit":
-                $actionID = HACLLanguage::RIGHT_EDIT;
-                break;
-            case "create":
-                $actionID = HACLLanguage::RIGHT_CREATE;
-                break;
-            case "delete":
-                $actionID = HACLLanguage::RIGHT_DELETE;
-                break;
-            case "move":
-                $actionID = HACLLanguage::RIGHT_MOVE;
-                break;
-            case "manage":
-                $actionID = HACLLanguage::RIGHT_MANAGE;
-                break;
-        }
-        return $actionID;
-    }
-
-    /**
      * Checks if the given user can modify this right. Inline rights are defined
      * in security descriptors (or predefined rights) which store who can modify
      * their content.

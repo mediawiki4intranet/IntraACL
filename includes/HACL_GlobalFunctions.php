@@ -186,34 +186,6 @@ function enableIntraACL()
     return true;
 }
 
-function haclfFlushGroups($user, $add, $remove)
-{
-    wfGetCache(CACHE_ANY)->delete(wfMemcKey(array('iacl', 'ug', $user->getId())));
-    return true;
-}
-
-function haclfGetUserGroups($userIds)
-{
-    $groups = array();
-    $userIds = (array)$userIds;
-    $cache = wfGetCache(CACHE_ANY);
-    foreach ($userIds as $k => $id)
-    {
-        $id = $id instanceof User ? $id->getId() : $id;
-        $key = wfMemcKey(array('iacl', 'ug', $id));
-        $g = $cache->get($key);
-        if ($g)
-        {
-            $groups[$id] = $g;
-            unset($userIds[$k]);
-        }
-    }
-    if ($userIds)
-    {
-        $groups = IACLStorage::get('Group')->getUserGroups(array('user_id' => $userIds));
-    }
-}
-
 function haclfLanguageGetMagic(&$magicWords, $langCode)
 {
     global $haclgContLang;

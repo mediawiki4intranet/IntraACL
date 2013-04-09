@@ -79,8 +79,25 @@ class IACL
      */
     const INDIRECT_OFFSET       = 8;
 
-    const ALL_USERS             = 0;
-    const REGISTERED_USERS      = -1;
+    const ALL_USERS             = -1;
+    const REGISTERED_USERS      = 0;
+
+    static $nameToAction = array(
+        'read'   => IACL::ACTION_READ,
+        'edit'   => IACL::ACTION_EDIT,
+        'create' => IACL::ACTION_CREATE,
+        'delete' => IACL::ACTION_DELETE,
+        'move'   => IACL::ACTION_MOVE,
+    );
+
+    /**
+     * Returns the ID of an action for the given name of an action
+     * (only for Mediawiki
+     */
+    static function getActionID($name)
+    {
+        return @self::$nameToAction[$name] ?: 0;
+    }
 }
 
 class IACLDefinition implements ArrayAccess
@@ -332,54 +349,108 @@ class IACLDefinition implements ArrayAccess
     }
 
     /**
-     * Check (with caching) if a given user is granted some action
+     * Check (with clever caching) if given user is granted some action
+     * in the definition identified by $peType/$peID.
+     *
+     * @param int $userID       User ID or 0 for anonymous user
+     * @param int $peType       Parent right type, one of IACL::PE_*
+     * @param int/array $peID   Parent right ID(s)
+     * @param int $actionID     Action ID, one of IACL::ACTION_*
+     * @return int              1 = allow, 0 = deny, -1 = don't care
      */
     static function userCan($userID, $peType, $peID, $actionID)
     {
         static $userCache = array();
-        static $incomplete = array();
-        if (!isset($userCache[$userID]))
+        // $loaded[$userID] is a bitmask:
+        // 0x01 => SDs loaded
+        // 0x02 => Groups preloaded
+        // 0x04 => SDs incomplete
+        // 0x08 => Groups incomplete
+        static $loaded = array();
+        if ($userID < 0)
         {
-            global $iaclPreloadLimit;
-            // Prefer more general (pe_type ASC) and more recent (pe_id DESC) rules when preloading
-            // IACL::REGISTERED_USERS entry acts as a default access level entry
-            // TODO Maybe exclude groups till $peType != group? (because it usually has no effect on permission check speed)
-            $rules = IACLStorage::get('SD')->getRules(
-                array(
-                    'child_type' => IACL::PE_USER,
-                    'child_id' => array($userID, IACL::REGISTERED_USERS)
-                ),
-                array(
-                    'LIMIT' => $iaclPreloadLimit,
-                    'ORDER BY' => 'pe_type ASC, pe_id DESC, child_id ASC'
-                )
-            );
-            $incomplete[$userID] = count($rules) >= $iaclPreloadLimit;
-            $userCache[$userID] = array();
-            foreach ($rules as $rule)
+            $userID = 0;
+        }
+        $actionID |= ($actionID << IACL::INDIRECT_OFFSET);
+        foreach ((array)$peID as $id)
+        {
+            if (isset($userCache[$userID][$peType][$id]))
             {
-                $userCache[$userID][$rule['pe_type']][$rule['pe_id']] = $rule['actions'];
+                return ($userCache[$userID][$peType][$id] & $actionID) ? 1 : 0;
             }
         }
-        if ($incomplete[$userID] && !isset($userCache[$userID][$peType][$peID]))
+        if ($userID)
         {
-            $rules = IACLStorage::get('SD')->getRules(array(
-                'pe_type' => $peType,
-                'pe_id' => $peID,
-                'child_type' => IACL::PE_USER,
-                'child_id' => array($userID, IACL::REGISTERED_USERS),
-            ));
+            // Fallback chain: current user -> registered users (0) -> all users (-1)
+            $applicable = array($userID, IACL::ALL_USERS, IACL::REGISTERED_USERS);
+        }
+        else
+        {
+            $applicable = IACL::ALL_USERS;
+        }
+        $where = array(
+            'child_type' => IACL::PE_USER,
+            'child_id' => $applicable,
+        );
+        $options = array(
+            'ORDER BY' => 'child_id DESC, pe_type ASC, pe_id DESC'
+        );
+        $isGroup = ($peType == IACL::PE_GROUP);
+        if (!isset($loaded[$userID]) ||
+            !($loaded[$userID] & (1 << $isGroup)))
+        {
+            global $iaclPreloadLimit;
+            $loaded[$userID] |= (1 << $isGroup);
+            // Preload up to $iaclPreloadLimit rules, preferring more general (pe_type ASC)
+            // and more recent (pe_id DESC) rules for better cache hit ratio.
+            // Groups are unused in permission checks and thus have no effect on permission check speed,
+            // so don't preload them until explicitly requested
+            if ($peType != IACL::PE_GROUP)
+            {
+                $where['pe_type'] = IACL::PE_GROUP;
+            }
+            else
+            {
+                $where[] = 'pe_type != '.IACL::PE_GROUP;
+            }
+            $options['LIMIT'] = $iaclPreloadLimit;
+            $rules = IACLStorage::get('SD')->getRules($where, $options);
+            if (count($rules) >= $iaclPreloadLimit)
+            {
+                // There are exactly $iaclPreloadLimit rules
+                // => we assume there can be more
+                $loaded[$userID] |= (4 << $isGroup);
+            }
             foreach ($rules as $rule)
             {
-                if ($rule['child_id'] == $userID)
+                if (!isset($userCache[$userID][$rule['pe_type']][$rule['pe_id']]))
                 {
-                    $userCache[$userID][$peType][$peID] = $rule[0]['actions'];
-                    break;
+                    $userCache[$userID][$rule['pe_type']][$rule['pe_id']] = $rule['actions'];
                 }
             }
         }
-        return isset($userCache[$userID][$peType][$peID]) &&
-            ($userCache[$userID][$peType][$peID] & $actionID);
+        if (($loaded[$userID] & (4 << $isGroup)))
+        {
+            // Not all rules were preloaded => database is very big, perform additional query
+            $where['pe_type'] = $peType;
+            $where['pe_id'] = $peID;
+            $rules = IACLStorage::get('SD')->getRules($where, $options);
+            foreach ($rules as $rule)
+            {
+                if (!isset($userCache[$userID][$rule['pe_type']][$rule['pe_id']]))
+                {
+                    $userCache[$userID][$rule['pe_type']][$rule['pe_id']] = $rule['actions'];
+                }
+            }
+        }
+        foreach ((array)$peID as $id)
+        {
+            if (isset($userCache[$userID][$peType][$id]))
+            {
+                return ($userCache[$userID][$peType][$id] & $actionID) ? 1 : 0;
+            }
+        }
+        return -1;
     }
 
     /**
@@ -404,13 +475,13 @@ class IACLDefinition implements ArrayAccess
             return $idx;
         }
         elseif ($peType === IACL::PE_RIGHT)
-            $ns = NS_ACL;
+            $ns = HACL_NS_ACL;
         elseif ($peType === IACL::PE_CATEGORY)
             $ns = NS_CATEGORY;
         elseif ($peType === IACL::PE_USER)
             $ns = NS_USER;
         elseif ($peType === IACL::PE_GROUP)
-            $ns = NS_ACL;
+            $ns = HACL_NS_ACL;
         // Return the page id
         // TODO add caching here
         $id = haclfArticleID($peName, $ns);
@@ -436,21 +507,32 @@ class IACLDefinition implements ArrayAccess
      *  ACL:Page/<Page title>               PE_PAGE
      *  ACL:Category/<Category name>        PE_CATEGORY
      *  ACL:Namespace/<Namespace name>      PE_NAMESPACE
-     *  ACL:Namespace/Main
+     *  ACL:Namespace/Main                  PE_NAMESPACE
      *  ACL:Group/<Group name>              PE_GROUP
      *  ACL:<Right template name>           PE_RIGHT
      *
-     * @param string $defTitle  Definition title, with or without ACL: namespace
+     * @param string/Title $defTitle            Definition title, with or without ACL: namespace
      * @return array(string $name, int $type)   Name of the protected element and its type.
      */
     public static function nameOfPE($defTitle)
     {
         global $wgContLang, $haclgContLang;
-        // Ignore the namespace
-        $ns = $wgContLang->getNsText(HACL_NS_ACL).':';
-        if (strpos($defTitle, $ns) === 0)
+        if ($defTitle instanceof Title)
         {
-            $defTitle = substr($defTitle, strlen($ns));
+            if ($defTitle->getNamespace() != HACL_NS_ACL)
+            {
+                return false;
+            }
+            $defTitle = $defTitle->getText();
+        }
+        else
+        {
+            // Ignore the namespace
+            $ns = $wgContLang->getNsText(HACL_NS_ACL).':';
+            if (strpos($defTitle, $ns) === 0)
+            {
+                $defTitle = substr($defTitle, strlen($ns));
+            }
         }
         $p = strpos($defTitle, '/');
         if (!$p)
@@ -553,41 +635,92 @@ class IACLDefinition implements ArrayAccess
     protected function buildRules()
     {
         $rules = array();
-        if (!empty($this->add['user_rights']))
+        $directMask = ((1 << IACL::INDIRECT_OFFSET)-1);
+        $childIds = array();
+        $thisId = array(
+            'pe_type'   => $this['pe_type'],
+            'pe_id'     => $this['pe_id'],
+        );
+        foreach ($this->add['rules'] as $childType => $children)
         {
-            foreach ($this->add['user_rights'] as $action => $users)
+            foreach ($children as $child => $actions)
             {
-                foreach ($users as $user => $true)
+                $actions = $directMask & (is_array($actions) ? $actions['actions'] : $actions);
+                if ($actions)
                 {
-                    $rules[self::RULE_USER.'-'.$action.'-'.$user] = array(
-                        'sd_id'     => $this->row['sd_id'],
-                        'rule_type' => self::RULE_USER,
-                        'action_id' => $action,
-                        'child_id'  => $user,
-                        'is_direct' => 1,
+                    if ($childType != IACL::PE_USER)
+                    {
+                        $childIds[] = array($childType, $child);
+                    }
+                    if ($thisId != IACL::PE_GROUP && ($childType == IACL::PE_USER || $childType == IACL::PE_GROUP))
+                    {
+                        // Edit right implies read right
+                        if ($actions & IACL::ACTION_EDIT)
+                        {
+                            $actions |= IACL::ACTION_READ;
+                        }
+                    }
+                    $rules[$childType][$child] = $thisId + array(
+                        'child_type'    => $childType,
+                        'child_id'      => $child,
+                        'actions'       => $actions & $directMask,
                     );
-                    unset($oldHash[self::RULE_USER.'-'.$action.'-'.$user]);
                 }
             }
         }
-        if (!empty($this->add['group_rights']))
+        $children = self::select(array('pe' => $childIds));
+        $member = IACL::ACTION_GROUP_MEMBER | (IACL::ACTION_GROUP_MEMBER << IACL::INDIRECT_OFFSET);
+        foreach ($childIds as $child)
         {
-            foreach ($this->add['group_rights'] as $action => $groups)
+            if ($child['pe_type'] == IACL::PE_GROUP)
             {
-                foreach ($groups as $group => $true)
+                $actions = $rules[$child['pe_type']][$child['pe_id']]['actions'] << IACL::INDIRECT_OFFSET;
+                foreach ($child['rules'] as $rule)
                 {
-                    $rules[self::RULE_GROUP.'-'.$action.'-'.$group] = array(
-                        'sd_id'     => $this->row['sd_id'],
-                        'rule_type' => self::RULE_GROUP,
-                        'action_id' => $action,
-                        'child_id'  => $group,
-                        'is_direct' => 1,
-                    );
+                    if ($rule['actions'] & $member)
+                    {
+                        if (!isset($rules[$rule['child_type']][$rule['child_id']]))
+                        {
+                            $rules[$rule['child_type']][$rule['child_id']] = $thisId + array(
+                                'child_type'    => $rule['child_type'],
+                                'child_id'      => $rule['child_id'],
+                                'actions'       => $actions,
+                            );
+                        }
+                        else
+                        {
+                            $rules[$rule['child_type']][$rule['child_id']]['actions'] |= $actions;
+                        }
+                    }
+                }
+            }
+            elseif ($this['pe_type'] != IACL::PE_GROUP)
+            {
+                // Right definitions may not be included in groups
+                foreach ($child['rules'] as $rule)
+                {
+                    // Make all rights indirect
+                    $actions = (($rule['actions'] & $directMask) << IACL::INDIRECT_OFFSET) |
+                        ($rule['actions'] & ($directMask << IACL::INDIRECT_OFFSET));
+                    $actions = $actions & 
+                    if (!isset($rules[$rule['child_type']][$rule['child_id']]))
+                    {
+                        $rules[$rule['child_type']][$rule['child_id']] = $thisId + array(
+                            'child_type'    => $rule['child_type'],
+                            'child_id'      => $rule['child_id'],
+                            'actions'       => $actions,
+                        );
+                    }
+                    else
+                    {
+                        $rules[$rule['child_type']][$rule['child_id']]['actions'] |= $actions;
+                    }
                 }
             }
         }
-        if (!empty($this->add['child_ids']))
+        if ($this['pe_type'] != IACL::PE_GROUP)
         {
+            foreach (
             $children = self::select(array('sd_id' => array_keys($this->add['child_ids'])));
             $this->add['child_ids'] = $children;
             foreach ($this->add['child_ids'] as $sdid => &$sd)
