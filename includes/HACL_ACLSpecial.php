@@ -700,6 +700,7 @@ class IntraACLSpecial extends SpecialPage
             if ($p = strpos($g['real'], '/'))
                 $g['real'] = substr($g['real'], $p+1);
         }
+        $max = false;
         /* Run template */
         ob_start();
         require(dirname(__FILE__).'/../templates/HACL_GroupListContents.tpl.php');
