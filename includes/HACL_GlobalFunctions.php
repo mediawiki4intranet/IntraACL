@@ -475,11 +475,11 @@ function haclfArticleID($articleName, $defaultNS = NS_MAIN)
     }
     if (!$t)
         return 0;
+    if ($t->getNamespace() == NS_SPECIAL)
+        return IACLStorage::get('SpecialPage')->idForSpecial($t->getBaseText());
     $id = $t->getArticleID();
     if ($id === 0)
         $id = $t->getArticleID(Title::GAID_FOR_UPDATE);
-    if ($id == 0 && $t->getNamespace() == NS_SPECIAL)
-        $id = IACLStorage::get('SpecialPage')->idForSpecial($articleName);
     return $id;
 }
 
@@ -515,6 +515,9 @@ function haclfLoadExtensionSchemaUpdates($updater = NULL)
     // Defer creating 'Permission Denied' page until all schema updates are finished
     global $egDeferCreatePermissionDenied;
     $egDeferCreatePermissionDenied = new DeferCreatePermissionDenied();
+    // Reparse right definitions if needed
+    global $egDeferReparseSpecialPageRights;
+    $egDeferReparseSpecialPageRights = new DeferReparseSpecialPageRights();
     return true;
 }
 
@@ -533,6 +536,31 @@ class DeferCreatePermissionDenied
             $a = new Article($t);
             $a->doEdit($haclgContLang->getPermissionDeniedPageContent(), "", EDIT_NEW);
             echo "done.\n";
+        }
+    }
+}
+
+// Reparse right definitions if needed
+class DeferReparseSpecialPageRights
+{
+    function __destruct()
+    {
+        global $wgContLang;
+        $dbw = wfGetDB(DB_MASTER);
+        $badSpecial = 'name LIKE '.$dbw->addQuotes($wgContLang->getNsText(NS_SPECIAL).':%').' OR name LIKE \'Special:%\'';
+        if ($dbw->tableExists('halo_acl_special_pages') &&
+            $dbw->selectField('halo_acl_special_pages', '1', array($badSpecial), __METHOD__, array('LIMIT' => 1)))
+        {
+            print "Refreshing special page right definitions...\n";
+            $dbw->delete('halo_acl_special_pages', array($badSpecial), __METHOD__);
+            $sds = 'page_title LIKE '.$dbw->addQuotes('Page/'.$wgContLang->getNsText(NS_SPECIAL).':%').' OR page_title LIKE \'Page/Special:%\'';
+            $res = $dbw->select('page', '*', array('page_namespace' => HACL_NS_ACL, $sds), __METHOD__);
+            foreach ($res as $row)
+            {
+                $title = Title::newFromRow($row);
+                $article = new Article($title);
+                $article->doEdit($article->getText(), 'Re-parse right definition', EDIT_UPDATE);
+            }
         }
     }
 }
