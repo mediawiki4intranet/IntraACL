@@ -63,6 +63,8 @@ class IACL
 
     /**
      * Action/child relation details, stored as bitmap in rules table
+     * SDs can contain everything except ACTION_GROUP_MEMBER
+     * Groups can contain ACTION_GROUP_MEMBER and ACTION_MANAGE rules
      */
     const ACTION_READ           = 0x01;     // Allows to read pages
     const ACTION_EDIT           = 0x02;     // Allows to edit pages. Implies read right
@@ -71,6 +73,7 @@ class IACL
     const ACTION_DELETE         = 0x10;     // Allows to delete pages with history
     const ACTION_MANAGE         = 0x20;     // Allows to modify right definition or group. Implies read/edit/create/move/delete rights
     const ACTION_PROTECT_PAGES  = 0x80;     // Allows to modify affected page right definitions. Implies read/edit/create/move/delete pages
+    const ACTION_INCLUDE_SD     = 0x01;     // Used for child SDs (1 has no effect, any other value can be also used)
     const ACTION_GROUP_MEMBER   = 0x01;     // Used in group definitions: specifies that the child is a group member
 
     /**
@@ -641,6 +644,7 @@ class IACLDefinition implements ArrayAccess
             'pe_type'   => $this['pe_type'],
             'pe_id'     => $this['pe_id'],
         );
+        // Process direct grants
         foreach ($this->add['rules'] as $childType => $children)
         {
             foreach ($children as $child => $actions)
@@ -668,23 +672,26 @@ class IACLDefinition implements ArrayAccess
                 }
             }
         }
+        // Process indirect grants
         $children = self::select(array('pe' => $childIds));
         $member = IACL::ACTION_GROUP_MEMBER | (IACL::ACTION_GROUP_MEMBER << IACL::INDIRECT_OFFSET);
         foreach ($childIds as $child)
         {
             if ($child['pe_type'] == IACL::PE_GROUP)
             {
+                // Groups may be included in other groups or in right definitions
                 $actions = $rules[$child['pe_type']][$child['pe_id']]['actions'] << IACL::INDIRECT_OFFSET;
                 foreach ($child['rules'] as $rule)
                 {
+                    // Only take member rules into account
                     if ($rule['actions'] & $member)
                     {
                         if (!isset($rules[$rule['child_type']][$rule['child_id']]))
                         {
                             $rules[$rule['child_type']][$rule['child_id']] = $thisId + array(
-                                'child_type'    => $rule['child_type'],
-                                'child_id'      => $rule['child_id'],
-                                'actions'       => $actions,
+                                'child_type' => $rule['child_type'],
+                                'child_id'   => $rule['child_id'],
+                                'actions'    => $actions,
                             );
                         }
                         else
@@ -696,19 +703,18 @@ class IACLDefinition implements ArrayAccess
             }
             elseif ($this['pe_type'] != IACL::PE_GROUP)
             {
-                // Right definitions may not be included in groups
+                // Right definitions can only be included into other right definitions
                 foreach ($child['rules'] as $rule)
                 {
                     // Make all rights indirect
                     $actions = (($rule['actions'] & $directMask) << IACL::INDIRECT_OFFSET) |
                         ($rule['actions'] & ($directMask << IACL::INDIRECT_OFFSET));
-                    $actions = $actions & 
                     if (!isset($rules[$rule['child_type']][$rule['child_id']]))
                     {
                         $rules[$rule['child_type']][$rule['child_id']] = $thisId + array(
-                            'child_type'    => $rule['child_type'],
-                            'child_id'      => $rule['child_id'],
-                            'actions'       => $actions,
+                            'child_type' => $rule['child_type'],
+                            'child_id'   => $rule['child_id'],
+                            'actions'    => $actions,
                         );
                     }
                     else
@@ -718,110 +724,15 @@ class IACLDefinition implements ArrayAccess
                 }
             }
         }
-        if ($this['pe_type'] != IACL::PE_GROUP)
+        // Add empty ALL_USERS grant if not yet
+        if (!isset($rules[IACL::PE_USER][IACL::ALL_USERS]))
         {
-            foreach (
-            $children = self::select(array('sd_id' => array_keys($this->add['child_ids'])));
-            $this->add['child_ids'] = $children;
-            foreach ($this->add['child_ids'] as $sdid => &$sd)
-            {
-                $childRules = $sd['rules'];
-                foreach ($childRules as $key => $rule)
-                {
-                    if (!isset($rules[$key]))
-                    {
-                        $rule['sd_id'] = $this->row['sd_id'];
-                        $rule['is_direct'] = 0;
-                        $rules[$key] = $rule;
-                    }
-                }
-                $rules[self::RULE_SD.'-0-'.$sdid] = array(
-                    'sd_id'     => $this->row['sd_id'],
-                    'rule_type' => self::RULE_SD,
-                    'action_id' => 0,
-                    'child_id'  => $sdid,
-                    'is_direct' => 1,
-                );
-                // Set to true so child_rules will still be (SD => true)
-                $sd = true;
-            }
+            $rules[IACL::PE_USER][IACL::ALL_USERS] = $thisId + array(
+                'child_type' => IACL::PE_USER,
+                'child_id'   => IACL::ALL_USERS,
+                'actions'    => 0,
+            );
         }
         return $rules;
-    }
-
-    /**
-     * This method checks the integrity of this SD. The integrity can be violated
-     * by missing groups, users or predefined rights.
-     *
-     * return mixed bool / array
-     *     <true> if the SD is valid,
-     *  array(string=>bool) otherwise
-     *         The array has the keys "groups", "users" and "rights" with boolean values.
-     *         If the value is <true>, at least one of the corresponding entities
-     *         is missing.
-     */
-    public function checkIntegrity()
-    {
-        $missingGroups = false;
-        $missingUsers = false;
-        $missingPR = false;
-
-        //== Check integrity of group managers ==
-
-        // Check for missing groups
-        foreach ($this->mManageGroups as $gid) {
-            if (!IACLStorage::get('Groups')->groupExists($gid)) {
-                $missingGroups = true;
-                break;
-            }
-        }
-
-        // Check for missing users
-        foreach ($this->mManageUsers as $uid) {
-            if ($uid > 0 && User::whoIs($uid) === false) {
-                $missingUsers = true;
-                break;
-            }
-        }
-
-
-        //== Check integrity of inline rights ==
-
-        $irIDs = $this->getInlineRights(false);
-        foreach ($irIDs as $irID) {
-            $ir = IACLStorage::get('IR')->getRightByID($irID);
-            $groupIDs = $ir->getGroups();
-            // Check for missing groups
-            foreach ($groupIDs as $gid) {
-                if (!IACLStorage::get('Groups')->groupExists($gid)) {
-                    $missingGroups = true;
-                    break;
-                }
-            }
-            // Check for missing users
-            $userIDs = $ir->getUsers();
-            foreach ($userIDs as $uid) {
-                if ($uid > 0 && User::whoIs($uid) === false) {
-                    $missingUsers = true;
-                    break;
-                }
-            }
-        }
-
-        // Check for missing predefined rights
-        $prIDs = $this->getPredefinedRights(false);
-        foreach ($prIDs as $prid) {
-            if (!IACLStorage::get('SD')->sdExists($prid)) {
-                $missingPR = true;
-                break;
-            }
-        }
-
-        if (!$missingGroups && !$missingPR && !$missingUsers) {
-            return true;
-        }
-        return array('groups' => $missingGroups,
-                     'users'  => $missingUsers,
-                     'rights' => $missingPR);
     }
 }

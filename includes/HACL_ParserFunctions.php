@@ -122,27 +122,11 @@ class HACLParserFunctions
     //--- Callbacks for parser functions ---
 
     /**
-     * Callback for parser function "#access:".
-     * This parser function defines an access control entry (ACE) in form of an
-     * inline right definition. It can appear several times in an article and
-     * has the following parameters:
-     * assigned to: This is a comma separated list of user groups and users whose
-     *              access rights are defined. The special value stands for all
-     *              anonymous users. The special value user stands for all
-     *              registered users.
-     * actions: This is the comma separated list of actions that are permitted.
-     *          The allowed values are read, edit, formedit, create, move,
-     *          annotate and delete. The special value comprises all of these actions.
+     * {{#access: assigned to = Group/X, User:Y | actions = read,edit,create }}
+     * Grants <actions> to <assigned to>.
      *
      * @param Parser $parser
-     *         The parser object
-     *
-     * @return string
-     *         Wikitext
-     *
-     * @throws
-     *         HACLException(HACLException::INTERNAL_ERROR)
-     *             ... if the parser function is called for different articles
+     * @return string Wikitext
      */
     public function _access(&$parser, $args)
     {
@@ -155,22 +139,18 @@ class HACLParserFunctions
         list($actions, $em2) = $this->actions($params);
 
         $errMsgs = $em1 + $em2;
-        if (!$errMsgs)
+        foreach ($groupids as $g)
         {
-            foreach ($actions as $a)
-            {
-                foreach ($groupids as $g)
-                {
-                    $this->mInlineRights[IACL_RULE_GROUP][$a][$g] = true;
-                }
-                foreach ($userids as $u)
-                {
-                    $this->mInlineRights[IACL_RULE_USER][$a][$u] = true;
-                }
-            }
+            $this->mRules[IACL::RULE_GROUP][$g] |= $actions;
         }
-        else
+        foreach ($userids as $u)
+        {
+            $this->mRules[IACL::RULE_USER][$u] |= $actions;
+        }
+        if ($errMsgs)
+        {
             $this->mDefinitionValid = false;
+        }
 
         // Format the defined right in Wikitext
         $text = wfMsgForContent('hacl_pf_rights_title', implode(', ', $actions));
@@ -181,30 +161,26 @@ class HACLParserFunctions
     }
 
     /**
-     * Callback for parser function "#predefined right:".
-     * Besides inline right definitions ACLs can refer to other sets of rights
-     * that are defined in another article. This parser function established the
-     * connection. It can appear several times in security descriptors and
-     * articles with predefined rights. There is only one parameter:
-     * rights: This is a comma separated list of article names with the prefix
-     *         ACL:Right/
+     * {{#predefined right: rights = Right/Default, ...}}
+     * Includes other right definitions into this one.
      *
      * @param Parser $parser
-     *         The parser object
-     *
-     * @return string
-     *         Wikitext
-     *
-     * @throws
-     *         HACLException(HACLException::INTERNAL_ERROR)
-     *             ... if the parser function is called for different articles
+     * @return string Wikitext
      */
     public function _predefinedRight(&$parser, $args)
     {
         $params = $this->getParameters($args);
 
         // handle the parameter 'rights'
-        list($names, $em, $warnings) = $this->rights($params);
+        list($names, $ids, $errors, $warnings) = $this->rights($params);
+
+        foreach ($rights as $name => $id)
+        {
+            if ($id)
+            {
+                $this->mRights[$id[0]][$id[1]] = IACL::ACTION_INCLUDE_SD;
+            }
+        }
 
         if (count($em) == 0)
         {
