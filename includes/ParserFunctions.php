@@ -6,8 +6,7 @@
  * http://wiki.4intra.net/IntraACL
  * $Id$
  *
- * Based on HaloACL
- * Copyright 2009, ontoprise GmbH
+ * Loosely based on HaloACL (c) 2009, ontoprise GmbH
  *
  * The IntraACL-Extension is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,106 +22,75 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/**
- * This file contains the implementation of parser functions for IntraACL.
- */
 if (!defined('MEDIAWIKI'))
     die("This file is part of the IntraACL extension. It is not a valid entry point.");
 
 /**
- * The class HACLParserFunctions handles parser functions of the IntraACL
- * extension. The following functions are parsed:
- * - access
- * - predefined right
- * - manage rights
- * - member
- * - manage group
+ * Handles parser functions:
+ * - {{#access: ... }}
+ * - {{#predefined right: ... }}
+ * - {{#manage rights: ... }}
+ * - {{#member: ... }}
+ * - {{#manage group: ... }}
  */
-class HACLParserFunctions
+class IACLParserFunctions
 {
-    //--- Constants ---
+    static $instances = array();
+    var $title, $peType, $peName;
 
-    //--- Private fields ---
-    // Title: The title to which the functions are applied
-    private $mTitle = NULL;
+    // Parsed right definitions and errors are saved here
+    var $rights = array(), $errors = array();
 
-    // array(HACLRight): All inline rights of the title
-    private $mInlineRights = array();
-
-    // array(string): All predefined rights that are referenced
-    private $mPredefinedRights = array();
-
-    // array(string): Users who can change a right
-    private $mRightManagerUsers = array();
-
-    // array(string): Groups who can change a right
-    private $mRightManagerGroups = array();
-
-    // array(string): Users who can change a group
-    private $mGroupManagerUsers = array();
-
-    // array(string): Groups who can change a group
-    private $mGroupManagerGroups = array();
-
-    // array(string): Users who are member of a group
-    private $mUserMembers = array();
-
-    // array(string): Groups who are member of a group
-    private $mGroupMembers = array();
-
-    // bool: true if all parser functions of an article are valid
-    private $mDefinitionValid = true;
-
-    // string: Type of the definition: group, right, sd, invalid
-    private $mType = false;
-
-    // HACLParserFunctions: Currently used instance of this class
-    private static $mInstance = null;
-
-    // Global cloned Parser object
-    private static $mParser;
-
-    public function __construct($title)
+    function __construct($title)
     {
-        $this->mTitle = $title;
-        $this->mType = HACLEvaluator::hacl_type($this->mTitle);
+        $this->title = $title;
+        list($this->peName, $this->peType) = IACLDefinition::nameOfPE($title);
     }
 
-    public static function access($parser)
+    static function instance($parser)
+    {
+        if (!isset(self::$instances[''.$parser->mTitle]))
+        {
+            return self::$instances[''.$parser->mTitle] = new self($parser->mTitle);
+        }
+        return self::$instances[''.$parser->mTitle];
+    }
+
+    static function access($parser)
     {
         $args = func_get_args();
         return self::instance($parser)->_access($parser, $args);
     }
 
-    public static function predefinedRight($parser)
+    static function predefinedRight($parser)
     {
         $args = func_get_args();
         return self::instance($parser)->_predefinedRight($parser, $args);
     }
 
-    public static function manageRights($parser)
+    static function manageRights($parser)
     {
         $args = func_get_args();
         return self::instance($parser)->_manageRights($parser, $args);
-        return '';
     }
 
-    public static function addMember($parser)
+    static function addMember($parser)
     {
         $args = func_get_args();
         return self::instance($parser)->_addMember($parser, $args);
     }
 
-    public static function manageGroup($parser)
+    static function manageGroup($parser)
     {
         $args = func_get_args();
-        return self::instance($parser)->_manageGroup($parser, $args);
+        // Same handler as for manageRights
+        return self::instance($parser)->_manageRights($parser, $args);
     }
 
     //--- Callbacks for parser functions ---
 
     /**
-     * {{#access: assigned to = Group/X, User:Y | actions = read,edit,create }}
+     * {{#access: assigned to = User:A, Group:B, *, #, ... | actions = read,edit,create }}
      * Grants <actions> to <assigned to>.
      *
      * @param Parser $parser
@@ -132,21 +100,13 @@ class HACLParserFunctions
     {
         $params = $this->getParameters($args);
 
-        // handle the parameter 'assigned to'
-        list($users, $groups, $userids, $groupids, $em1) = $this->assignedTo($params);
-
         // handle the parameter 'action'
         list($actions, $em2) = $this->actions($params);
 
+        // handle the parameter 'assigned to'
+        list($users, $groups, $em1) = $this->assignedTo($params, 'assigned to', $actions);
+
         $errMsgs = $em1 + $em2;
-        foreach ($groupids as $g)
-        {
-            $this->mRules[IACL::RULE_GROUP][$g] |= $actions;
-        }
-        foreach ($userids as $u)
-        {
-            $this->mRules[IACL::RULE_USER][$u] |= $actions;
-        }
         if ($errMsgs)
         {
             $this->mDefinitionValid = false;
@@ -154,7 +114,7 @@ class HACLParserFunctions
 
         // Format the defined right in Wikitext
         $text = wfMsgForContent('hacl_pf_rights_title', implode(', ', $actions));
-        $text .= $this->showAssignees($users, $groups);
+        $text .= $this->showAssignees(array_keys($users), array_keys($groups));
         $text .= $this->showErrors($errMsgs);
 
         return $text;
@@ -172,183 +132,299 @@ class HACLParserFunctions
         $params = $this->getParameters($args);
 
         // handle the parameter 'rights'
-        list($names, $ids, $errors, $warnings) = $this->rights($params);
+        list($rights, $errors) = $this->rights($params);
 
         foreach ($rights as $name => $id)
         {
             if ($id)
             {
-                $this->mRights[$id[0]][$id[1]] = IACL::ACTION_INCLUDE_SD;
+                $this->rights[$id[0]][$id[1]] = IACL::ACTION_INCLUDE_SD;
             }
-        }
-
-        if (count($em) == 0)
-        {
-            // no errors
-            // => store the rights for later use.
-            $this->mPredefinedRights += IACLSecurityDescriptor::select(false, false, array('page_title' => $names));
-            $byname = array();
-            foreach ($rights as $id => $r)
+            else
             {
-                $byname[$r['page_title']] = $r;
+                $this->mDefinitionValid = false;
+                $em[] = wfMsgForContent('hacl_invalid_predefined_right', $name);
             }
-            foreach ($names as $n)
-            {
-                if (empty($byname[$n]))
-                {
-                    $em[] = wfMsgForContent('hacl_invalid_predefined_right', $r);
-                    $this->mDefinitionValid = false;
-                }
-            }
-        }
-        else
-        {
-            $this->mDefinitionValid = false;
         }
 
         // Format the rights in Wikitext
         $text = wfMsgForContent('hacl_pf_predefined_rights_title');
-        $text .= $this->showRights(array_keys($byname));
+        $text .= $this->showRights(array_keys($rights));
         $text .= $this->showErrors($em);
-        $text .= $this->showWarnings($warnings);
 
         return $text;
     }
 
     /**
-     * Callback for parser function "#manage rights:".
-     * This function can be used in security descriptors and predefined rights.
-     * It defines which user or group can change the ACL.
-     * assigned to: This is a comma separated list of users and groups that can
-     *              modify the security descriptor.
+     * {{#manage rights: assigned to = User:A, Group/B, *, #, ...}}
+     * Grants manage right for this definition/group to <assigned to>
      *
      * @param Parser $parser
-     *         The parser object
-     *
-     * @return string
-     *         Wikitext
-     *
-     * @throws
-     *         HACLException(HACLException::INTERNAL_ERROR)
-     *             ... if the parser function is called for different articles
+     * @return string Wikitext
      */
     public function _manageRights(&$parser, $args)
     {
         $params = $this->getParameters($args);
 
-        // handle the parameter "assigned to".
-        list($users, $groups, $errMsgs, $warnings) = $this->assignedTo($params);
+        // handle the parameter "assigned to"
+        list($users, $groups, $errMsgs) = $this->assignedTo($params, 'assigned to', IACL::RIGHT_MANAGE);
 
-        if (count($errMsgs) == 0)
-        {
-            // no errors
-            // => store the list of assignees for later use.
-            $this->mRightManagerUsers  = array_merge($this->mRightManagerUsers, $users);
-            $this->mRightManagerGroups = array_merge($this->mRightManagerGroups, $groups);
-        }
-        else
+        if ($errMsgs)
         {
             $this->mDefinitionValid = false;
         }
 
         // Format the right managers in Wikitext
         $text = wfMsgForContent('hacl_pf_right_managers_title');
-        $text .= $this->showAssignees($users, $groups);
+        $text .= $this->showAssignees(array_keys($users), array_keys($groups));
         $text .= $this->showErrors($errMsgs);
-        $text .= $this->showWarnings($warnings);
 
         return $text;
     }
 
     /**
-     * Callback for parser function "#member:".
-     * This function can appear (several times) in ACL group definitions. It
-     * defines a list of users and ACL groups that belong to the group.
-     * members: This is a comma separated list of users and groups that belong
-     *          to the group.
+     * {{#member: members = User:A, Group/B, *, #, ...}}
+     * Adds <members> to current group.
      *
      * @param Parser $parser
-     *         The parser object
-     *
-     * @return string
-     *         Wikitext
-     *
-     * @throws
-     *         HACLException(HACLException::INTERNAL_ERROR)
-     *             ... if the parser function is called for different articles
+     * @return string Wikitext
      */
     public function _addMember(&$parser, $args)
     {
         $params = $this->getParameters($args);
 
-        // handle the parameter "assigned to".
-        list($users, $groups, $errMsgs, $warnings) = $this->assignedTo($params, false);
+        // handle the parameter "assigned to"
+        list($users, $groups, $errMsgs) = $this->assignedTo($params, 'members', IACL::RIGHT_GROUP_MEMBER);
 
-        if (count($errMsgs) == 0)
-        {
-            // no errors
-            // => store the list of members for later use.
-            $this->mUserMembers  = array_merge($this->mUserMembers, $users);
-            $this->mGroupMembers = array_merge($this->mGroupMembers, $groups);
-        }
-        else
+        if ($errMsgs)
         {
             $this->mDefinitionValid = false;
         }
 
         // Format the group members in Wikitext
         $text = wfMsgForContent('hacl_pf_group_members_title');
-        $text .= $this->showAssignees($users, $groups, false);
+        $text .= $this->showAssignees(array_keys($users), array_keys($groups));
         $text .= $this->showErrors($errMsgs);
-        $text .= $this->showWarnings($warnings);
 
         return $text;
     }
 
     /**
-     * Callback for parser function "#manage group:".
-     * This function can be used in ACL group definitions. It defines which user
-     * or group can change the group.
-     * assigned to: This is a comma separated list of users and groups that can
-     *              modify the group.
+     * Parses function parameters and returns associative array of them.
      *
-     * @param Parser $parser
-     *         The parser object
-     *
-     * @return string
-     *         Wikitext
-     *
-     *
-     * @throws
-     *         HACLException(HACLException::INTERNAL_ERROR)
-     *             ... if the parser function is called for different articles
+     * @param array $args Parser function arguments
+     * @return array      Array of argument values indexed by argument names.
      */
-    public function _manageGroup(&$parser, $args)
+    protected function getParameters($args)
     {
-        $params = $this->getParameters($args);
-
-        // handle the parameter "assigned to".
-        list($users, $groups, $errMsgs, $warnings) = $this->assignedTo($params);
-
-        if (count($errMsgs) == 0)
+        $parameters = array();
+        foreach ($args as $arg)
         {
-            // no errors
-            // => store the list of assignees for later use.
-            $this->mGroupManagerUsers  = array_merge($this->mGroupManagerUsers, $users);
-            $this->mGroupManagerGroups = array_merge($this->mGroupManagerGroups, $groups);
+            if (is_string($arg) && preg_match('/^\s*(.*?)\s*=\s*(.*?)\s*$/', $arg, $p))
+            {
+                $parameters[strtolower($p[1])] = $p[2];
+            }
         }
-        else
+        return $parameters;
+    }
+
+    /**
+     * Parses user/group lists and assigns $actions to them.
+     * I.e. User:A, Group/B, Group:B, *, #
+     *
+     * @param array  $params    Array of argument values, indexed by argument name
+     * @param string $param     Argument to handle
+     * @param int    $actions   Action bitmask to save into $this->rights
+     * @return array(
+     *     array($userName => int $userId | false),
+     *     array($groupName => int $groupId | false),
+     *     array($error, ...)
+     * )
+     */
+    protected function assignedTo($params, $param, $actions)
+    {
+        $errors = array();
+        $users = array();
+        $groups = array();
+
+        if (!isset($params[$param]))
         {
-            $this->mDefinitionValid = false;
+            // The parameter is missing
+            $errors[] = wfMsgForContent('hacl_missing_parameter', $param);
+            return array($users, $groups, $errors);
         }
 
-        // Format the right managers in Wikitext
-        $text = wfMsgForContent('hacl_pf_group_managers_title');
-        $text .= $this->showAssignees($users, $groups);
-        $text .= $this->showErrors($errMsgs);
-        $text .= $this->showWarnings($warnings);
+        $etc = haclfDisableTitlePatch();
+        $assignedTo = explode(',', $params[$param]);
 
-        return $text;
+        // read assigned users and groups
+        foreach ($assignedTo as $assignee)
+        {
+            $assignee = trim($assignee);
+            if ($assignee === '*')
+            {
+                // all users
+                $users['*'] = IACL::ALL_USERS;
+            }
+            elseif ($assignee === '#')
+            {
+                // registered users
+                $users['#'] = IACL::REGISTERED_USERS;
+            }
+            elseif (($t = Title::newFromText($assignee)))
+            {
+                $assignee = $t->getText();
+                if ($t->getNamespace() == NS_USER)
+                {
+                    $users[$assignee] = false;
+                }
+                else
+                {
+                    if ($p = strpos($assignee, ':'))
+                    {
+                        // Allow Group:X syntax
+                        $assignee = substr($assignee, 0, $p) . '/' . substr($assignee, $p+1);
+                    }
+                    $groups[$assignee] = false;
+                }
+            }
+            else
+            {
+                $errors[] = wfMsgForContent('hacl_unknown_user', $assignee);
+            }
+        }
+        // Get user IDs in a single pass
+        if ($users)
+        {
+            $check = $users;
+            unset($check['*']);
+            unset($check['#']);
+            $res = IACLStorage::get('Util')->getUsers(array('user_name' => array_keys($check)));
+            foreach ($res as $ur)
+            {
+                $users[$ur->user_name] = $ur->user_id;
+                unset($check[$ur->user_name]);
+            }
+            foreach ($check as $invalid)
+            {
+                $errors[] = wfMsgForContent('hacl_unknown_user', $invalid);
+            }
+        }
+        // Get group IDs in a single pass
+        if ($groups)
+        {
+            $check = $groups;
+            $res = IACLStorage::get('Util')->getPages(array('page_namespace' => HACL_NS_ACL, 'page_title' => array_keys($groups)));
+            foreach ($res as $gr)
+            {
+                $groups[$gr->page_title] = $gr->page_id;
+                unset($check[$gr->page_title]);
+            }
+            foreach ($check as $invalid)
+            {
+                $errors[] = wfMsgForContent('hacl_unknown_group', $invalid);
+            }
+        }
+        if (!$users && !$groups)
+        {
+            // No users/groups specified at all => add error message
+            $errors[] = wfMsgForContent('hacl_missing_parameter_values', $param);
+        }
+        foreach ($users as $name => $id)
+        {
+            if ($id !== false)
+            {
+                $this->mRules[IACL::RULE_USER][$id] |= $actions;
+            }
+        }
+        foreach ($groups as $name => $id)
+        {
+            if ($id !== false)
+            {
+                $this->mRules[IACL::RULE_GROUP][$id] |= $actions;
+            }
+        }
+        haclfRestoreTitlePatch($etc);
+
+        return array($users, $groups, $errors);
+    }
+
+    /**
+     * Parses action names from 'actions' parameter and returns a bitmask.
+     *
+     * @param array  $params    Array of argument values, indexed by argument name
+     * @return array($bitmask, $actionNames, array($error, ...))
+     */
+    protected function actions($params)
+    {
+        global $wgContLang, $haclgContLang;
+        $errMsgs = array();
+        $bitmask = 0;
+        $actions = array();
+
+        $param = 'actions';
+        if (!isset($params[$param]))
+        {
+            // The parameter "actions" is missing.
+            $errMsgs[] = wfMsgForContent('hacl_missing_parameter', $param);
+            return array($bitmask, $actions, $errMsgs);
+        }
+
+        $actions = explode(',', $params[$param]);
+        for ($i = 0; $i < count($actions); $i++)
+        {
+            $actions[$i] = trim($actions[$i]);
+            // Check if the action is valid
+            $id = $haclgContLang->getActionId($actions[$i])
+            if (!$id)
+            {
+                $errMsgs[] = wfMsgForContent('hacl_invalid_action', $actions[$i]);
+            }
+            else
+            {
+                $bitmask |= $id;
+            }
+        }
+        if (!$actions)
+        {
+            $errMsgs[] = wfMsgForContent('hacl_missing_parameter_values', $param);
+        }
+
+        return array($bitmask, $actions, $errMsgs);
+    }
+
+    /**
+     * Parses names of right definitions.
+     *
+     * @param array  $params    Array of argument values, indexed by argument name
+     * @return array(array($name => array($peType, $peID), ...), array($error, ...))
+     */
+    protected function rights($params)
+    {
+        global $wgContLang, $haclgContLang;
+        $errMsgs = array();
+        $rights = array();
+
+        $param = 'rights';
+        if (!isset($params[$param]))
+        {
+            // The parameter "rights" is missing
+            $errMsgs[] = wfMsgForContent('hacl_missing_parameter', $param);
+            return array($rights, $errMsgs);
+        }
+
+        $rights = explode(',', $params[$param]);
+        for ($i = 0; $i < count($rights); $i++)
+        {
+            list($peName, $peType) = IACLDefinition::nameOfPE(trim($rights[$i]));
+            $rights[$i] = [ $peType, $peName ];
+        }
+        if (!$rights)
+        {
+            $errMsgs[] = wfMsgForContent('hacl_missing_parameter_values', $param);
+        }
+
+        return array($rights, $errMsgs);
     }
 
     //--- MediaWiki Hooks ---
@@ -622,9 +698,9 @@ class HACLParserFunctions
     private function consistencyCheckHtml()
     {
         global $haclgContLang, $haclgHaloScriptPath;
-        if ($this->mTitle->getNamespace() != HACL_NS_ACL)
+        if ($this->title->getNamespace() != HACL_NS_ACL)
             return '';
-        $id = $this->mTitle->getArticleId();
+        $id = $this->title->getArticleId();
         $msg = array();
         if ($id && !$this->mType)
         {
@@ -691,7 +767,7 @@ class HACLParserFunctions
         $html .= wfMsgForContent($id ? 'hacl_edit_with_special' : 'hacl_create_with_special',
             Title::newFromText('Special:IntraACL')->getLocalUrl(array(
                 'action' => ($this->mType == 'group' ? 'group' : 'acl'),
-                ($this->mType == 'group' ? 'group' : 'sd') => $this->mTitle->getPrefixedText(),
+                ($this->mType == 'group' ? 'group' : 'sd') => $this->title->getPrefixedText(),
             )),
             $haclgHaloScriptPath . '/skins/images/edit.png');
 
@@ -736,7 +812,7 @@ class HACLParserFunctions
     private function saveGroup()
     {
         global $wgUser;
-        $t = $this->mTitle;
+        $t = $this->title;
         wfDebug(__METHOD__." Saving group: $t\n");
         $group = HACLGroup::newFromId($t->getArticleID());
         // TODO Check modification access
@@ -761,7 +837,7 @@ class HACLParserFunctions
      */
     private function saveSecurityDescriptor($isRight)
     {
-        $t = $this->mTitle;
+        $t = $this->title;
         wfDebug(__METHOD__." Saving SD: $t\n");
         $sd = HACLSecurityDescriptor::newFromID($t->getArticleID());
         // TODO Check modification access
@@ -808,11 +884,11 @@ class HACLParserFunctions
         // Additional checks for SDs
         if ($this->mType == 'sd')
         {
-            $sdName = $this->mTitle->getFullText();
+            $sdName = $this->title->getFullText();
             list($pe, $peType) = HACLSecurityDescriptor::nameOfPE($sdName);
             // Check if the protected element for a security descriptor does exist
             if (HACLSecurityDescriptor::peIDforName($pe, $peType) === false)
-                $msg[] = wfMsgForContent('hacl_pe_not_exists', $this->mTitle->getText());
+                $msg[] = wfMsgForContent('hacl_pe_not_exists', $this->title->getText());
             global $haclgUnprotectableNamespaceIds;
             // a namespace can only be protected if it is not member of $haclgUnprotectableNamespaces
             // (transformed into $haclgUnprotectableNamespaceIds on extension init)
@@ -870,250 +946,6 @@ class HACLParserFunctions
             }
         }
         return $msg;
-    }
-
-    /**
-     * Returns the parser function parameters that were passed to the parser-function
-     * callback.
-     *
-     * @param array(mixed) $args
-     *         Arguments of a parser function callback
-     * @return array(string=>string)
-     *         Array of argument names and their values.
-     */
-    private function getParameters($args) {
-        $parameters = array();
-
-        foreach ($args as $arg) {
-            if (!is_string($arg)) {
-                continue;
-            }
-            if (preg_match('/^\s*(.*?)\s*=\s*(.*?)\s*$/', $arg, $p) == 1) {
-                $parameters[strtolower($p[1])] = $p[2];
-            }
-        }
-
-        return $parameters;
-    }
-
-    /**
-     * This method handles the parameter "assignedTo" of the parser functions
-     * #access, #manage rights and #manage groups.
-     * If $isAssignedTo is false, the parameter "members" for parser function
-     * #members is handled. The values have the same format as for "assigned to".
-     *
-     * @param array(string=>string) $params
-     *         Array of argument names and their values. These are the arguments
-     *         that were passed to the parser function as returned by the method
-     *         getParameters().
-     *
-     * @param bool $isAssignedTo
-     *         true  => parse the parameter "assignedTo"
-     *         false => parse the parameter "members"
-     * @return array(users:array(string), groups:array(string),
-     *               error messages:array(string), warnings: array(string))
-     */
-    private function assignedTo($params, $isAssignedTo = true)
-    {
-        global $wgContLang, $haclgContLang;
-        $errors = array();
-        $warnings = array();
-        $users = array();
-        $groups = array();
-
-        $assignedToPN = $isAssignedTo ? 'assigned to' : 'members';
-        if (!array_key_exists($assignedToPN, $params))
-        {
-            // The parameter "assigned to" is missing.
-            $errors[] = wfMsgForContent('hacl_missing_parameter', $assignedToPN);
-            return array($users, $groups, $errors);
-        }
-
-        $etc = haclfDisableTitlePatch();
-        $assignedTo = $params[$assignedToPN];
-        $assignedTo = explode(',', $assignedTo);
-        // read assigned users and groups
-        foreach ($assignedTo as $assignee)
-        {
-            if ($assignee === '*')
-            {
-                // all users
-                $userids[] = 0;
-            }
-            elseif ($assignee === '#')
-            {
-                // registered users
-                $userids[] = -1;
-            }
-            elseif (($t = Title::newFromText($assignee)))
-            {
-                $assignee = $t->getText();
-                if ($t->getNamespace() == NS_USER)
-                {
-                    $users[$assignee] = true;
-                }
-                else
-                {
-                    if ($p = strpos($assignee, ':'))
-                    {
-                        // Allow Group:X syntax
-                        $assignee = substr($assignee, 0, $p) . '/' . substr($assignee, $p+1);
-                    }
-                    $groups[$assignee] = true;
-                }
-            }
-            else
-            {
-                $warnings[] = wfMsgForContent('hacl_unknown_user', $assignee);
-            }
-        }
-        if ($users)
-        {
-            $check = $users;
-            $userRows = IACLStorage::get('Util')->getUsers(array('user_name' => array_keys($users)));
-            foreach ($userRows as $ur)
-            {
-                unset($check[$ur->user_name]);
-                $userIds[] = $ur->user_id;
-            }
-            foreach ($check as $invalid)
-            {
-                $warnings[] = wfMsgForContent('hacl_unknown_user', $invalid);
-            }
-            $users = array_keys($users);
-        }
-        if ($groups)
-        {
-            $check = $groups;
-            $groupRows = IACLGroup::select(array('group_name' => array_keys($groups)));
-            foreach ($groupRows as $gr)
-            {
-                unset($check[$gr['group_name']]);
-            }
-            foreach ($check as $invalid)
-            {
-                $warnings[] = wfMsgForContent('hacl_unknown_group', $invalid);
-            }
-            $groups = array_keys($groups);
-        }
-        if (!$users && !$groups)
-        {
-            // No users/groups specified at all => add error message
-            $errors[] = wfMsgForContent('hacl_missing_parameter_values', $assignedToPN);
-        }
-        haclfRestoreTitlePatch($etc);
-
-        return array($users, $groups, $userIds, $groupIds, $errors, $warnings);
-    }
-
-    /**
-     * This method handles the parameter "actions" of the parser function #access.
-     *
-     * @param array(string=>string) $params
-     *         Array of argument names and their values. These are the arguments
-     *         that were passed to the parser function as returned by the method
-     *         getParameters().
-     *
-     * @return array(actions:array(string), error messages:array(string))
-     */
-    private function actions($params)
-    {
-        global $wgContLang, $haclgContLang;
-        $errMsgs = array();
-        $actions = array();
-
-        $actionsPN = 'actions';
-        if (!array_key_exists($actionsPN, $params))
-        {
-            // The parameter "actions" is missing.
-            $errMsgs[] = wfMsgForContent('hacl_missing_parameter', $actionsPN);
-            return array($actions, $errMsgs);
-        }
-
-        $actions = $params[$actionsPN];
-        $actions = explode(',', $actions);
-        for ($i = 0; $i < count($actions); ++$i)
-        {
-            $actions[$i] = trim($actions[$i]);
-            // Check if the action is valid
-            if (!$haclgContLang->getActionId($actions[$i]))
-            {
-                $errMsgs[] = wfMsgForContent('hacl_invalid_action', $actions[$i]);
-            }
-        }
-        if (!$actions)
-        {
-            $errMsgs[] = wfMsgForContent('hacl_missing_parameter_values', $actionsPN);
-        }
-
-        return array($actions, $errMsgs);
-    }
-
-    /**
-     * This method handles the parameter "rights" of the parser function
-     * #predefined right.
-     *
-     * @param array(string=>string) $params
-     *         Array of argument names and their values. These are the arguments
-     *         that were passed to the parser function as returned by the method
-     *         getParameters().
-     *
-     * @return array(rights:array(string), error messages:array(string), warnings:array(string))
-     */
-    private function rights($params) {
-        global $wgContLang, $haclgContLang;
-        $errMsgs = array();
-        $warnings = array();
-        $rights = array();
-
-        $rightsPN = 'rights';
-        if (!array_key_exists($rightsPN, $params)) {
-            // The parameter "rights" is missing.
-            $errMsgs[] = wfMsgForContent('hacl_missing_parameter', $rightsPN);
-            return array($rights, $errMsgs);
-        }
-
-        $rights = $params[$rightsPN];
-        $rights = explode(',', $rights);
-        // trim rights
-        for ($i = 0; $i < count($rights); ++$i) {
-            $rights[$i] = trim($rights[$i]);
-            // Check if the right exists
-            if (HACLSecurityDescriptor::idForSD($rights[$i]) == 0) {
-                // The right does not exist
-                $warnings[] = wfMsgForContent('hacl_invalid_predefined_right', $rights[$i]);
-                unset($rights[$i]);
-            }
-        }
-        if (count($rights) == 0) {
-            $errMsgs[] = wfMsgForContent('hacl_missing_parameter_values', $rightsPN);
-        } else {
-            // Create new indices in the array (in case invalid rights have been removed)
-            $rights = array_values($rights);
-        }
-
-        return array($rights, $errMsgs, $warnings);
-    }
-
-    /**
-     * Converts an array of language dependent action names as they are used in
-     * rights to a combined (ORed) action ID bit-field.
-     *
-     * @param array(string) $actionNames
-     *         Language dependent action names like 'read' or 'lesen'.
-     *
-     * @return int
-     *         An action ID that is the ORed combination of action IDs they are
-     *     defined as constants in the class HACLRight.
-     */
-    private function actionNamesToIDs($actionNames)
-    {
-        global $haclgContLang;
-        $actionID = 0;
-        foreach ($actionNames as $an)
-            if ($id = $haclgContLang->getActionId($an))
-                $actionID |= $id;
-        return $actionID;
     }
 
     /**
