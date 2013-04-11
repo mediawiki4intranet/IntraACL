@@ -260,8 +260,8 @@ class IntraACL_SQL_SD
             return is_array($SDID) ? array() : NULL;
         $dbr = wfGetDB(DB_SLAVE);
         $res = $dbr->select(
-            array('halo_acl_security_descriptors', 'page'),
-            'halo_acl_security_descriptors.*, page_title',
+            array('sd' => 'halo_acl_security_descriptors', 'page'),
+            'sd.*, page_title',
             array('sd_id' => $SDID, 'page_id=sd_id'),
             __METHOD__
         );
@@ -483,8 +483,8 @@ class IntraACL_SQL_SD
         $total = $res->fetchRow();
         $total = $total[0];
         // Select single-inclusion information
-        $res = $dbr->select(array('halo_acl_rights_hierarchy', 'halo_acl_rights', 'page'),
-            'parent_right_id, page.*',
+        $res = $dbr->select(array('halo_acl_rights_hierarchy', 'halo_acl_rights', 'p' => 'page'),
+            'parent_right_id, p.*',
             array('origin_id IS NULL', 'parent_right_id' => array_keys($rows)),
             __METHOD__,
             array('GROUP BY' => 'parent_right_id', 'HAVING' => 'COUNT(child_id)=1'),
@@ -612,7 +612,7 @@ class IntraACL_SQL_SD
         if (!$catids)
             return array();
         $res = $dbr->select(
-            array('page', 'halo_acl_security_descriptors'), 'page.*',
+            array('p' => 'page', 'halo_acl_security_descriptors'), 'p.*',
             array('page_id=sd_id', 'pe_id' => array_keys($catids), 'type' => HACLLanguage::PET_CATEGORY),
             __METHOD__
         );

@@ -74,7 +74,7 @@ class IntraACL_SQL_Util
         if (!$dbkeys)
             return array();
         $dbr = wfGetDB(DB_SLAVE);
-        $res = $dbr->select(array('categorylinks', 'page'), 'cl_to, page.*',
+        $res = $dbr->select(array('categorylinks', 'p' => 'page'), 'cl_to, p.*',
             array('page_id=cl_from', 'cl_to' => $dbkeys), __METHOD__);
         $cont = array();
         foreach ($res as $row)
@@ -98,7 +98,7 @@ class IntraACL_SQL_Util
         // Get subcategories
         while ($categories)
         {
-            $res = $dbr->select(array('page', 'categorylinks'), 'page.*',
+            $res = $dbr->select(array('p' => 'page', 'categorylinks'), 'p.*',
                 array('cl_from=page_id', 'cl_to' => $categories, 'page_namespace' => NS_CATEGORY),
                 __METHOD__);
             $categories = array();
