@@ -10,7 +10,7 @@ based on HaloACL, correcting its endless bugs and inconveniences.
 
 == REQUIREMENTS ==
 
-The only requirement is MediaWiki of at least version 1.13.2.
+The only requirement is MediaWiki of at least version 1.14.
 
 == INSTALLATION ==
 

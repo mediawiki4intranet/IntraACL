@@ -41,19 +41,27 @@ class IACLParserFunctions
     // Parsed right definitions and errors are saved here
     var $rights = array(), $errors = array();
 
+    // Parser instance
+    static $parser;
+
     function __construct($title)
     {
         $this->title = $title;
         list($this->peName, $this->peType) = IACLDefinition::nameOfPE($title);
     }
 
-    static function instance($parser)
+    static function instance($parser, $noCreate = false)
     {
         if (!isset(self::$instances[''.$parser->mTitle]))
         {
-            return self::$instances[''.$parser->mTitle] = new self($parser->mTitle);
+            return $noCreate ? false : (self::$instances[''.$parser->mTitle] = new self($parser->mTitle));
         }
         return self::$instances[''.$parser->mTitle];
+    }
+
+    static function destroyInstance($instance)
+    {
+        unset(self::$instances[''.$instance->title]);
     }
 
     static function access($parser)
@@ -98,13 +106,18 @@ class IACLParserFunctions
      */
     public function _access(&$parser, $args)
     {
+        if ($this->peType == IACL::PE_GROUP)
+        {
+            return wfMsgForContent('hacl_invalid_parser_function', 'access');
+        }
+
         $params = $this->getParameters($args);
 
         // handle the parameter 'action'
-        list($actions, $em2) = $this->actions($params);
+        list($bitmask, $actions, $em2) = $this->actions($params);
 
         // handle the parameter 'assigned to'
-        list($users, $groups, $em1) = $this->assignedTo($params, 'assigned to', $actions);
+        list($users, $groups, $em1) = $this->assignedTo($params, 'assigned to', $bitmask);
 
         $errMsgs = $em1 + $em2;
         if ($errMsgs)
@@ -129,6 +142,11 @@ class IACLParserFunctions
      */
     public function _predefinedRight(&$parser, $args)
     {
+        if ($this->peType == IACL::PE_GROUP)
+        {
+            return wfMsgForContent('hacl_invalid_parser_function', 'predefined right');
+        }
+
         $params = $this->getParameters($args);
 
         // handle the parameter 'rights'
@@ -191,6 +209,11 @@ class IACLParserFunctions
      */
     public function _addMember(&$parser, $args)
     {
+        if ($this->peType != IACL::PE_GROUP)
+        {
+            return wfMsgForContent('hacl_invalid_parser_function', 'predefined right');
+        }
+
         $params = $this->getParameters($args);
 
         // handle the parameter "assigned to"
@@ -465,20 +488,11 @@ class IACLParserFunctions
     }
 
     /**
-     * NewRevisionFromEditComplete hook is used in MediaWiki 1.13
-     * as it is ran from import as well as from doEdit().
-     */
-    public static function NewRevisionFromEditComplete($article, $rev, $baseID, $user)
-    {
-        return self::updateDefinition($article);
-    }
-
-    /**
      * ArticleEditUpdates hook is used in MediaWiki 1.14+.
      */
     public static function ArticleEditUpdates($article, $editInfo, $changed)
     {
-        return self::updateDefinition($article, $editInfo->newText);
+        return self::updateDefinition($article);
     }
 
     /**
@@ -487,72 +501,36 @@ class IACLParserFunctions
      * its content is transferred to the database.
      *
      * @param Article $article
-     * @param User $user
-     * @param string $text
-     * @return true
      */
-    public static function updateDefinition($article, $text = NULL)
+    public static function updateDefinition($article)
     {
-        // Is the article in the ACL namespace?
         $title = $article->getTitle();
-        if (($title->getNamespace() == HACL_NS_ACL) &&
-            ($type = HACLEvaluator::hacl_type($title)))
+        if ($title->getNamespace() == HACL_NS_ACL)
         {
-            //--- Get article content, if not yet ---
-            if ($text === NULL)
-                $text = $article->getContent();
-
-            //--- Create an instance for parsing this article
-            self::$mInstance = new self($title);
-
-            //--- Find parser functions inside $text ---
-            self::parse($text, $title);
-
-            //--- Check if the definition is empty ---
-            if (self::$mInstance->checkEmptiness())
+            $self = self::instance($title, true);
+            if (!$self)
             {
-                wfDebug(__METHOD__.": '$title' definition is empty, removing from DB\n");
-                self::removeDef($title);
-                return true;
+                $self = self::instance($title);
+                self::parse($article->getContent(), $title);
             }
-
-            //--- Remove old SD / Group ---
-            if ($type == 'group')
-                self::removeGroup($title);
-            else
+            $id = IACLDefinition::peIDforName($self->peName, $self->peType);
+            if ($id)
             {
-                // It is a right or security descriptor
-                if ($sd = HACLSecurityDescriptor::newFromID($title->getArticleId(), false))
+                $def = IACLDefinition::select(array('pe' => array($self->peType, $id)));
+                if ($def)
                 {
-                    // Check access
-                    if (!$sd->userCanModify())
-                        return true;
-                    // remove all current rights, however the right remains in
-                    // the hierarchy of rights, as it might be "revived"
-                    $sd->removeAllRights();
-                    // The empty right article can now be changed by everyone
-                    $sd->setManageGroups(NULL);
-                    $sd->setManageUsers('*,#');
-                    $sd->save();
+                    $def = reset($def);
                 }
+                else
+                {
+                    $def = IACLDefinition::newEmpty();
+                    $def['pe_type'] = $self->peType;
+                    $def['pe_id'] = $id;
+                }
+                $def['rights'] = $self->mRights;
+                $def->save();
             }
-
-            //--- Try to store the definition in the database ---
-            if (self::$mInstance->saveDefinition() !== NULL)
-            {
-                // The cache must be invalidated, so that error messages can be
-                // generated when the article is displayed for the first time after
-                // saving.
-                $title->invalidateCache();
-            }
-            elseif ($type != 'group')
-            {
-                // Error during saving SD, remove it completely instead of leaving in incorrect state.
-                $sd->delete();
-            }
-
-            //--- Destroy instance ---
-            self::$mInstance = NULL;
+            self::destroyInstance($self);
         }
         return true;
     }
@@ -571,7 +549,6 @@ class IACLParserFunctions
     /* Remove definition completely (used with article delete or clear) */
     public static function removeDef($title)
     {
-        //--- Remove old SD / Group ---
         $type = HACLEvaluator::hacl_type($title);
         if ($type == 'group')
             self::removeGroup($title);
@@ -688,10 +665,10 @@ class IACLParserFunctions
     static function parse($text, $title)
     {
         global $wgParser;
-        if (!self::$mParser)
-            self::$mParser = clone $wgParser;
+        if (!self::$parser)
+            self::$parser = clone $wgParser;
         $options = clone $wgParser->getOptions();
-        self::$mParser->parse($text, $title, $options);
+        self::$parser->parse($text, $title, $options);
     }
 
     /* Return HTML consistency check status for pages in ACL namespace */
