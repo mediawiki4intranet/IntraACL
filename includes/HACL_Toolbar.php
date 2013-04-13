@@ -116,30 +116,27 @@ class HACLToolbar
         foreach ($quickacl->getSDs() as $sd)
         {
             $hasQuickACL = true;
-            try
+            // Check if the template is valid or corrupted by missing groups, user, ...
+            // FIXME do no such check, simply remove SD definition from database when it is corrupted
+            if ($sd->checkIntegrity() === true)
             {
-                // Check if the template is valid or corrupted by missing groups, user, ...
-                // FIXME do no such check, simply remove SD definition from database when it is corrupted
-                if ($sd->checkIntegrity() === true)
+                $option = array(
+                    'name'    => $sd->getPEName(),
+                    'value'   => $sd->getSDId(),
+                    'current' => $pageSDId == $sd->getSDId(),
+                    'title'   => $ns.':'.$sd->getSDName(),
+                );
+                $found = $found || ($pageSDId == $sd->getSDId());
+                if ($default == $sd->getSDId())
                 {
-                    $option = array(
-                        'name'    => $sd->getPEName(),
-                        'value'   => $sd->getSDId(),
-                        'current' => $pageSDId == $sd->getSDId(),
-                        'title'   => $ns.':'.$sd->getSDName(),
-                    );
-                    $found = $found || ($pageSDId == $sd->getSDId());
-                    if ($default == $sd->getSDId())
-                    {
-                        // Always insert default SD as the second option
-                        if (!$title->exists())
-                            $option['current'] = true;
-                        array_splice($options, 1, 0, array($option));
-                    }
-                    else
-                        $options[] = $option;
+                    // Always insert default SD as the second option
+                    if (!$title->exists())
+                        $option['current'] = true;
+                    array_splice($options, 1, 0, array($option));
                 }
-            } catch (HACLException $e) {}
+                else
+                    $options[] = $option;
+            }
         }
 
         // If page SD is not yet in the list, insert it as the second option

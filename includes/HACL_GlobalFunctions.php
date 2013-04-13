@@ -153,12 +153,6 @@ function enableIntraACL()
         'IntraACLSpecial'           => "$haclgIP/includes/HACL_ACLSpecial.php",
         'IntraACLSelftestSpecial'   => "$haclgIP/includes/SpecialSelftest.php",
 
-        // Exception classes
-        'HACLException'             => "$haclgIP/includes/HACL_Exception.php",
-        'HACLGroupException'        => "$haclgIP/includes/HACL_Exception.php",
-        'HACLSDException'           => "$haclgIP/includes/HACL_Exception.php",
-        'HACLRightException'        => "$haclgIP/includes/HACL_Exception.php",
-
         // Storage
         'IACLStorage'               => "$haclgIP/storage/Storage.php",
         'IntraACL_SQL_Groups'       => "$haclgIP/storage/SQL_Groups.php",
@@ -384,13 +378,10 @@ function haclfInitContentLanguage($langcode)
  *            '#' - all registered users (ID: -1)
  * @return array(int,string)
  *         (Database-)ID of the given user and his name. For the sake of
- *      performance the name is not retrieved, if the ID of the user is
+ *         performance the name is not retrieved, if the ID of the user is
  *         passed in parameter $user.
- * @throws
- *         HACLException(HACLException::UNKNOWN_USER)
- *             ...if the user does not exist.
  */
-function haclfGetUserID($user = null, $throw_error = true)
+function haclfGetUserID($user = null)
 {
     $userID = false;
     $userName = '';
@@ -446,12 +437,6 @@ function haclfGetUserID($user = null, $throw_error = true)
     {
         // all registered users
         $userName = '#';
-    }
-
-    if ($userID === false && $throw_error)
-    {
-        // invalid user
-        throw new HACLException(HACLException::UNKNOWN_USER, '"'.$user.'"');
     }
 
     return array($userID, $userName);
