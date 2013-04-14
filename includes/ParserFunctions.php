@@ -39,7 +39,7 @@ class IACLParserFunctions
     var $title, $peType, $peName;
 
     // Parsed right definitions and errors are saved here
-    var $rights = array(), $errors = array();
+    var $rights = array(), $hasActions = 0, $errors = array();
 
     // Parser instance
     static $parser;
@@ -357,14 +357,16 @@ class IACLParserFunctions
         {
             if ($id !== false)
             {
-                $this->mRules[IACL::RULE_USER][$id] |= $actions;
+                $this->rules[IACL::RULE_USER][$id] |= $actions;
+                $this->hasActions |= $actions;
             }
         }
         foreach ($groups as $name => $id)
         {
             if ($id !== false)
             {
-                $this->mRules[IACL::RULE_GROUP][$id] |= $actions;
+                $this->rules[IACL::RULE_GROUP][$id] |= $actions;
+                $this->hasActions |= $actions;
             }
         }
         haclfRestoreTitlePatch($etc);
@@ -436,13 +438,19 @@ class IACLParserFunctions
             return array($rights, $errMsgs);
         }
 
-        $rights = explode(',', $params[$param]);
-        for ($i = 0; $i < count($rights); $i++)
+        $rights = trim($params[$param]));
+        $rights = $rights === '' ? array() : explode(',', $rights);
+        $result = array();
+        foreach ($rights as $r)
         {
-            list($peName, $peType) = IACLDefinition::nameOfPE(trim($rights[$i]));
-            $rights[$i] = [ $peType, $peName ];
+            $r = trim($r);
+            if ($r)
+            {
+                list($peName, $peType) = IACLDefinition::nameOfPE();
+                $result[$r] = [ $peType, $peName ];
+            }
         }
-        if (!$rights)
+        if (!$result)
         {
             $errMsgs[] = wfMsgForContent('hacl_missing_parameter_values', $param);
         }
@@ -459,6 +467,7 @@ class IACLParserFunctions
     public static function articleViewHeader(&$article, &$outputDone, &$pcache)
     {
         global $haclgContLang;
+        // TODO make it different: disable cache for ACL
         if ($article->getTitle()->getNamespace() == HACL_NS_ACL)
         {
             self::$mInstance = new self($article->getTitle());
@@ -527,7 +536,7 @@ class IACLParserFunctions
                     $def['pe_type'] = $self->peType;
                     $def['pe_id'] = $id;
                 }
-                $def['rights'] = $self->mRights;
+                $def['rights'] = $self->rights;
                 $def->save();
             }
             self::destroyInstance($self);
@@ -643,22 +652,39 @@ class IACLParserFunctions
         return true;
     }
 
-    //--- Private methods ---
-
-    private static function removeGroup($title)
+    /**
+     * Moves the SD content from $from to $to, and overwrites
+     * the source article with single PR inclusion of target to protect
+     * old revisions of source article (needed if there's a redirect left).
+     *
+     * We must use Title::moveTo() here to preserve the ID of old SD...
+     *
+     * @param string $from
+     *        Original name of the SD article.
+     * @param string $to
+     *        New name of the SD article.
+     */
+    static function move($from, $to)
     {
-        try
+        // TODO incorrect
+        wfDebug(__METHOD__.": move SD requested from $from to $to\n");
+        $etc = haclfDisableTitlePatch();
+        if (!is_object($from))
+            $from = Title::newFromText($from);
+        if (!is_object($to))
+            $to = Title::newFromText($to);
+        haclfRestoreTitlePatch($etc);
+        if ($to->exists() && $to->userCan('delete'))
         {
-            $group = HACLGroup::newFromID($title->getArticleId());
-            // It is a group
-            // => remove all current members, however the group remains in the
-            //    hierarchy of groups, as it might be "revived"
-            $group->removeAllMembers();
-            // The empty group article can now be changed by everyone
-            $group->setManageGroups(NULL);
-            $group->setManageUsers('*,#');
-            $group->save();
-        } catch(Exception $e) {}
+            // FIXME report about "permission denied to overwrite $to"
+            $page = new Article($to);
+            $page->doDeleteArticle(wfMsg('hacl_move_acl'));
+        }
+        $from->moveTo($to, false, wfMsg('hacl_move_acl'), false);
+        // FIXME if there's no redirect there's also no need for PR inclusion
+        // FIXME also we should revive the SD for a non-existing PE when that PE is created again
+        $fromA = new Article($from);
+        $fromA->doEdit('{{#predefined right:rights='.$to->getPrefixedText().'}}', wfMsg('hacl_move_acl_include'));
     }
 
     /* Parse wikitext inside a separate parser to overcome its non-reenterability */
@@ -671,74 +697,67 @@ class IACLParserFunctions
         self::$parser->parse($text, $title, $options);
     }
 
-    /* Return HTML consistency check status for pages in ACL namespace */
-    private function consistencyCheckHtml()
+    /**
+     * Return HTML consistency check status for pages in ACL namespace
+     */
+    function consistencyCheckHtml()
     {
         global $haclgContLang, $haclgHaloScriptPath;
-        if ($this->title->getNamespace() != HACL_NS_ACL)
-            return '';
-        $id = $this->title->getArticleId();
         $msg = array();
-        if ($id && !$this->mType)
+        if ($this->errors)
         {
-            // Warning: Article does not correspond to any ACL definition
-            // FIXME add the list of valid prefixes into warning text
-            $msg[] = wfMsgForContent('hacl_invalid_prefix');
+            $msg[] = wfMsgForContent('hacl_errors_in_definition');
         }
-        elseif ($id)
+        if (!$this->rules)
         {
-            $msg = $this->checkEmptiness();
-
-            // Check for invalid parser functions
-            $ivpf = $this->findInvalidParserFunctions($this->mType);
-            $msg = array_merge($msg, $ivpf);
-
-            if (!$this->mDefinitionValid)
-                $msg[] = wfMsgForContent('hacl_errors_in_definition');
-
-            if (!$msg)
+            if ($this->peType == IACL::PE_GROUP)
             {
-                // Check if the article is already represented in IntraACL storage
-                $exists = false;
-                if ($this->mType == 'group')
-                {
-                    $grp = HACLGroup::newFromId($id, false);
-                    if ($grp)
-                    {
-                        $exists = true;
-                        // Check consistency: is the definition in the DB equal to article text?
-                        $consistent = $grp->checkIsEqual(
-                            $this->mUserMembers, $this->mGroupMembers,
-                            $this->mGroupManagerUsers, $this->mGroupManagerGroups
-                        );
-                    }
-                }
-                else
-                {
-                    $exists = HACLSecurityDescriptor::exists($id);
-                    // TODO add consistency check for security descriptors
-                    $consistent = $exists;
-                }
-
-                if (!$exists)
-                    $msg = array(wfMsgForContent('hacl_acl_element_not_in_db'));
-                elseif (!$consistent)
-                    $msg = array(wfMsgForContent('hacl_acl_element_inconsistent'));
+                $msg[] = wfMsgForContent('hacl_group_must_have_members');
+            }
+            else
+            {
+                $msg[] = wfMsgForContent('hacl_right_must_have_rights');
             }
         }
-
+        $this->makeDef();
+        if ($this->peType == IACL::PE_NAMESPACE)
+        {
+            global $haclgUnprotectableNamespaceIds;
+            // a namespace can only be protected if it is not member of $haclgUnprotectableNamespaces
+            // (transformed into $haclgUnprotectableNamespaceIds on extension init)
+            if ($haclgUnprotectableNamespaceIds &&
+                $haclgUnprotectableNamespaceIds[$this->def['pe_id']])
+            {
+                // This namespace can not be protected
+                // TODO So don't save the definition
+                $msg[] = wfMsgForContent('hacl_unprotectable_namespace');
+            }
+        }
+        if (!$this->def['pe_id'])
+        {
+            $msg[] = wfMsgForContent('hacl_pe_not_exists', $this->peName);
+        }
+        else
+        {
+            list($del, $add) = $this->def->diffRules();
+            if ($del || $add)
+            {
+                // TODO Show inconsistency details
+                $msg[] = wfMsgForContent('hacl_acl_element_inconsistent');
+            }
+        }
         // Merge errors into HTML text
         $html = '';
         if ($msg)
         {
             $html .= wfMsgForContent('hacl_consistency_errors');
-            $html .= wfMsgForContent('hacl_definitions_will_not_be_saved');
             $html .= "<ul>";
             foreach ($msg as $m)
+            {
                 $html .= "<li>$m</li>";
+            }
             $html .= "</ul>";
         }
-
         // Add "Create/edit with IntraACL editor" link
         // TODO do not display it when the user has no rights to change ACL
         $html .= wfMsgForContent($id ? 'hacl_edit_with_special' : 'hacl_create_with_special',
@@ -747,199 +766,20 @@ class IACLParserFunctions
                 ($this->mType == 'group' ? 'group' : 'sd') => $this->title->getPrefixedText(),
             )),
             $haclgHaloScriptPath . '/skins/images/edit.png');
-
         return $html;
     }
 
     /**
-     * This class collects all functions for ACLs of an article. The collected
-     * definitions are finally saved to the database with this method.
-     * If there is already a definition for the article, it will be replaced.
+     * Formats the wikitext for displaying assignees of a right or members of a group.
      *
-     * @return bool
-     *         true, if saving was successful
-     *         false, if not
-     */
-    private function saveDefinition()
-    {
-        switch ($this->mType)
-        {
-            case 'group':
-                return $this->saveGroup();
-                break;
-            case 'template':
-            case 'right':
-                return $this->saveSecurityDescriptor(true);
-                break;
-            case 'sd':
-                return $this->saveSecurityDescriptor(false);
-                break;
-            default:
-                return NULL;
-        }
-    }
-
-    /**
-     * Saves a group based on the definitions given in the current article.
-     *
-     * @return bool
-     *         true, if saving was successful
-     *         false, if not
-     */
-    private function saveGroup()
-    {
-        global $wgUser;
-        $t = $this->title;
-        wfDebug(__METHOD__." Saving group: $t\n");
-        $group = HACLGroup::newFromId($t->getArticleID());
-        // TODO Check modification access
-        $group['manage_groups'] = $this->mGroupManagerGroups;
-        $group['manage_users'] = $this->mGroupManagerUsers;
-        $group['members'] = $this->mGroupMembers + $this->mUserMembers;
-        $group->save();
-        return true;
-    }
-
-    /**
-     * Saves a right or security descriptor based on the definitions given in
-     * the current article.
-     *
-     * @param bool $isRight
-     *         true  => save a right
-     *         false => save a security descriptor
-     *
-     * @return bool
-     *         true, if saving was successful
-     *         false, if not
-     */
-    private function saveSecurityDescriptor($isRight)
-    {
-        $t = $this->title;
-        wfDebug(__METHOD__." Saving SD: $t\n");
-        $sd = HACLSecurityDescriptor::newFromID($t->getArticleID());
-        // TODO Check modification access
-        $sd['manage_groups'] = $this->mRightManagerGroups;
-        $sd['manage_users'] = $this->mRightManagerUsers;
-        $sd['inline_rights'] = $this->mInlineRights;
-        $sd['inclusions'] = $this->mPredefinedRights;
-        $sd->save();
-        return true;
-    }
-
-    /**
-     * Checks the definition for emptiness.
-     *
-     * Groups:
-     *  - must have members (users or groups)
-     * Predefined Rights and Security Descriptors:
-     *  - must have inline or predefined rights
-     *  - a namespace can only be protected if it is not member of $haclgUnprotectableNamespaces
-     *
-     * @return array(string)
-     *         An array of error messages or an empty array, if the definition is correct.
-     */
-    private function checkEmptiness()
-    {
-        global $haclgContLang, $wgContLang;
-        $msg = array();
-        // Check if the definition of a group is complete and valid
-        if ($this->mType == 'group')
-        {
-            // check for members
-            if (count($this->mGroupMembers) == 0 &&
-                count($this->mUserMembers) == 0)
-                $msg[] = wfMsgForContent('hacl_group_must_have_members');
-        }
-        // Check if the definition of a right or security descriptor is complete and valid
-        elseif ($this->mType == 'right' || $this->mType == 'sd')
-        {
-            // check for inline or predefined rights
-            if (!$this->mInlineRights &&
-                !$this->mPredefinedRights)
-                $msg[] = wfMsgForContent('hacl_right_must_have_rights');
-        }
-        // Additional checks for SDs
-        if ($this->mType == 'sd')
-        {
-            $sdName = $this->title->getFullText();
-            list($pe, $peType) = HACLSecurityDescriptor::nameOfPE($sdName);
-            // Check if the protected element for a security descriptor does exist
-            if (HACLSecurityDescriptor::peIDforName($pe, $peType) === false)
-                $msg[] = wfMsgForContent('hacl_pe_not_exists', $this->title->getText());
-            global $haclgUnprotectableNamespaceIds;
-            // a namespace can only be protected if it is not member of $haclgUnprotectableNamespaces
-            // (transformed into $haclgUnprotectableNamespaceIds on extension init)
-            if ($haclgUnprotectableNamespaceIds &&
-                $peType == HACLLanguage::PET_NAMESPACE &&
-                $haclgUnprotectableNamespaceIds[$wgLang->getNsIndex($pe)])
-            {
-                // This namespace can not be protected
-                $msg[] = wfMsgForContent('hacl_unprotectable_namespace');
-            }
-        }
-        return $msg;
-    }
-
-    /**
-     * Checks if invalid parser functions were used in definition.
-     *
-     * @param string $type
-     *         One of 'group', 'right', 'sd'
-     *
-     * @return array(string)
-     *         An array of error messages. (May be empty.)
-     */
-    private function findInvalidParserFunctions($type)
-    {
-        $msg = array();
-        global $haclgContLang;
-
-        if (count($this->mInlineRights) > 0) {
-            if ($type == 'group') {
-                $msg[] = wfMsgForContent("hacl_invalid_parser_function", 'access');
-            }
-        }
-        if (count($this->mPredefinedRights) > 0) {
-            if ($type == 'group') {
-                $msg[] = wfMsgForContent("hacl_invalid_parser_function", 'predefined right');
-            }
-        }
-        if (count($this->mRightManagerGroups) > 0 ||
-            count($this->mRightManagerUsers) > 0) {
-            if ($type == 'group') {
-                $msg[] = wfMsgForContent("hacl_invalid_parser_function", 'manage rights');
-            }
-        }
-        if (count($this->mGroupManagerGroups) > 0 ||
-            count($this->mGroupManagerUsers) > 0) {
-            if ($type == 'right' || $type == 'sd') {
-                $msg[] = wfMsgForContent("hacl_invalid_parser_function", 'manage group');
-            }
-        }
-        if (count($this->mUserMembers) > 0 ||
-            count($this->mGroupMembers) > 0) {
-            if ($type == 'right' || $type == 'sd') {
-                $msg[] = wfMsgForContent("hacl_invalid_parser_function", 'member');
-            }
-        }
-        return $msg;
-    }
-
-    /**
-     * Formats the wikitext for displaying assignees of a right or members of a
-     * group.
-     *
-     * @param array(string) $users
-     *         Array of user names (without namespace "User"). May be empty.
-     * @param array(string) $groups
-     *         Array of group names (without namespace "ACL"). May be emtpy.
+     * @param array(string) $users  User names
+     * @param array(string) $groups Group names
      * @param bool $isAssignedTo
      *         true  => output for "assignedTo"
      *         false => output for "members"
-     * @return string
-     *         A formatted wikitext with users and groups
+     * @return string       Formatted wikitext with users and groups
      */
-    private function showAssignees($users, $groups, $isAssignedTo = true)
+    function showAssignees($users, $groups, $isAssignedTo = true)
     {
         $text = "";
         if ($users)
@@ -985,45 +825,24 @@ class IACLParserFunctions
     /**
      * Formats the wikitext for displaying the error messages of a parser function.
      *
-     * @param array(string) $messages
-     *         An array of error messages. May be empty.
-     *
-     * @return string
-     *         A formatted wikitext with all error messages.
+     * @param array(string) $messages Error messages
+     * @return string Wikitext
      */
-    private function showErrors($messages) {
+    function showErrors($messages)
+    {
         $text = "";
-        if (!empty($messages)) {
+        $this->errors = array_merge($this->errors, $messages);
+        if (!empty($messages))
+        {
             $text .= "\n:;".wfMsgForContent('hacl_error').
-            wfMsgForContent('hacl_definitions_will_not_be_saved').
-                "\n";
-            $text .= ":*".implode("\n:*", $messages);
+                wfMsgForContent('hacl_will_not_work_as_expected').
+                "\n:*".implode("\n:*", $messages);
         }
         return $text;
     }
 
     /**
-     * Formats the wikitext for displaying the warnings of a parser function.
-     *
-     * @param array(string) $messages
-     *         An array of warnings. May be empty.
-     *
-     * @return string
-     *         A formatted wikitext with all warnings.
-     */
-    private function showWarnings($messages) {
-        $text = "";
-        if (!empty($messages)) {
-            $text .= "\n:;".wfMsgForContent('hacl_warning').
-            wfMsgForContent('hacl_will_not_work_as_expected').
-                "\n";
-            $text .= ":*".implode("\n:*", $messages);
-        }
-        return $text;
-    }
-
-    /**
-     * Formats the wikitext for displaying predefined rights.
+     * Formats the wikitext for displaying included rights.
      *
      * @param array(string) $rights
      *         An array of rights. May be empty.
@@ -1033,54 +852,22 @@ class IACLParserFunctions
      * @return string
      *         A formatted wikitext with all rights.
      */
-    private function showRights($rights, $addACLNS = true)
+    function showRights($rights, $addACLNS = true)
     {
-        $text = "";
         global $wgContLang;
         $aclNS = $wgContLang->getNsText(HACL_NS_ACL);
-        foreach ($rights as $r)
+        $text = "";
+        foreach ($rights as $name => $peName)
         {
             // Rights can be given without the namespace "ACL". However, the
             // right should be linked correctly. So if the namespace is missing,
             // the link is adapted.
             if (strpos($r, $aclNS) === false && $addACLNS)
+            {
                 $r = "$aclNS:$r|$r";
-            $text .= '*[['.$r."]]\n";
+            }
+            $text .= "* [[$r]]\n";
         }
         return $text;
-    }
-
-    /**
-     * Moves the SD content from $from to $to, and overwrites
-     * the source article with single PR inclusion of target to protect
-     * old revisions of source article (needed if there's a redirect left).
-     *
-     * We must use Title::moveTo() here to preserve the ID of old SD...
-     *
-     * @param string $from
-     *        Original name of the SD article.
-     * @param string $to
-     *        New name of the SD article.
-     */
-    private static function move($from, $to)
-    {
-        wfDebug(__METHOD__.": move SD requested from $from to $to\n");
-        $etc = haclfDisableTitlePatch();
-        if (!is_object($from))
-            $from = Title::newFromText($from);
-        if (!is_object($to))
-            $to = Title::newFromText($to);
-        haclfRestoreTitlePatch($etc);
-        if ($to->exists() && $to->userCan('delete'))
-        {
-            // FIXME report about "permission denied to overwrite $to"
-            $page = new Article($to);
-            $page->doDeleteArticle(wfMsg('hacl_move_acl'));
-        }
-        $from->moveTo($to, false, wfMsg('hacl_move_acl'), false);
-        // FIXME if there's no redirect there's also no need for PR inclusion
-        // FIXME also we should revive the SD for a non-existing PE when that PE is created again
-        $fromA = new Article($from);
-        $fromA->doEdit('{{#predefined right:rights='.$to->getPrefixedText().'}}', wfMsg('hacl_move_acl_include'));
     }
 }
