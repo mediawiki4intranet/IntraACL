@@ -92,6 +92,16 @@ class IACL
         'delete' => IACL::ACTION_DELETE,
         'move'   => IACL::ACTION_MOVE,
     );
+    static $actionToName = array(
+        IACL::ACTION_READ => 'read',
+        IACL::ACTION_EDIT => 'edit',
+        IACL::ACTION_CREATE => 'create',
+        IACL::ACTION_DELETE => 'delete',
+        IACL::ACTION_MOVE => 'move',
+        // Backwards compatibility with ACL editor
+        IACL::ACTION_MANAGE => 'template',
+        IACL::ACTION_PROTECT_PAGES => 'manage',
+    );
 
     /**
      * Returns the ID of an action for the given name of an action
@@ -118,26 +128,28 @@ class IACLDefinition implements ArrayAccess
         $this->rw = true;
     }
 
-    function newFromNames($peTypeNameArray)
+    function newFromTitles($titles)
     {
         $where = array();
-        foreach ($peTypeNameArray as &$pe)
+        foreach ($titles as &$k)
         {
             // FIXME: resolve multiple IDs at once
             // id = get_id(name, type)
-            $pe[2] = self::peIDforName($pe[1], $pe[0]);
-            if ($pe[2])
+            $pe = self::nameOfPE($k);
+            $id = self::peIDforName($pe[1], $pe[0]);
+            if ($id)
             {
-                $where[] = array($pe[0], $pe[2]);
+                $where[] = array($pe[0], $id);
             }
+            $k = array($pe[0], $pe[1], $id, $k);
         }
         $defs = self::select(array('pe' => $where));
         $r = array();
-        foreach ($peTypeNameArray as &$pe)
+        foreach ($titles as &$k)
         {
-            if ($pe[2])
+            if ($k[2])
             {
-                $r[$pe[0]][$pe[1]] = $defs[$pe[0].'-'.$pe[2]];
+                $r[$k[3]] = $defs[$k[0].'-'.$k[2]];
             }
         }
         return $r;
@@ -561,7 +573,7 @@ class IACLDefinition implements ArrayAccess
      *  ACL:<Right template name>           PE_RIGHT
      *
      * @param string/Title $defTitle            Definition title, with or without ACL: namespace
-     * @return array(string $name, int $type)   Name of the protected element and its type.
+     * @return array(int $type, string $name)   Name of the protected element and its type.
      */
     public static function nameOfPE($defTitle)
     {
@@ -586,17 +598,17 @@ class IACLDefinition implements ArrayAccess
         $p = strpos($defTitle, '/');
         if (!$p)
         {
-            return array($defTitle, IACL::PE_RIGHT);
+            return array(IACL::PE_RIGHT, $defTitle);
         }
         $prefix = substr($defTitle, 0, $p);
         $type = $haclgContLang->getPetAlias($prefix);
         if ($type != IACL::PE_RIGHT)
         {
             $peName = substr($defTitle, $p+1);
-            return array($peName, $type);
+            return array($type, $peName);
         }
         // Right by default
-        return array($defTitle, IACL::PE_RIGHT);
+        return array(IACL::PE_RIGHT, $defTitle);
     }
 
     /**

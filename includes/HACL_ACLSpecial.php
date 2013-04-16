@@ -442,7 +442,7 @@ class IntraACLSpecial extends SpecialPage
                 }
                 else
                     $aclArticle = NULL;
-                list($aclPEName, $aclPEType) = HACLSecurityDescriptor::nameOfPE($aclTitle->getText());
+                list($aclPEType, $aclPEName) = IACLDefinition::nameOfPE($aclTitle->getText());
             }
         }
         /* Run template */

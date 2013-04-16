@@ -29,7 +29,6 @@ if (!defined('MEDIAWIKI'))
  * This is the main class for the evaluation of user rights for a protected object.
  * It implements the function "userCan" that is called from MW for granting or
  * denying access to articles.
- *
  */
 class HACLEvaluator
 {
@@ -219,106 +218,13 @@ class HACLEvaluator
         
     }
 
-    //--- Private methods ---
-
     /**
-     * Checks, if the given user has the right to perform the given action on
-     * the given title. The hierarchy of categories is evaluated.
-     *
-     * @param mixed string|array<string> $parents
-     *         If a string is given, this is the name of an article whose parent
-     *         categories are evaluated. Otherwise it is an array of parent category
-     *         names
-     * @param int $userID
-     *         ID of the user who wants to perform an action
-     * @param int $actionID
-     *         The action, the user wants to perform. One of the constant defined
-     *         in HACLRight: READ, FORMEDIT, EDIT, ANNOTATE, CREATE, MOVE and DELETE.
-     * @param array<string> $visitedParents
-     *         This array contains the names of all parent categories that were already
-     *         visited.
-     * @return array(bool rightGranted, bool hasSD)
-     *         rightGranted:
-     *             <true>, if the user has the right to perform the action
-     *             <false>, otherwise
-     *         hasSD:
-     *             <true>, if there is an SD for the article
-     *             <false>, if not
-     */
-    public static function hasCategoryRight($parents, $userID, $actionID, $visitedParents = array())
-    {
-        if (is_string($parents) || is_object($parents))
-        {
-            // The article whose parent categories shall be evaluated is given
-            $t = is_object($parents) ? $parents : Title::newFromText($parents);
-            if (!$t)
-                return true;
-            return self::hasCategoryRight(array_keys($t->getParentCategories()), $userID, $actionID);
-        }
-        elseif (is_array($parents))
-        {
-            if (!$parents)
-                return array(false, false);
-        }
-        else
-            return array(false, false);
-
-        // Check for each parent if the right is granted
-        $parentTitles = array();
-        $hasSD = false;
-        foreach ($parents as $p)
-        {
-            $parentTitles[] = $t = Title::newFromText($p);
-            $id = $t->getArticleID();
-            if ($id)
-            {
-                $sd = (HACLSecurityDescriptor::getSDForPE($id, HACLLanguage::PET_CATEGORY) !== false);
-                if ($sd)
-                {
-                    $hasSD = true;
-                    $r = $sd->userCan($userID, $actionID);
-                    if ($r)
-                        return array(true, true);
-                }
-            }
-        }
-
-        // No parent category has the required right
-        // => check the next level of parents
-        $parents = array();
-        foreach ($parentTitles as $pt)
-        {
-            $ptParents = array_keys($pt->getParentCategories());
-            foreach ($ptParents as $p)
-            {
-                if (empty($visitedParents[$p]))
-                {
-                    $parents[] = $p;
-                    $visitedParents[$p] = true;
-                }
-            }
-        }
-
-        // Recursively check all parents
-        list($r, $sd) = self::hasCategoryRight($parents, $userID, $actionID, $visitedParents);
-        return array($r, $hasSD || $sd);
-    }
-
-    /**
-     * This method checks if a user wants to create/modify
-     * an article in the ACL namespace.
+     * This method checks if a user wants to create/modify an article in the ACL namespace.
      *
      * @param Title $t
-     *        The title.
      * @param User $user
-     *        User-object of the user.
-     * @param int $actionID
-     *        ID of the action (one of HACLLanguage::RIGHT_*).
-     *        In fact, $actionID=RIGHT_READ checks read access
-     *        and any other action checks change access.
-     *
-     * @return bool <true>, if the user has the right to perform the action
-     *              <false>, otherwise
+     * @param int $actionID     Action ID
+     * @return bool             Whether the user has the right to perform the action
      */
     public static function checkACLManager(Title $t, $user, $actionID)
     {
@@ -342,8 +248,8 @@ class HACLEvaluator
         {
             return false;
         }
-        $peId[0] = IACLDefinition::peIDforName($peId[0]);
-        if (IACLDefinition::userCan($userID, $peId[1], $peId[0], IACL::ACTION_MANAGE))
+        $peId[1] = IACLDefinition::peIDforName($peId[1]);
+        if (IACLDefinition::userCan($userID, $peId[0], $peId[1], IACL::ACTION_MANAGE))
         {
             return true;
         }
@@ -362,7 +268,7 @@ class HACLEvaluator
         // category rights are a hole - any editor can change them
 
         // Check for RIGHT_GRANT_PAGE inherited from namespaces and categories
-        if ($peId[1] == IACL::PE_PAGE && self::checkProtectPageRight($peId[0], $userID)))
+        if ($peId[0] == IACL::PE_PAGE && self::checkProtectPageRight($peId[1], $userID)))
         {
             return true;
         }

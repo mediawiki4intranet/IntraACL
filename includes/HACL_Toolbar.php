@@ -742,7 +742,7 @@ class HACLToolbar
         if ($wgTitle->getNamespace() == HACL_NS_ACL)
         {
             // Display the link to article or category
-            list($peName, $peType) = HACLSecurityDescriptor::nameOfPE($wgTitle->getText());
+            list($peType, $peName) = IACLDefinition::nameOfPE($wgTitle->getText());
             if ($peType == 'page' || $peType == 'category')
             {
                 $title = Title::newFromText($peName);
