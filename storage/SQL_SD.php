@@ -483,14 +483,14 @@ class IntraACL_SQL_SD
         $total = $res->fetchRow();
         $total = $total[0];
         // Select single-inclusion information
-        $res = $dbr->select(array('halo_acl_rights_hierarchy', 'halo_acl_rights', 'p' => 'page'),
-            'parent_right_id, p.*',
-            array('origin_id IS NULL', 'parent_right_id' => array_keys($rows)),
+        $res = $dbr->select(array('i' => 'halo_acl_rights_hierarchy', 'r' => 'halo_acl_rights', 'p' => 'page'),
+            'i.parent_right_id, p.*',
+            array('r.origin_id IS NULL', 'i.parent_right_id' => array_keys($rows)),
             __METHOD__,
-            array('GROUP BY' => 'parent_right_id', 'HAVING' => 'COUNT(child_id)=1'),
+            array('GROUP BY' => 'i.parent_right_id', 'HAVING' => 'COUNT(i.child_id)=1'),
             array(
-                'halo_acl_rights' => array('LEFT JOIN', array('origin_id=parent_right_id')),
-                'page' => array('INNER JOIN', array('page_id=child_id'))
+                'r' => array('LEFT JOIN', array('r.origin_id=i.parent_right_id')),
+                'p' => array('INNER JOIN', array('p.page_id=i.child_id'))
             )
         );
         foreach ($res as $row)
