@@ -24,11 +24,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/**
+ * Utility functions used to query standard MediaWiki database
+ */
 class IntraACL_SQL_Util
 {
     /**
      * Massively retrieves users with IDs $user_ids from the DB
-     * @return array(object), indexed by user ID
+     * @return array(int $userID => stdClass $row)
      */
     public function getUsers($where)
     {

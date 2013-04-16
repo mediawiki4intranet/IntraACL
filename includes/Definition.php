@@ -118,6 +118,52 @@ class IACLDefinition implements ArrayAccess
         $this->rw = true;
     }
 
+    function newFromNames($peTypeNameArray)
+    {
+        $where = array();
+        foreach ($peTypeNameArray as &$pe)
+        {
+            // FIXME: resolve multiple IDs at once
+            // id = get_id(name, type)
+            $pe[2] = self::peIDforName($pe[1], $pe[0]);
+            if ($pe[2])
+            {
+                $where[] = array($pe[0], $pe[2]);
+            }
+        }
+        $defs = self::select(array('pe' => $where));
+        $r = array();
+        foreach ($peTypeNameArray as &$pe)
+        {
+            if ($pe[2])
+            {
+                $r[$pe[0]][$pe[1]] = $defs[$pe[0].'-'.$pe[2]];
+            }
+        }
+        return $r;
+    }
+
+    function newFromName($peType, $peName)
+    {
+        $id = self::peIDforName($peName, $peType);
+        if ($id)
+        {
+            $def = self::select(array('pe' => array($peType, $id)));
+            if ($def)
+            {
+                $def = reset($def);
+            }
+            else
+            {
+                $def = self::newEmpty();
+                $def['pe_type'] = $peType;
+                $def['pe_id'] = $id;
+            }
+            return $def;
+        }
+        return false;
+    }
+
     function offsetGet($k)
     {
         if (isset($this->add[$k]))
@@ -471,7 +517,7 @@ class IACLDefinition implements ArrayAccess
         {
             // $peName is a namespace => get its ID
             global $wgContLang;
-            $peName = str_replace(' ', '_', trim(str_replace('_', ' ', $peName)));
+            $peName = str_replace(' ', '_', trim($peName, " _\t\n\r"));
             $idx = $wgContLang->getNsIndex($peName);
             if ($idx == false)
                 return (strtolower($peName) == 'main') ? 0 : false;
@@ -488,7 +534,7 @@ class IACLDefinition implements ArrayAccess
         // Return the page id
         // TODO add caching here
         $id = haclfArticleID($peName, $ns);
-        return $id == 0 ? false : $id;
+        return $id ? $id : false;
     }
 
     /**

@@ -322,7 +322,7 @@ class IACLParserFunctions
             $check = $users;
             unset($check['*']);
             unset($check['#']);
-            $res = IACLStorage::get('Util')->getUsers(array('user_name' => array_keys($check)));
+            $res = wfGetDB(DB_SLAVE)->select('user', '*', array('user_name' => array_keys($check)));
             foreach ($res as $ur)
             {
                 $users[$ur->user_name] = $ur->user_id;
@@ -337,7 +337,7 @@ class IACLParserFunctions
         if ($groups)
         {
             $check = $groups;
-            $res = IACLStorage::get('Util')->getPages(array('page_namespace' => HACL_NS_ACL, 'page_title' => array_keys($groups)));
+            $res = wfGetDB(DB_SLAVE)->select('page', '*', array('page_namespace' => HACL_NS_ACL, 'page_title' => array_keys($groups)));
             foreach ($res as $gr)
             {
                 $groups[$gr->page_title] = $gr->page_id;

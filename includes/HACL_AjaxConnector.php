@@ -217,23 +217,30 @@ function haclGrouplist()
     return call_user_func_array(array('IntraACLSpecial', 'haclGrouplist'), $a);
 }
 
-// Return group members for each group of $groups='group1,group2,...',
-// + returns rights for each predefined right of $predefined='sd1[sd2,...'
-// predefined right names are joined by [ as it is forbidden by MediaWiki in titles
+/**
+ * Return group members for each group of $groups='group1,group2,...',
+ * + returns rights for each predefined right of $predefined='sd1[sd2,...'
+ * predefined right names are joined by [ as it is forbidden by MediaWiki in titles
+ */
 function haclGroupClosure($groups, $predefined = '')
 {
-    $members = array();
+    $pe = array();
     foreach (explode(',', $groups) as $k)
     {
-        if ($k && ($i = HACLGroup::idForGroup($k)))
+        $k = trim($k);
+        if ($k)
         {
-            $m = IACLStorage::get('Groups')->getGroupMembersRecursive($i);
-            $members[$k] = array();
-            foreach (IACLStorage::get('Util')->getUsers(array('user_id' => array_keys($m['user']))) as $u)
-                $members[$k][] = 'User:'.$u->user_name;
-            foreach (IACLStorage::get('Groups')->getGroupsByIds(array_keys($m['group'])) as $g)
-                $members[$k][] = $g->group_name;
-            sort($members[$k]);
+            $pe[] = array(IACL::PE_GROUP, $k);
+        }
+    }
+    $pe = IACLDefinition::newFromNames($pe);
+    $members = array();
+    if ($pe)
+    {
+        foreach ($pe[IACL::PE_GROUP] as $name => $g)
+        {
+            // User:X, group->getText(), then sort($members[$k])
+            $members[$name] = $g
         }
     }
     $rights = array();
@@ -271,4 +278,73 @@ function haclGroupExists($name)
     global $haclgContLang;
     $grpTitle = Title::newFromText($haclgContLang->getGroupPrefix().'/'.$name, HACL_NS_ACL);
     return $grpTitle && $grpTitle->getArticleId() ? 'true' : 'false';
+}
+
+class IACLAjax
+{
+    /**
+     * Recursively get rights of SD by name or ID
+     */
+    static function getRights($sdnameorid)
+    {
+        if (!$sdnameorid)
+            return array();
+        if (!is_numeric($sdnameorid))
+        {
+            if ($t = Title::newFromText($sdnameorid, HACL_NS_ACL))
+                $sdid = $t->getArticleId();
+        }
+        else
+            $sdid = $sdnameorid;
+        if (!$sdid)
+            return array();
+        $res = array();
+        /* Inline rights */
+        $rights = IACLStorage::get('SD')->getInlineRightsOfSDs($sdid, true);
+        foreach ($rights as $r)
+        {
+            /* get action names */
+            $actmask = $r->getActions();
+            $actions = array();
+            if ($actmask & HACLLanguage::RIGHT_READ)
+                $actions[] = 'read';
+            if ($actmask & HACLLanguage::RIGHT_MANAGE)
+                $actions[] = 'manage';
+            if ($actmask & HACLLanguage::RIGHT_EDIT)
+                $actions[] = 'edit';
+            if ($actmask & HACLLanguage::RIGHT_CREATE)
+                $actions[] = 'create';
+            if ($actmask & HACLLanguage::RIGHT_MOVE)
+                $actions[] = 'move';
+            if ($actmask & HACLLanguage::RIGHT_DELETE)
+                $actions[] = 'delete';
+            $memberids = array(
+                'user' => array_flip($r->getUsers()),
+                'group' => array_flip($r->getGroups()),
+            );
+            /* get groups closure */
+            $memberids = IACLStorage::get('Groups')->getGroupMembersRecursive(array_keys($memberids['group']), $memberids);
+            $members = array();
+            foreach (IACLStorage::get('Util')->getUsers(array('user_id' => array_keys($memberids['user']))) as $u)
+                $members[] = 'User:'.$u->user_name;
+            foreach (IACLStorage::get('Groups')->getGroupsByIds(array_keys($memberids['group'])) as $g)
+                $members[] = $g->group_name;
+            /* merge into result */
+            foreach ($members as $m)
+                foreach ($actions as $a)
+                    $res[$m][$a] = true;
+        }
+        /* Predefined rights */
+        $predef = IACLStorage::get('SD')->getPredefinedRightsOfSD($sdid, false);
+        foreach ($predef as $id)
+        {
+            $sub = self::getRights($id);
+            foreach ($sub as $m => $acts)
+                foreach ($acts as $a => $true)
+                    $res[$m][$a] = true;
+        }
+        /* Sort members */
+        asort($res);
+        return $res;
+    }
 }
