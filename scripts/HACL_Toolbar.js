@@ -35,10 +35,10 @@ var haclt_addcat = function(cat, upl)
 {
   if (cat)
   {
-    if (wikEd && wikEd.useWikEd)
+    if (window.wikEd && wikEd.useWikEd)
       wikEd.UpdateTextarea();
     document.getElementById(upl ? 'wpUploadDescription' : 'wpTextbox1').value += '\n[['+cat+']]\n';
-    if (wikEd && wikEd.useWikEd)
+    if (window.wikEd && wikEd.useWikEd)
       wikEd.UpdateFrame();
   }
 };
