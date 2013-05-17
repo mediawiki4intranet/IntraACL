@@ -349,22 +349,27 @@ function haclGroupClosure($groups, $rights)
 
 function haclSDExists_GetEmbedded($type, $name)
 {
+    $type = @IACL::$nameToType[$type];
+    if (!$type)
+    {
+        return 'null';
+    }
     $data = array(
         'exists' => false,
         'embedded' => '',
     );
-    $peID = HACLSecurityDescriptor::peIDforName($name, $type);
-    if ($peID !== false)
+    $sd = IACLDefinition::newFromName($type, $name);
+    if ($sd)
     {
-        if ($sdID = HACLSecurityDescriptor::getSDForPE($peID, $type))
+        if ($sd['rights'])
         {
-            // FIXME returns true only for correct SD definitions
+            // FIXME Maybe check page instead of SD itself
             $data['exists'] = true;
         }
-        if ($type == 'page') // PET_PAGE
+        if ($type == IACL::PE_PAGE)
         {
             // Build HTML code for embedded protection toolbar
-            $data['embedded'] = HACLToolbar::getEmbeddedHtml($peID, $sdID);
+            $data['embedded'] = HACLToolbar::getEmbeddedHtml($sd);
         }
     }
     return json_encode($data);

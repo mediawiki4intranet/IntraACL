@@ -212,6 +212,7 @@ class HACLEvaluator
     /**
      * Returns IDs of all parent categories for article with ID $articleID
      * (including non-direct inclusions)
+     * FIXME: Maybe speed up this by materializing?
      */
     protected function getParentCategoryIDs($articleID)
     {
@@ -292,7 +293,7 @@ class HACLEvaluator
      * @param User $user
      * @param string $action
      */
-    private static function startLog($title, $user, $action)
+    static function startLog($title, $user, $action)
     {
         global $wgRequest, $haclgEvaluatorLog, $haclgCombineMode;
         self::$mLogEnabled = $haclgEvaluatorLog && $wgRequest->getVal('hacllog', 'false') == 'true';
@@ -313,7 +314,7 @@ class HACLEvaluator
      * Adds a message to the evaluation log.
      * @param string $msg   The message to add.
      */
-    private static function log($msg)
+    static function log($msg)
     {
         if (self::$mLogEnabled)
         {
@@ -324,14 +325,13 @@ class HACLEvaluator
     /**
      * Finishes the log for an evaluation.
      */
-    private static function finishLog()
+    static function finishLog()
     {
         if (!self::$mLogEnabled)
         {
             // Logging is disabled
             return;
         }
-
         // FIXME emit this in <pre> and after the page content
         echo self::$mLog;
     }

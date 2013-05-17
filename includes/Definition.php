@@ -85,6 +85,12 @@ class IACL
     const ALL_USERS             = -1;
     const REGISTERED_USERS      = 0;
 
+    static $nameToType = array(
+        'right'     => IACL::PE_RIGHT,
+        'namespace' => IACL::PE_NAMESPACE,
+        'category'  => IACL::PE_CATEGORY,
+        'page'      => IACL::PE_PAGE,
+    );
     static $nameToAction = array(
         'read'   => IACL::ACTION_READ,
         'edit'   => IACL::ACTION_EDIT,
