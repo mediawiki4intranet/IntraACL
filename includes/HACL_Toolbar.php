@@ -316,20 +316,41 @@ class HACLToolbar
         $g = $wgUser->getGroups();
         if (!$g || !in_array('bureaucrat', $g) && !in_array('sysop', $g))
         {
-            list($r, $sd) = HACLEvaluator::checkNamespaceRight(
-                NS_FILE, $wgUser->getId(), HACLLanguage::RIGHT_READ
-            );
-            if (!($sd ? $r : $haclgOpenWikiAccess))
+            $dest = NULL;
+            if ($upload->mDesiredDestName)
             {
-                $sel = self::getReadableCategoriesSelectBox(true);
-                if ($sel)
+                $dest = Title::makeTitleSafe(NS_FILE, $upload->mDesiredDestName);
+            }
+            if (!$dest || !$dest->exists())
+            {
+                // New file
+                list($cr, $sd) = HACLEvaluator::checkNamespaceRight(
+                    NS_FILE, $wgUser->getId(), HACLLanguage::RIGHT_CREATE
+                );
+                $cr = $sd ? $cr : $haclgOpenWikiAccess;
+                if (!$cr)
                 {
-                    self::addToolbarLinks($wgOut);
-                    $t = wfMsgNoTrans('hacl_nonreadable_upload', $sel);
+                    $wgOut->showErrorPage('hacl_upload_forbidden', 'hacl_upload_forbidden_text');
+                    return false;
                 }
                 else
-                    $t = wfMsgNoTrans('hacl_nonreadable_upload_nocat');
-                $upload->uploadFormTextTop .= $t;
+                {
+                    $sel = self::getReadableCategoriesSelectBox(true);
+                    if ($sel)
+                    {
+                        self::addToolbarLinks($wgOut);
+                        $t = wfMsgNoTrans('hacl_nonreadable_upload', $sel);
+                    }
+                    else
+                        $t = wfMsgNoTrans('hacl_nonreadable_upload_nocat');
+                    $upload->uploadFormTextTop .= $t;
+                }
+            }
+            elseif (($permission_errors = $dest->getUserPermissionsErrors('edit', $wgUser)))
+            {
+                // New version of existing file
+                $wgOut->showPermissionsErrorPage($permission_errors);
+                return false;
             }
         }
         return true;

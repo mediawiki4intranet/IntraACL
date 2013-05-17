@@ -106,6 +106,9 @@ Please, add one of the following categories to the description, or you will <b>n
 You have no read access to the <tt>File</tt> namespace. You will <b>not</b> be able to view the file after uploading!
 </div>',
 
+    'hacl_upload_forbidden'             => 'File uploads forbidden',
+    'hacl_upload_forbidden_text'        => 'File uploads are forbidden because you have no IntraACL right to create articles within File namespace. Contact the site administrator.',
+
     /**** IntraACL: ****/
 
     'tog-showacltab'                    => 'Always show ACL tab (page access rights)',
@@ -401,6 +404,9 @@ $messages['ru'] = array(
 У вас доступа на чтение пространства имён Файл. Вы <b>не сможете</b> просмотреть файл после загрузки!
 </div>',
 
+    'hacl_upload_forbidden'             => 'Загрузка файлов запрещена',
+    'hacl_upload_forbidden_text'        => 'Вы не можете загружать файлы, так как у вас нет IntraACL-прав на создание статей в пространстве имён Файл. Свяжитесь с администратором проекта.',
+
     /**** IntraACL: ****/
 
     'tog-showacltab'                    => 'Всегда показывать вкладку ACL (права доступа к странице)',
@@ -673,11 +679,11 @@ $messages['de'] = array(
     'hacl_nonreadable_create_nocat'       => '<div style="border: 0.2em solid red; padding: 0 0.5em 0.5em"><span style="color: red; font-weight: bold">Warnung!</span>Der Namensraum, in dem der Artikel erstellt werden soll, kann mit ihren Berechtigungen nicht gelesen werden.Um trotzdem fortzufahren, aktivieren Sie "<b>Nicht lesbaren Artikel erstellen</b>".</div>',
     'hacl_nonreadable_upload'             => '<div style="border: 0.2em solid red; padding: 0.2em 0.5em 0.5em; display: inline-block; width: 50%"><span style="color: red; font-weight: bold">Warnung!</span>Der Namensraum <tt>Datei</tt> kann mit ihren Berechtigungen nicht gelesen werden.<br />Bitte fügen Sie einer der folgenden Kategorien zur Beschreibung der Datei hinzu oder die Datei wird nach dem Upload <b>nicht</b> mehr für Sie lesbar sein:&nbsp;$1</div>',
     'hacl_nonreadable_upload_nocat'       => '<div style="border: 0.2em solid red; padding: 0.2em 0.5em 0.5em; display: inline-block; width: 50%"><span style="color: red; font-weight: bold">Warnung!</span>Der Namensraum <tt>Datei</tt> kann mit ihren Berechtigungen nicht gelesen werden.</div>',
-  
+
     /**** IntraACL: ****/
-  
+
     'tog-showacltab'                    => '"Rechte" Tab immer anzeigen',
-  
+
     // General
     'hacl_invalid_prefix'               => 'Diese Seite selbst schützt keine Artikel, bitte erstellen Sie neue Rechte oder Rechtevorlagen. Entweder soll diese Seite in eine andere Rechtedefinition eingebunden werden oder sie wurde falsch erstellt. Wenn Artikel geschützt werden sollen, muss die Rechteseite wie folgt heißen: ACL:Page/*, ACL:Category/*, ACL:Namespace/*, ACL:Right/*.',
     'hacl_pe_not_exists'                => 'Das Element, das mit diesen Rechten geschützt werden soll, existiert nicht.',
