@@ -335,15 +335,22 @@ class HACLToolbar
                 }
                 else
                 {
-                    $sel = self::getReadableCategoriesSelectBox(true);
-                    if ($sel)
+                    list($cr, $sd) = HACLEvaluator::checkNamespaceRight(
+                        NS_FILE, $wgUser->getId(), HACLLanguage::RIGHT_READ
+                    );
+                    $cr = $sd ? $cr : $haclgOpenWikiAccess;
+                    if (!$cr)
                     {
-                        self::addToolbarLinks($wgOut);
-                        $t = wfMsgNoTrans('hacl_nonreadable_upload', $sel);
+                        $sel = self::getReadableCategoriesSelectBox(true);
+                        if ($sel)
+                        {
+                            self::addToolbarLinks($wgOut);
+                            $t = wfMsgNoTrans('hacl_nonreadable_upload', $sel);
+                        }
+                        else
+                            $t = wfMsgNoTrans('hacl_nonreadable_upload_nocat');
+                        $upload->uploadFormTextTop .= $t;
                     }
-                    else
-                        $t = wfMsgNoTrans('hacl_nonreadable_upload_nocat');
-                    $upload->uploadFormTextTop .= $t;
                 }
             }
             elseif (($permission_errors = $dest->getUserPermissionsErrors('edit', $wgUser)))
