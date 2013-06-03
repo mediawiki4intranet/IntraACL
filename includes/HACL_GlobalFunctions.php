@@ -198,12 +198,6 @@ function haclfSetupExtension()
         'url'         => 'http://wiki.4intra.net/IntraACL',
         'description' => 'The best MediaWiki rights extension, based on HaloACL.');
 
-    // Register autocompletion icon
-    $wgHooks['smwhACNamespaceMappings'][] = 'haclfRegisterACIcon';
-
-    // Handle input fields of Semantic Forms
-    $wgHooks['sfCreateFormField'][] = 'haclfHandleFormField';
-
     // HACLParserFunctions callbacks
     $wgParser->setFunctionHook('haclaccess',            'HACLParserFunctions::access');
     $wgParser->setFunctionHook('haclpredefinedright',   'HACLParserFunctions::predefinedRight');
