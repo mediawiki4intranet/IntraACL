@@ -135,12 +135,23 @@ function haclfSetupExtension()
     if (!empty($_SERVER['SERVER_NAME']))
     {
         define('HACL_HALOACL_VERSION', '1.0');
+
+        // UI hooks - useless in console mode
         $wgHooks['EditPage::showEditForm:initial'][] = 'HACLToolbar::warnNonReadableCreate';
         $wgHooks['UploadForm:initial'][] = 'HACLToolbar::warnNonReadableUpload';
         $wgHooks['EditPage::attemptSave'][] = 'HACLToolbar::attemptNonReadableCreate';
-        // ArticleSaveComplete_SaveSD hook must come before articleSaveComplete_SaveEmbedded
+        $wgHooks['EditPage::showEditForm:fields'][] = 'haclfAddToolbarForEditPage';
+        $wgHooks['SkinTemplateContentActions'][] = 'HACLToolbar::SkinTemplateContentActions';
+        $wgHooks['SkinTemplateNavigation'][] = 'HACLToolbar::SkinTemplateNavigation';
+        // UI hooks used to update permissions along with article modification
+        // ArticleSaveComplete_SaveSD hook must run before articleSaveComplete_SaveEmbedded
         $wgHooks['ArticleSaveComplete'][] = 'HACLToolbar::articleSaveComplete_SaveSD';
         $wgHooks['ArticleSaveComplete'][] = 'HACLToolbar::articleSaveComplete_SaveEmbedded';
+
+        // Permission and cache checks - intentionally disabled in console mode
+        $wgHooks['userCan'][] = 'HACLEvaluator::userCan';
+        $wgHooks['IsFileCacheable'][] = 'haclfIsFileCacheable';
+        $wgHooks['PageRenderingHash'][] = 'haclfPageRenderingHash';
     }
     else
     {
@@ -160,23 +171,9 @@ function haclfSetupExtension()
             $haclgUnprotectableNamespaceIds[$ns] = true;
     }
 
-    //--- Register hooks ---
-    global $wgHooks;
-    $wgHooks['userCan'][] = 'HACLEvaluator::userCan';
-
     wfLoadExtensionMessages('IntraACL');
 
-    $wgHooks['IsFileCacheable'][]       = 'haclfIsFileCacheable';
-    $wgHooks['PageRenderingHash'][]     = 'haclfPageRenderingHash';
-
-    //-- Hooks for ACL toolbar --
-    $wgHooks['EditPage::showEditForm:fields'][] = 'haclfAddToolbarForEditPage';
-    $wgHooks['SkinTemplateContentActions'][] = 'HACLToolbar::SkinTemplateContentActions';
-    $wgHooks['SkinTemplateNavigation'][] = 'HACLToolbar::SkinTemplateNavigation';
     $wgHooks['GetPreferences'][] = 'HACLToolbar::GetPreferences';
-
-    //-- Hooks for SMW interface (not checked and disabled)
-    //$wgHooks['sfEditPageBeforeForm'][] = 'haclfAddToolbarForSemanticForms';
 
     //-- includes for Ajax calls --
     global $wgUseAjax, $wgRequest;
