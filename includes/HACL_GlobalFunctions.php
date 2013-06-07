@@ -140,7 +140,8 @@ function enableIntraACL()
     global $wgAutoloadClasses;
     $wgAutoloadClasses += array(
         // Internals
-        'HACLParserFunctions'       => "$haclgIP/includes/HACL_ParserFunctions.php",
+        'IACLDefinition'            => "$haclgIP/includes/Definition.php",
+        'IACLParserFunctions'       => "$haclgIP/includes/ParserFunctions.php",
         'HACLEvaluator'             => "$haclgIP/includes/HACL_Evaluator.php",
         'HACLGroup'                 => "$haclgIP/includes/HACL_Group.php",
         'HACLSecurityDescriptor'    => "$haclgIP/includes/HACL_SecurityDescriptor.php",
@@ -164,12 +165,12 @@ function enableIntraACL()
 
     // ACL update hooks are registered even in commandline.
     global $wgHooks;
-    $wgHooks['ArticleViewHeader'][]     = 'HACLParserFunctions::articleViewHeader';
-    $wgHooks['OutputPageBeforeHTML'][]  = 'HACLParserFunctions::outputPageBeforeHTML';
-    $wgHooks['ArticleEditUpdates'][] = 'HACLParserFunctions::ArticleEditUpdates';
-    $wgHooks['ArticleDelete'][]         = 'HACLParserFunctions::articleDelete';
-    $wgHooks['ArticleUndelete'][]       = 'HACLParserFunctions::articleUndelete';
-    $wgHooks['TitleMoveComplete'][]     = 'HACLParserFunctions::TitleMoveComplete';
+    $wgHooks['ArticleViewHeader'][]     = 'IACLParserFunctions::articleViewHeader';
+    $wgHooks['OutputPageBeforeHTML'][]  = 'IACLParserFunctions::outputPageBeforeHTML';
+    $wgHooks['ArticleEditUpdates'][]    = 'IACLParserFunctions::ArticleEditUpdates';
+    $wgHooks['ArticleDelete'][]         = 'IACLParserFunctions::articleDelete';
+    $wgHooks['ArticleUndelete'][]       = 'IACLParserFunctions::articleUndelete';
+    $wgHooks['TitleMoveComplete'][]     = 'IACLParserFunctions::TitleMoveComplete';
     $wgHooks['LanguageGetMagic'][]      = 'haclfLanguageGetMagic';
     $wgHooks['LoadExtensionSchemaUpdates'][] = 'haclfLoadExtensionSchemaUpdates';
 
@@ -179,11 +180,11 @@ function enableIntraACL()
 function haclfLanguageGetMagic(&$magicWords, $langCode)
 {
     global $haclgContLang;
-    $magicWords['haclaccess']           = array(0, $haclgContLang->getParserFunction(HACLLanguage::PF_ACCESS));
-    $magicWords['haclpredefinedright']  = array(0, $haclgContLang->getParserFunction(HACLLanguage::PF_PREDEFINED_RIGHT));
-    $magicWords['haclmanagerights']     = array(0, $haclgContLang->getParserFunction(HACLLanguage::PF_MANAGE_RIGHTS));
-    $magicWords['haclmember']           = array(0, $haclgContLang->getParserFunction(HACLLanguage::PF_MEMBER));
-    $magicWords['haclmanagegroup']      = array(0, $haclgContLang->getParserFunction(HACLLanguage::PF_MANAGE_GROUP));
+    $magicWords['haclaccess']           = array(0, 'haclaccess');
+    $magicWords['haclpredefinedright']  = array(0, 'haclpredefinedright');
+    $magicWords['haclmanagerights']     = array(0, 'haclmanagerights');
+    $magicWords['haclmember']           = array(0, 'haclmember');
+    $magicWords['haclmanagegroup']      = array(0, 'haclmanagegroup');
     return true;
 }
 
@@ -267,12 +268,12 @@ function haclfSetupExtension()
         'url'         => 'http://wiki.4intra.net/IntraACL',
         'description' => 'The best MediaWiki rights extension, based on HaloACL.');
 
-    // HACLParserFunctions callbacks
-    $wgParser->setFunctionHook('haclaccess',            'HACLParserFunctions::access');
-    $wgParser->setFunctionHook('haclpredefinedright',   'HACLParserFunctions::predefinedRight');
-    $wgParser->setFunctionHook('haclmanagerights',      'HACLParserFunctions::manageRights');
-    $wgParser->setFunctionHook('haclmember',            'HACLParserFunctions::addMember');
-    $wgParser->setFunctionHook('haclmanagegroup',       'HACLParserFunctions::manageGroup');
+    // IACLParserFunctions callbacks
+    $wgParser->setFunctionHook('haclaccess',            'IACLParserFunctions::access');
+    $wgParser->setFunctionHook('haclpredefinedright',   'IACLParserFunctions::predefinedRight');
+    $wgParser->setFunctionHook('haclmanagerights',      'IACLParserFunctions::manageRights');
+    $wgParser->setFunctionHook('haclmember',            'IACLParserFunctions::addMember');
+    $wgParser->setFunctionHook('haclmanagegroup',       'IACLParserFunctions::manageGroup');
 
     haclCheckScriptPath();
 
@@ -616,5 +617,76 @@ class DeferReparseSpecialPageRights
                 $article->doEdit($article->getText(), 'Re-parse right definition', EDIT_UPDATE);
             }
         }
+    }
+}
+
+class IACL
+{
+    /**
+     * Definition/child types
+     */
+    const PE_NAMESPACE  = 1;    // Namespace security descriptor, identified by namespace index
+    const PE_CATEGORY   = 2;    // Category security descriptor, identified by category page ID
+    const PE_RIGHT      = 3;    // Right template, identified by ACL definition (ACL:XXX) page ID
+    const PE_PAGE       = 4;    // Page security descriptor, identified by page ID
+    const PE_GROUP      = 5;    // Group, identified by group (ACL:Group/XXX) page ID
+    const PE_USER       = 6;    // User, identified by user ID. Used only as child, not as definition (obviously)
+
+    /**
+     * Action/child relation details, stored as bitmap in rules table
+     * SDs can contain everything except ACTION_GROUP_MEMBER
+     * Groups can contain ACTION_GROUP_MEMBER and ACTION_MANAGE rules
+     */
+    const ACTION_READ           = 0x01;     // Allows to read pages
+    const ACTION_EDIT           = 0x02;     // Allows to edit pages. Implies read right
+    const ACTION_CREATE         = 0x04;     // Allows to create articles in the namespace
+    const ACTION_MOVE           = 0x08;     // Allows to move pages with history
+    const ACTION_DELETE         = 0x10;     // Allows to delete pages with history
+    const ACTION_FULL_ACCESS    = 0x1F;
+    const ACTION_MANAGE         = 0x20;     // Allows to modify right definition or group. Implies read/edit/create/move/delete rights
+    const ACTION_PROTECT_PAGES  = 0x80;     // Allows to modify affected page right definitions. Implies read/edit/create/move/delete pages
+    const ACTION_INCLUDE_SD     = 0x01;     // Used for child SDs (1 has no effect, any other value can be also used)
+    const ACTION_GROUP_MEMBER   = 0x01;     // Used in group definitions: specifies that the child is a group member
+
+    /**
+     * Bit offset of indirect rights in 'actions' column
+     * I.e., 8 means higher byte is for indirect rights
+     */
+    const INDIRECT_OFFSET       = 8;
+
+    const ALL_USERS             = -1;
+    const REGISTERED_USERS      = 0;
+
+    static $nameToType = array(
+        'right'     => IACL::PE_RIGHT,
+        'namespace' => IACL::PE_NAMESPACE,
+        'category'  => IACL::PE_CATEGORY,
+        'page'      => IACL::PE_PAGE,
+    );
+    static $nameToAction = array(
+        'read'   => IACL::ACTION_READ,
+        'edit'   => IACL::ACTION_EDIT,
+        'create' => IACL::ACTION_CREATE,
+        'delete' => IACL::ACTION_DELETE,
+        'move'   => IACL::ACTION_MOVE,
+    );
+    static $actionToName = array(
+        IACL::ACTION_READ => 'read',
+        IACL::ACTION_EDIT => 'edit',
+        IACL::ACTION_CREATE => 'create',
+        IACL::ACTION_DELETE => 'delete',
+        IACL::ACTION_MOVE => 'move',
+        // Backwards compatibility with ACL editor
+        IACL::ACTION_MANAGE => 'template',
+        IACL::ACTION_PROTECT_PAGES => 'manage',
+    );
+
+    /**
+     * Returns the ID of an action for the given name of an action
+     * (only for Mediawiki
+     */
+    static function getActionID($name)
+    {
+        return @self::$nameToAction[$name] ?: 0;
     }
 }

@@ -53,14 +53,14 @@ abstract class HACLLanguage
 
     // Action names
     public $mActionNames = array(
-        IACL::RIGHT_READ            => 'read',
-        IACL::RIGHT_EDIT            => 'edit',
-        IACL::RIGHT_CREATE          => 'create',
-        IACL::RIGHT_MOVE            => 'move',
-        IACL::RIGHT_DELETE          => 'delete',
-        IACL::RIGHT_ALL_ACTIONS     => '*',
-        IACL::RIGHT_MANAGE          => 'manage',
-        IACL::RIGHT_PROTECT_PAGES   => 'protect_pages',
+        IACL::ACTION_READ            => 'read',
+        IACL::ACTION_EDIT            => 'edit',
+        IACL::ACTION_CREATE          => 'create',
+        IACL::ACTION_MOVE            => 'move',
+        IACL::ACTION_DELETE          => 'delete',
+        IACL::ACTION_FULL_ACCESS     => '*',
+        IACL::ACTION_MANAGE          => 'manage',
+        IACL::ACTION_PROTECT_PAGES   => 'protect_pages',
     );
 
     // Lookup array: ACL:Prefix/Name --> lowercased prefix --> type (sd, group, right)
@@ -109,8 +109,7 @@ abstract class HACLLanguage
         foreach ($this->mPetPrefixes as $id => $prefix)
             $this->mPetAliases[mb_strtolower($prefix)] = $id;
         foreach ($this->mPetAliases as $prefix => $id)
-            $this->mPrefixes[$prefix] = $id == self::PET_RIGHT ? 'right' : 'sd';
-        $this->mPrefixes[mb_strtolower($this->mGroupPrefix)] = 'group';
+            $this->mPrefixes[$prefix] = $id == IACL::PE_RIGHT ? 'right' : 'sd';
         foreach ($this->mActionNames as $id => $name)
             $this->mActionAliases[mb_strtolower($name)] = $id;
     }
@@ -145,14 +144,14 @@ abstract class HACLLanguage
      *
      * @return array(int => string)
      *         A mapping from action IDs to action names.
-     *         The possible IDs are HACLLanguage::RIGHT_*
+     *         The possible IDs are HACLLanguage::ACTION_*
      */
     public function getActionNames()
     {
         return $this->mActionNames;
     }
 
-    // Get self::RIGHT_* action ID by action name $name
+    // Get self::ACTION_* action ID by action name $name
     public function getActionId($name)
     {
         if (isset($this->mActionAliases[mb_strtolower($name)]))
@@ -192,10 +191,5 @@ abstract class HACLLanguage
     public function getPetAliases()
     {
         return $this->mPetAliases;
-    }
-
-    public function getGroupPrefix()
-    {
-        return $this->mGroupPrefix;
     }
 }

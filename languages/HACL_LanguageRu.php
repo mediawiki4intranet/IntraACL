@@ -30,5 +30,5 @@ if (!defined('MEDIAWIKI')) die();
 class HACLLanguageRu extends HACLLanguage
 {
     public $mPermissionDeniedPage = 'Доступ запрещён';
-    public $mPetAliases = array('категория' => self::PET_CATEGORY);
+    public $mPetAliases = array('категория' => IACL::PE_CATEGORY);
 }

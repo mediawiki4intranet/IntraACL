@@ -39,7 +39,7 @@ class IACLParserFunctions
     var $title, $peType, $peName;
 
     // Parsed right definitions and errors are saved here
-    var $rights = array(), $hasActions = 0, $errors = array();
+    var $rules = array(), $hasActions = 0, $errors = array();
 
     // Parser instance
     static $parser;
@@ -52,11 +52,12 @@ class IACLParserFunctions
 
     static function instance($parser, $noCreate = false)
     {
-        if (!isset(self::$instances[''.$parser->mTitle]))
+        $title = ($parser instanceof Parser ? $parser->mTitle : $parser);
+        if (!isset(self::$instances["$title"]))
         {
-            return $noCreate ? false : (self::$instances[''.$parser->mTitle] = new self($parser->mTitle));
+            return $noCreate ? false : (self::$instances["$title"] = new self($title));
         }
-        return self::$instances[''.$parser->mTitle];
+        return self::$instances["$title"];
     }
 
     static function destroyInstance($instance)
@@ -156,7 +157,7 @@ class IACLParserFunctions
         {
             if ($id)
             {
-                $this->rights[$id[0]][$id[1]] = IACL::ACTION_INCLUDE_SD;
+                $this->rules[$id[0]][$id[1]] = IACL::ACTION_INCLUDE_SD;
             }
             else
             {
@@ -257,7 +258,7 @@ class IACLParserFunctions
      *
      * @param array  $params    Array of argument values, indexed by argument name
      * @param string $param     Argument to handle
-     * @param int    $actions   Action bitmask to save into $this->rights
+     * @param int    $actions   Action bitmask to save into $this->rules
      * @return array(
      *     array($userName => int $userId | false),
      *     array($groupName => int $groupId | false),
@@ -400,7 +401,7 @@ class IACLParserFunctions
         {
             $actions[$i] = trim($actions[$i]);
             // Check if the action is valid
-            $id = $haclgContLang->getActionId($actions[$i])
+            $id = $haclgContLang->getActionId($actions[$i]);
             if (!$id)
             {
                 $errMsgs[] = wfMsgForContent('hacl_invalid_action', $actions[$i]);
@@ -438,7 +439,7 @@ class IACLParserFunctions
             return array($rights, $errMsgs);
         }
 
-        $rights = trim($params[$param]));
+        $rights = trim($params[$param]);
         $rights = $rights === '' ? array() : explode(',', $rights);
         $result = array();
         foreach ($rights as $r)
@@ -466,11 +467,9 @@ class IACLParserFunctions
      */
     public static function articleViewHeader(&$article, &$outputDone, &$pcache)
     {
-        global $haclgContLang;
         // TODO make it different: disable cache for ACL
         if ($article->getTitle()->getNamespace() == HACL_NS_ACL)
         {
-            self::$mInstance = new self($article->getTitle());
             $pcache = false;
         }
         return true;
@@ -487,10 +486,10 @@ class IACLParserFunctions
      */
     public static function outputPageBeforeHTML(&$out, &$text)
     {
-        global $haclgContLang;
-        if (!self::$mInstance)
-            return true;
-        $html = self::$mInstance->consistencyCheckHtml();
+        global $haclgContLang, $wgTitle;
+        $html = self::instance($wgTitle, false);
+        if ($html)
+            $html = $html->consistencyCheckHtml();
         if ($html)
             $out->addHTML($html);
         return true;
@@ -536,7 +535,7 @@ class IACLParserFunctions
                     $def['pe_type'] = $self->peType;
                     $def['pe_id'] = $id;
                 }
-                $def['rights'] = $self->rights;
+                $def['rights'] = $self->rules;
                 $def->save();
             }
             self::destroyInstance($self);

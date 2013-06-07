@@ -216,7 +216,27 @@ class HACLEvaluator
      */
     protected function getParentCategoryIDs($articleID)
     {
-        
+        $dbr = wfGetDB(DB_SLAVE);
+        $ids = array($articleID => true);
+        $new = array($articleID);
+        while ($new)
+        {
+            $res = $dbr->select(
+                array('categorylinks', 'page'), 'page_id',
+                array('cl_from' => $new, 'cl_to=page_title', 'page_namespace' => NS_CATEGORY),
+                __METHOD__
+            );
+            $new = array();
+            foreach ($res as $row)
+            {
+                if (empty($ids[$row->page_id]))
+                {
+                    $ids[$row->page_id] = true;
+                    $new[] = $row->page_id;
+                }
+            }
+        }
+        return array_keys($ids);
     }
 
     /**
@@ -269,7 +289,7 @@ class HACLEvaluator
         // category rights are a hole - any editor can change them
 
         // Check for RIGHT_GRANT_PAGE inherited from namespaces and categories
-        if ($peId[0] == IACL::PE_PAGE && self::checkProtectPageRight($peId[1], $userID)))
+        if ($peId[0] == IACL::PE_PAGE && self::checkProtectPageRight($peId[1], $userID))
         {
             return true;
         }
