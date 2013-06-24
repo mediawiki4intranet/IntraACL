@@ -52,19 +52,23 @@ For big databases:
 class IACLDefinition implements ArrayAccess
 {
     // Definition has no DB row by itself as it would be degenerate
-    var $row = array();             // Only for pe_type and pe_id, not stored in the DB
-    var $add = array();             // All additional data
+    var $data = array();            // Object data
     var $collection;                // Remembered mass-fetch collection
     var $rw;                        // Is this a read-write (dirty) copy?
     static $clean = array();        // Clean object cache
     static $dirty = array();        // Dirty object cache
 
-    function newEmpty()
+    static function newEmpty($type, $id)
     {
-        $this->rw = true;
+        $self = new self();
+        $self->rw = true;
+        $self->data['pe_type'] = $type;
+        $self->data['pe_id'] = $id;
+        $self->data['rules'] = array();
+        return $self;
     }
 
-    function newFromTitles($titles)
+    static function newFromTitles($titles)
     {
         $where = array();
         foreach ($titles as &$k)
@@ -72,7 +76,7 @@ class IACLDefinition implements ArrayAccess
             // FIXME: resolve multiple IDs at once
             // id = get_id(name, type)
             $pe = self::nameOfPE($k);
-            $id = self::peIDforName($pe[1], $pe[0]);
+            $id = self::peIDforName($pe[0], $pe[1]);
             if ($id)
             {
                 $where[] = array($pe[0], $id);
@@ -91,9 +95,9 @@ class IACLDefinition implements ArrayAccess
         return $r;
     }
 
-    function newFromName($peType, $peName)
+    static function newFromName($peType, $peName)
     {
-        $id = self::peIDforName($peName, $peType);
+        $id = self::peIDforName($peType, $peName);
         if ($id)
         {
             $def = self::select(array('pe' => array($peType, $id)));
@@ -114,9 +118,9 @@ class IACLDefinition implements ArrayAccess
 
     function offsetGet($k)
     {
-        if (isset($this->add[$k]))
+        if (isset($this->data[$k]))
         {
-            return $this->add[$k];
+            return $this->data[$k];
         }
         $m = 'get_'.$k;
         return $this->$m();
@@ -130,14 +134,14 @@ class IACLDefinition implements ArrayAccess
         }
         if ($k == 'child_ids')
         {
-            unset($this->add['children']);
+            unset($this->data['children']);
         }
-        return $this->add[$k] = $v;
+        return $this->data[$k] = $v;
     }
 
     function offsetExists($k)
     {
-        return $k == 'pe_id' || $k == 'pe_type' || isset($this->add[$k]) || method_exists($this, 'get_'.$k);
+        return $k == 'pe_id' || $k == 'pe_type' || isset($this->data[$k]) || method_exists($this, 'get_'.$k);
     }
 
     function offsetUnset($k)
@@ -155,6 +159,10 @@ class IACLDefinition implements ArrayAccess
         {
             $pe = $where['pe'];
             unset($where['pe']);
+            if (!$pe)
+            {
+                return array();
+            }
             if (!is_array(@$pe[0]))
             {
                 $pe = array($pe);
@@ -173,7 +181,11 @@ class IACLDefinition implements ArrayAccess
                 // All objects already fetched from cache
                 return $byid;
             }
-            $where['(pe_type, pe_id)'] = $pe;
+            foreach ($pe as &$p)
+            {
+                $p = '('.intval($p[0]).', '.intval($p[1]).')';
+            }
+            $where[] = '(pe_type, pe_id) IN ('.implode(', ', $pe).')';
         }
         $rules = IACLStorage::get('SD')->getRules($where);
         $coll = array();
@@ -183,80 +195,98 @@ class IACLDefinition implements ArrayAccess
             if (!isset($byid[$key]))
             {
                 self::$clean[$key] = $coll[$key] = $byid[$key] = $obj = new self();
-                $obj->add['pe_type'] = $rule['pe_type'];
-                $obj->add['pe_id'] = $rule['pe_id'];
+                $obj->data['pe_type'] = $rule['pe_type'];
+                $obj->data['pe_id'] = $rule['pe_id'];
                 $obj->collection = &$coll;
             }
             else
             {
                 $obj = $byid[$key];
             }
-            $obj->add['rules'][$rule['child_type']][$rule['child_id']] = $rule;
+            $obj->data['rules'][$rule['child_type']][$rule['child_id']] = $rule;
         }
         return $coll;
     }
 
-    // Parent SDs are SDs that include this SD
+    protected function get_key()
+    {
+        return $this->data['pe_type'].'-'.$this->data['pe_id'];
+    }
+
+    /**
+     * Get SDs that directly include this SD. Fetches them massively.
+     */
     protected function get_parents()
     {
-        $sds = $this->collection ?: array($this->row['sd_id'] => $this);
+        $sds = $this->collection ?: array($this['key'] => $this);
         $ids = array();
         foreach ($sds as $sd)
         {
-            if (!isset($sd->add['parents']))
+            if (!isset($sd->data['parents']))
             {
-                $ids[] = $sd->row['sd_id'];
-                $sd->add['parents'] = array();
+                $ids[] = '('.$sd->data['pe_type'].', '.$sd->data['pe_id'].')';
+                $sd->data['parents'] = array();
             }
         }
         $rules = IACLStorage::get('SD')->getRules(array(
-            'rule_type' => self::RULE_SD,
-            'child_id'  => $ids,
+            "(child_type, child_id) IN ($ids)",
+            'rule_type' => self::ACTION_INCLUDE_SD,
             'is_direct' => 1,
         ));
         $ids = array();
+        $keys = array();
         foreach ($rules as $r)
         {
-            $ids[$r['sd_id']][] = $r['child_id'];
+            $ids[$r['pe_type'].'-'.$r['pe_id']] = array($r['pe_type'], $r['pe_id']);
+            $keys[$r['pe_type'].'-'.$r['pe_id']][] = $r['child_type'].'-'.$r['child_id'];
         }
-        $parents = self::select(array('sd_id' => array_keys($ids)));
+        $parents = self::select(array('pe' => array_values($ids)));
         foreach ($parents as $parent)
         {
-            foreach ($ids[$parent['sd_id']] as $child)
+            foreach ($keys[$key = $parent['pe_type'].'-'.$parent['pe_id']] as $child_key)
             {
-                $sds[$child]->add['parents'][$parent['sd_id']] = $parent;
+                $sds[$child_key]->data['parents'][$key] = $parent;
             }
         }
-        return $this->add['parents'];
+        return $this->data['parents'];
     }
 
-    // Child SDs are SDs included by this SD
+    /**
+     * Get SDs directly included by this SD. Fetches them massively.
+     */
     protected function get_children()
     {
+        $sds = $this->collection ?: array($this['key'] => $this);
         $ids = array();
         foreach ($sds as $sd)
         {
-            if ($sd->add['children'] === NULL)
+            if (!isset($sd->data['children']))
             {
-                $ids += $sd['child_ids'];
+                $ids[] = '('.$sd->data['pe_type'].', '.$sd->data['pe_id'].')';
+                $sd->data['children'] = array();
             }
         }
-        $children = self::select(array('sd_id' => $ids));
-        foreach ($sds as $sd)
+        $rules = IACLStorage::get('SD')->getRules(array(
+            "(pe_type, pe_id) IN ($ids)",
+            'rule_type' => self::ACTION_INCLUDE_SD,
+            'is_direct' => 1,
+        ));
+        $ids = array();
+        $keys = array();
+        foreach ($rules as $r)
         {
-            if ($sd->add['children'] === NULL)
+            $ids[$r['child_type'].'-'.$r['child_id']] = array($r['child_type'], $r['child_id']);
+            $keys[$r['child_type'].'-'.$r['child_id']][] = $r['pe_type'].'-'.$r['pe_id'];
+        }
+        $children = self::select(array('pe' => array_values($ids)));
+        foreach ($children as $child)
+        {
+            foreach ($keys[$key = $child['pe_type'].'-'.$child['pe_id']] as $parent_key)
             {
-                $sd->add['children'] = array();
-                foreach ($sd['child_ids'] as $child_id => $true)
-                {
-                    if (isset($children[$child_id]))
-                    {
-                        $sd->add['children'][$child_id] = $children[$child_id];
-                    }
-                }
+                $sds[$parent_key]->data['children'][$key] = $child;
             }
         }
-        return $this->add['children'];
+        return $this->data['children'];
     }
 
     // Returns array(user_id => rule)
@@ -310,8 +340,8 @@ class IACLDefinition implements ArrayAccess
     {
         if (!$this->rw)
         {
-            self::$dirty[$this->row['sd_id']] = $this;
-            self::$clean[$this->row['sd_id']] = clone $this;
+            self::$dirty[$this->data['pe_type'].'-'.$this->data['pe_id']] = $this;
+            self::$clean[$this->data['pe_type'].'-'.$this->data['pe_id']] = clone $this;
             $this->collection = NULL;
             $this->rw = true;
         }
@@ -323,22 +353,22 @@ class IACLDefinition implements ArrayAccess
         {
             return $this;
         }
-        elseif (!isset(self::$dirty[$this->row['sd_id']]))
+        elseif (!isset(self::$dirty[$key = $this->data['pe_type'].'-'.$this->data['pe_id']]))
         {
-            self::$dirty[$this->row['sd_id']] = clone $this;
-            self::$dirty[$this->row['sd_id']]->rw = true;
-            self::$dirty[$this->row['sd_id']]->collection = NULL;
+            self::$dirty[$key] = clone $this;
+            self::$dirty[$key]->rw = true;
+            self::$dirty[$key]->collection = NULL;
         }
-        return self::$dirty[$this->row['sd_id']];
+        return self::$dirty[$key];
     }
 
     function clean()
     {
         if ($this->rw)
         {
-            if (isset(self::$clean[$this->row['sd_id']]))
+            if (isset(self::$clean[$key = $this->data['pe_type'].'-'.$this->data['pe_id']]))
             {
-                return self::$clean[$this->row['sd_id']];
+                return self::$clean[$key];
             }
             return false;
         }
@@ -458,7 +488,7 @@ class IACLDefinition implements ArrayAccess
      * @param  int $peType      Object type (IACL::PE_*)
      * @return int/bool         Object id or <false> if it does not exist
      */
-    public static function peIDforName($peName, $peType)
+    public static function peIDforName($peType, $peName)
     {
         $ns = NS_MAIN;
         if ($peType === IACL::PE_NAMESPACE)
@@ -478,7 +508,10 @@ class IACLDefinition implements ArrayAccess
         elseif ($peType === IACL::PE_USER)
             $ns = NS_USER;
         elseif ($peType === IACL::PE_GROUP)
+        {
             $ns = HACL_NS_ACL;
+            $peName = "Group/$peName";
+        }
         // Return the page id
         // TODO add caching here
         $id = haclfArticleID($peName, $ns);
@@ -569,44 +602,47 @@ class IACLDefinition implements ArrayAccess
     /**
      * Saves this definition into database
      */
-    public function save($cascade = true)
+    public function save(&$preventLoop = array())
     {
         // Load ID and parents before saving, as the definition may be deleted next
         $parents = $this->getDirectParents();
         $peType = $this['pe_type'];
         $peID = $this['pe_id'];
+        $key = $peType.'-'.$peID;
         $st = IACLStorage::get('SD');
-        if (!$this->exists)
+        if (!$this->data['rules'])
         {
-            $this->add = $this->row = array();
+            // Delete definition
+            $this->data = array();
             $delRules = array(array('pe_type' => $peType, 'pe_id' => $peID));
             $addRules = array();
         }
         else
         {
-            if (isset($this->add['user_rights']) ||
-                isset($this->add['group_rights']) ||
-                isset($this->add['child_ids']))
+            // Update definition
+            if (isset($this->data['user_rights']) ||
+                isset($this->data['group_rights']) ||
+                isset($this->data['child_ids']))
             {
                 list($delRules, $addRules) = $this->diffRules();
-                if ($oldRules)
+                if ($delRules)
                 {
-                    $st->deleteRules($oldRules);
+                    $st->deleteRules($delRules);
                 }
                 if ($addRules)
                 {
-                    $st->addRules($addRules);
+                    $st->dataRules($addRules);
                 }
             }
         }
         // Commit new state into cache
-        self::$clean[$id] = $this;
-        unset(self::$dirty[$id]);
+        self::$clean[$key] = $this;
+        unset(self::$dirty[$key]);
         // Invalidate parents - they will do the same recursively for their parents and so on
-        $preventLoop[$id] = true;
+        $preventLoop[$key] = true;
         foreach ($parents as $p)
         {
-            if (!isset($preventLoop[$p['sd_id']]))
+            if (!isset($preventLoop[$p['key']]))
             {
                 $p->save($preventLoop);
             }
@@ -614,10 +650,11 @@ class IACLDefinition implements ArrayAccess
         // TODO Invalidate cache (if any)
     }
 
-    protected function diffRules()
+    public function diffRules()
     {
-        $oldRules = $this->clean()['rules'];
-        $addRules = $this->add['rules'] = $this->buildRules();
+        $oldRules = $this->clean();
+        $oldRules = $oldRules ? $oldRules['rules'] : array();
+        $addRules = $this->data['rules'] = $this->buildRules();
         foreach ($oldRules as $k => $rule)
         {
             if (isset($addRules[$k]) && $addRules[$k]['actions'] == $rule['actions'])
@@ -639,7 +676,7 @@ class IACLDefinition implements ArrayAccess
             'pe_id'     => $this['pe_id'],
         );
         // Process direct grants
-        foreach ($this->add['rules'] as $childType => $children)
+        foreach ($this->data['rules'] as $childType => $children)
         {
             foreach ($children as $child => $actions)
             {

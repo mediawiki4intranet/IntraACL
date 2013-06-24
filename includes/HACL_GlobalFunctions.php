@@ -172,7 +172,7 @@ function enableIntraACL()
     $wgHooks['ArticleUndelete'][]       = 'IACLParserFunctions::articleUndelete';
     $wgHooks['TitleMoveComplete'][]     = 'IACLParserFunctions::TitleMoveComplete';
     $wgHooks['LanguageGetMagic'][]      = 'haclfLanguageGetMagic';
-    $wgHooks['LoadExtensionSchemaUpdates'][] = 'haclfLoadExtensionSchemaUpdates';
+    $wgHooks['LoadExtensionSchemaUpdates'][] = 'iaclfLoadExtensionSchemaUpdates';
 
     return true;
 }
@@ -180,11 +180,11 @@ function enableIntraACL()
 function haclfLanguageGetMagic(&$magicWords, $langCode)
 {
     global $haclgContLang;
-    $magicWords['haclaccess']           = array(0, 'haclaccess');
-    $magicWords['haclpredefinedright']  = array(0, 'haclpredefinedright');
-    $magicWords['haclmanagerights']     = array(0, 'haclmanagerights');
-    $magicWords['haclmember']           = array(0, 'haclmember');
-    $magicWords['haclmanagegroup']      = array(0, 'haclmanagegroup');
+    $magicWords['haclaccess']           = array(0, 'access');
+    $magicWords['haclpredefinedright']  = array(0, 'predefined right');
+    $magicWords['haclmanagerights']     = array(0, 'manage rights');
+    $magicWords['haclmember']           = array(0, 'member');
+    $magicWords['haclmanagegroup']      = array(0, 'manage group');
     return true;
 }
 
@@ -551,17 +551,17 @@ function haclfAddToolbarForEditPage($editpage, $out)
 }
 
 // Hook into maintenance/update.php
-function haclfLoadExtensionSchemaUpdates($updater = NULL)
+function iaclfLoadExtensionSchemaUpdates($updater = NULL)
 {
     global $wgExtNewTables, $wgDBtype;
     $file = dirname(__FILE__).'/../storage/intraacl-tables.sql';
     if ($updater && $updater->getDB()->getType() == 'mysql')
     {
-        $updater->addExtensionUpdate(array('addTable', 'halo_acl_rights', $file, true));
+        $updater->addExtensionUpdate(array('addTable', 'intraacl_rules', $file, true));
     }
     elseif ($wgDBtype == 'mysql')
     {
-        $wgExtNewTables[] = array('addTable', 'halo_acl_rights', $file);
+        $wgExtNewTables[] = array('addTable', 'intraacl_rules', $file);
     }
     else
     {

@@ -269,7 +269,7 @@ class HACLEvaluator
         {
             return false;
         }
-        $peId[1] = IACLDefinition::peIDforName($peId[1]);
+        $peId[1] = IACLDefinition::peIDforName($peId[0], $peId[1]);
         if (IACLDefinition::userCan($userID, $peId[0], $peId[1], IACL::ACTION_MANAGE))
         {
             return true;

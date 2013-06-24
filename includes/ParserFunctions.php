@@ -41,13 +41,23 @@ class IACLParserFunctions
     // Parsed right definitions and errors are saved here
     var $rules = array(), $hasActions = 0, $errors = array();
 
+    // Right definiton object
+    var $def;
+
     // Parser instance
     static $parser;
 
-    function __construct($title)
+    static function newFromTitle($title)
     {
-        $this->title = $title;
-        list($this->peName, $this->peType) = IACLDefinition::nameOfPE($title);
+        $pe = IACLDefinition::nameOfPE($title);
+        if ($pe)
+        {
+            $self = new self();
+            $self->title = $title;
+            list($self->peType, $self->peName) = $pe;
+            return $self;
+        }
+        return false;
     }
 
     static function instance($parser, $noCreate = false)
@@ -55,7 +65,7 @@ class IACLParserFunctions
         $title = ($parser instanceof Parser ? $parser->mTitle : $parser);
         if (!isset(self::$instances["$title"]))
         {
-            return $noCreate ? false : (self::$instances["$title"] = new self($title));
+            return $noCreate ? false : (self::$instances["$title"] = self::newFromTitle($title));
         }
         return self::$instances["$title"];
     }
@@ -186,7 +196,7 @@ class IACLParserFunctions
         $params = $this->getParameters($args);
 
         // handle the parameter "assigned to"
-        list($users, $groups, $errMsgs) = $this->assignedTo($params, 'assigned to', IACL::RIGHT_MANAGE);
+        list($users, $groups, $errMsgs) = $this->assignedTo($params, 'assigned to', IACL::ACTION_MANAGE);
 
         if ($errMsgs)
         {
@@ -218,7 +228,7 @@ class IACLParserFunctions
         $params = $this->getParameters($args);
 
         // handle the parameter "assigned to"
-        list($users, $groups, $errMsgs) = $this->assignedTo($params, 'members', IACL::RIGHT_GROUP_MEMBER);
+        list($users, $groups, $errMsgs) = $this->assignedTo($params, 'members', IACL::ACTION_GROUP_MEMBER);
 
         if ($errMsgs)
         {
@@ -309,6 +319,7 @@ class IACLParserFunctions
                         // Allow Group:X syntax
                         $assignee = substr($assignee, 0, $p) . '/' . substr($assignee, $p+1);
                     }
+                    $assignee = str_replace(' ', '_', $assignee);
                     $groups[$assignee] = false;
                 }
             }
@@ -329,7 +340,7 @@ class IACLParserFunctions
                 $users[$ur->user_name] = $ur->user_id;
                 unset($check[$ur->user_name]);
             }
-            foreach ($check as $invalid)
+            foreach ($check as $invalid => $true)
             {
                 $errors[] = wfMsgForContent('hacl_unknown_user', $invalid);
             }
@@ -344,7 +355,7 @@ class IACLParserFunctions
                 $groups[$gr->page_title] = $gr->page_id;
                 unset($check[$gr->page_title]);
             }
-            foreach ($check as $invalid)
+            foreach ($check as $invalid => $true)
             {
                 $errors[] = wfMsgForContent('hacl_unknown_group', $invalid);
             }
@@ -358,7 +369,7 @@ class IACLParserFunctions
         {
             if ($id !== false)
             {
-                $this->rules[IACL::RULE_USER][$id] |= $actions;
+                @$this->rules[IACL::PE_USER][$id] |= $actions;
                 $this->hasActions |= $actions;
             }
         }
@@ -366,7 +377,7 @@ class IACLParserFunctions
         {
             if ($id !== false)
             {
-                $this->rules[IACL::RULE_GROUP][$id] |= $actions;
+                @$this->rules[IACL::PE_GROUP][$id] |= $actions;
                 $this->hasActions |= $actions;
             }
         }
@@ -521,26 +532,33 @@ class IACLParserFunctions
                 $self = self::instance($title);
                 self::parse($article->getContent(), $title);
             }
-            $id = IACLDefinition::peIDforName($self->peName, $self->peType);
-            if ($id)
-            {
-                $def = IACLDefinition::select(array('pe' => array($self->peType, $id)));
-                if ($def)
-                {
-                    $def = reset($def);
-                }
-                else
-                {
-                    $def = IACLDefinition::newEmpty();
-                    $def['pe_type'] = $self->peType;
-                    $def['pe_id'] = $id;
-                }
-                $def['rights'] = $self->rules;
-                $def->save();
-            }
+            $self->makeDef();
+            $self->def->save();
             self::destroyInstance($self);
         }
         return true;
+    }
+
+    /**
+     * Create or update the definition object
+     */
+    protected function makeDef()
+    {
+        $id = IACLDefinition::peIDforName($this->peType, $this->peName);
+        // FIXME When $id is NULL => PE does not exist, but we should report this error
+        if ($id)
+        {
+            $this->def = IACLDefinition::select(array('pe' => array($this->peType, $id)));
+            if ($this->def)
+            {
+                $this->def = reset($this->def);
+            }
+            else
+            {
+                $this->def = IACLDefinition::newEmpty($this->peType, $id);
+            }
+            $this->def['rights'] = $this->rules;
+        }
     }
 
     /* Also do handle article undeletes */
@@ -759,10 +777,10 @@ class IACLParserFunctions
         }
         // Add "Create/edit with IntraACL editor" link
         // TODO do not display it when the user has no rights to change ACL
-        $html .= wfMsgForContent($id ? 'hacl_edit_with_special' : 'hacl_create_with_special',
+        $html .= wfMsgForContent($this->def->clean() ? 'hacl_edit_with_special' : 'hacl_create_with_special',
             Title::newFromText('Special:IntraACL')->getLocalUrl(array(
-                'action' => ($this->mType == 'group' ? 'group' : 'acl'),
-                ($this->mType == 'group' ? 'group' : 'sd') => $this->title->getPrefixedText(),
+                'action' => ($this->peType == IACL::PE_GROUP ? 'group' : 'acl'),
+                ($this->peType == IACL::PE_GROUP ? 'group' : 'sd') => $this->title->getPrefixedText(),
             )),
             $haclgHaloScriptPath . '/skins/images/edit.png');
         return $html;
