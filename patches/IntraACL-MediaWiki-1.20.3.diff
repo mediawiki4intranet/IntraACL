@@ -666,13 +666,15 @@ index 2a24bee..8be5b38 100644
 +			// </IntraACL>
 +		}
 +		// <IntraACL>
-+		if ( !$canRead ) {
-+			global $haclgInclusionDeniedMessage;
-+			if ( $haclgInclusionDeniedMessage ) {
-+				$text = wfMsg( $haclgInclusionDeniedMessage );
-+			} elseif ( $haclgInclusionDeniedMessage === '' ) {
-+				$text = '';
-+			}
++		if (!empty($_SERVER['SERVER_NAME'])) {
++			if ( !$canRead ) {
++				global $haclgInclusionDeniedMessage;
++				if ( $haclgInclusionDeniedMessage ) {
++					$text = wfMsg( $haclgInclusionDeniedMessage );
++				} elseif ( $haclgInclusionDeniedMessage === '' ) {
++					$text = '';
++				}
++		}
  		}
 +		// </IntraACL>
  		return array(
