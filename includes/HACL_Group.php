@@ -158,7 +158,7 @@ class HACLGroup
      *
      */
     public static function idForGroup($group) {
-        if (is_int($group)) {
+        if (is_int($group) || is_numeric($group)) {
             // group ID given
             return $group;
         } elseif (is_string($group)) {
@@ -432,31 +432,23 @@ class HACLGroup
      *         HACLException(HACLException::UNKNOWN_USER)
      *             ...if a user does not exist.
      */
-    public function setManageGroups($manageGroups)
-    {
-        if (!empty($manageGroups) && is_string($manageGroups))
-        {
-            // Managing groups are given as comma separated string
-            // Split into an array
-            $manageGroups = explode(',', $manageGroups);
-        }
-        if (is_array($manageGroups))
-        {
-            $this->mManageGroups = $manageGroups;
-            for ($i = 0; $i < count($manageGroups); ++$i)
-            {
-                $mg = $manageGroups[$i];
-                if (is_string($mg))
-                    $mg = trim($mg);
-                $gid = self::idForGroup($mg);
-                if (!$gid)
-                    throw new HACLGroupException(HACLGroupException::UNKNOWN_GROUP, $mg);
-                $this->mManageGroups[$i] = (int) $gid;
-            }
-        }
-        else
-            $this->mManageGroups = array();
-    }
+    public function setManageGroups($manageGroups) {
+		if (!empty($manageGroups) && is_string($manageGroups)) {
+			$manageGroups = explode(',', $manageGroups);
+		}
+		if (is_array($manageGroups)) {
+			$this->mManageGroups = $manageGroups;
+			foreach ($manageGroups as $key=>$group) {
+				$gid = self::idForGroup(is_string($group)?trim($group):$group);
+				if (!$gid) {
+					throw new HACLGroupException(HACLGroupException::UNKNOWN_GROUP, $mg);
+				}
+				$this->mManageGroups[$i] = (int) $gid;
+			}
+		} else {
+			$this->mManageGroups = array();
+		}
+	}
 
     /**
      * Adds the user $user to this group. The new user is immediately added
