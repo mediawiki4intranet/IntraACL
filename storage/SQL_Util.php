@@ -116,4 +116,36 @@ class IntraACL_SQL_Util
         }
         return array_values($cats);
     }
+
+    /**
+     * Returns IDs of all parent categories for article with ID $articleID
+     * (including non-direct inclusions)
+     * FIXME: Maybe speed up this by materializing?
+     *
+     * @param int|array(int) $articleID
+     */
+    public function getParentCategoryIDs($articleID)
+    {
+        $dbr = wfGetDB(DB_SLAVE);
+        $ids = array();
+        $new = is_array($articleID) ? $articleID : array($articleID);
+        while ($new)
+        {
+            $res = $dbr->select(
+                array('categorylinks', 'page'), 'page_id',
+                array('cl_from' => $new, 'cl_to=page_title', 'page_namespace' => NS_CATEGORY),
+                __METHOD__
+            );
+            $new = array();
+            foreach ($res as $row)
+            {
+                if (!isset($ids[$row->page_id]))
+                {
+                    $ids[$row->page_id] = true;
+                    $new[] = $row->page_id;
+                }
+            }
+        }
+        return array_keys($ids);
+    }
 }

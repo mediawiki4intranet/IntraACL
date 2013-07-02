@@ -6,8 +6,7 @@
  * http://wiki.4intra.net/IntraACL
  * $Id$
  *
- * Based on HaloACL
- * Copyright 2009, ontoprise GmbH
+ * Loosely based on HaloACL (c) 2009, ontoprise GmbH
  *
  * The IntraACL-Extension is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -63,10 +62,14 @@ class HACLToolbar
         ));
 
         if (!is_object($title))
+        {
             $title = Title::newFromText($title);
+        }
 
         if ($title->getNamespace() == HACL_NS_ACL)
+        {
             return '';
+        }
 
         // $found = "is current page SD in the list?"
         $found = false;
@@ -79,7 +82,7 @@ class HACLToolbar
         if ($title->exists())
         {
             // Check SD modification rights
-            $realPageSDId = $pageSDId = HACLSecurityDescriptor::getSDForPE($title->getArticleId(), HACLLanguage::PET_PAGE);
+            $realPageSDId = $pageSDId = IACLDefinition::getSDForPE(IACL::PE_PAGE, $title->getArticleId());
             if ($pageSDId)
             {
                 $pageSD = HACLSecurityDescriptor::newFromId($pageSDId);
@@ -131,11 +134,15 @@ class HACLToolbar
                 {
                     // Always insert default SD as the second option
                     if (!$title->exists())
+                    {
                         $option['current'] = true;
+                    }
                     array_splice($options, 1, 0, array($option));
                 }
                 else
+                {
                     $options[] = $option;
+                }
             }
         }
 
@@ -155,25 +162,37 @@ class HACLToolbar
         if ($canModify && ($st = $wgRequest->getVal('haloacl_protect_with')))
         {
             foreach ($options as &$o)
+            {
                 $o['current'] = $o['value'] == $st;
+            }
             unset($o); // prevent reference bugs
         }
 
         $selectedIndex = false;
         foreach ($options as $i => $o)
+        {
             if (!empty($o['current']))
+            {
                 $selectedIndex = $i;
+            }
+        }
 
         // Check if page namespace has an ACL (for hint)
         if (!$pageSDId && !$globalACL &&
-            ($sdid = HACLSecurityDescriptor::getSDForPE($title->getNamespace(), HACLLanguage::PET_NAMESPACE)))
+            ($sdid = IACLDefinition::getSDForPE(IACL::PE_NAMESPACE, $title->getNamespace()))!!!!!!!
+        {
             $globalACL[] = Title::newFromId($sdid);
+        }
 
         if ($globalACL)
         {
             foreach ($globalACL as &$t)
+            {
                 if ($haclgOpenWikiAccess || $t->userCanReadEx())
+                {
                     $t = Xml::element('a', array('href' => $t->getLocalUrl(), 'target' => '_blank'), $t->getText());
+                }
+            }
             unset($t); // prevent reference bugs
             $globalACL = implode(', ', $globalACL);
         }
@@ -183,7 +202,9 @@ class HACLToolbar
         if ($title->exists())
         {
             if (!$pageSDId)
+            {
                 $pageSDId = '';
+            }
             $c = false;
             foreach ($wgRequest->getValues() as $k => $v)
             {
@@ -237,11 +258,13 @@ class HACLToolbar
         $out->addHeadItem('hacl_toolbar_css', '<link rel="stylesheet" type="text/css" media="screen, projection" href="'.$haclgHaloScriptPath.'/skins/haloacl_toolbar.css" />');
     }
 
-    // The only case when the user can create an article non-readable to himself
-    //  is when he has create, but no read access to the namespace.
-    // The only case when he can correct it by changing saved text
-    //  is when he has read access to some category.
-    // Warn him about it.
+    /**
+     * The only case when the user can create an article non-readable to himself
+     * is when he has create, but no read access to the namespace.
+     * The only case when he can correct it by changing saved text
+     * is when he has read access to some category.
+     * Warn him about it.
+     */
     public static function warnNonReadableCreate($editpage)
     {
         global $haclgOpenWikiAccess, $wgUser, $wgOut, $haclgSuperGroups;
@@ -255,15 +278,21 @@ class HACLToolbar
                 $wgUser->getId(), HACLLanguage::RIGHT_READ
             );
             if (!($sd ? $r : $haclgOpenWikiAccess))
+            {
                 $editpage->eNonReadable = true;
+            }
         }
         if (!empty($editpage->eNonReadable))
         {
             $sel = self::getReadableCategoriesSelectBox();
             if ($sel)
+            {
                 $wgOut->addHTML(wfMsgNoTrans('hacl_nonreadable_create', $sel));
+            }
             else
+            {
                 $wgOut->addHTML(wfMsgNoTrans('hacl_nonreadable_create_nocat'));
+            }
         }
         return true;
     }
@@ -279,13 +308,17 @@ class HACLToolbar
         if ($pe)
         {
             foreach ($pe as &$e)
+            {
                 $e = $e[1];
+            }
             unset($e);
             $dbr = wfGetDB(DB_SLAVE);
             $res = $dbr->select('page', '*', array('page_id' => $pe), __METHOD__);
             $titles = array();
             foreach ($res as $row)
+            {
                 $titles[] = Title::newFromRow($row);
+            }
             // Add child categories
             $pe = IACLStorage::get('Util')->getAllChildrenCategories($titles);
         }
@@ -297,12 +330,18 @@ class HACLToolbar
     {
         $pe = self::getReadableCategories();
         if (!$pe)
+        {
             return '';
+        }
         $for_upload = $for_upload ? ', 1' : '';
         $select = array();
         foreach ($pe as $cat)
-            $select[] = '<a href="javascript:haclt_addcat(\''.htmlspecialchars(addslashes($cat->getPrefixedText())).'\''.$for_upload.')">'.
+        {
+            $select[] = '<a href="javascript:haclt_addcat(\''.
+                htmlspecialchars(addslashes($cat->getPrefixedText())).
+                '\''.$for_upload.')">'.
                 htmlspecialchars($cat->getText()).'</a>';
+        }
         return implode(', ', $select);
     }
 
@@ -345,7 +384,9 @@ class HACLToolbar
                             $t = wfMsgNoTrans('hacl_nonreadable_upload', $sel);
                         }
                         else
+                        {
                             $t = wfMsgNoTrans('hacl_nonreadable_upload_nocat');
+                        }
                         $upload->uploadFormTextTop .= $t;
                     }
                 }
@@ -360,30 +401,42 @@ class HACLToolbar
         return true;
     }
 
-    // Related to warnNonReadableCreate, checks if the user is creating
-    // a non-readable page without checking the "force" checkbox
+    /**
+     * Related to warnNonReadableCreate, checks if the user is creating
+     * a non-readable page without checking the "force" checkbox
+     */
     public static function attemptNonReadableCreate($editpage)
     {
         global $haclgOpenWikiAccess, $wgUser, $wgParser, $wgRequest, $wgOut, $haclgSuperGroups;
         $g = $wgUser->getGroups();
         if (!$editpage->mTitle->getArticleId() && (!$g || !array_intersect($g, $haclgSuperGroups)))
         {
-            list($r, $sd) = HACLEvaluator::checkNamespaceRight(
-                $editpage->mTitle->getNamespace(),
-                $wgUser->getId(), HACLLanguage::RIGHT_READ
+            $r = IACLDefinition::userCan(
+                $wgUser->getId(), IACL::PE_NAMESPACE, $editpage->mTitle->getNamespace(), IACL::ACTION_READ
             );
-            if (!($sd ? $r : $haclgOpenWikiAccess))
+            if ($r == 0 || $r == -1 && !$haclgOpenWikiAccess)
             {
                 $editpage->eNonReadable = true;
                 $options = ParserOptions::newFromUser($wgUser);
                 // clearState = true when not cleared yet
                 $text = $wgParser->preSaveTransform($editpage->textbox1, $editpage->mTitle, $wgUser, $options, !$wgParser->mStripState);
                 $parserOutput = $wgParser->parse($text, $editpage->mTitle, $options);
-                $categories = $parserOutput->getCategoryLinks();
-                foreach ($categories as &$cat)
-                    $cat = "Category:$cat";
-                list($r, $sd) = HACLEvaluator::hasCategoryRight($categories, $wgUser->getId(), HACLLanguage::RIGHT_READ);
-                if ((!$r || !$sd) && !$wgRequest->getBool('hacl_nonreadable_create'))
+                $catIds = array();
+                foreach ($parserOutput->getCategoryLinks() as $cat)
+                {
+                    // FIXME Resolve multiple title IDs at once
+                    $cat = Title::makeTitle(NS_CATEGORY, $cat);
+                    if (($id = $cat->getArticleId()))
+                    {
+                        $catIds[$id] = true;
+                    }
+                }
+                $catIds = array_keys($catIds + IACLStorage::get('Util')->getParentCategoryIDs(array_keys($catIds)));
+                $r = IACLDefinition::userCan(
+                    $wgUser->getId(), IACL::PE_CATEGORY, $catIds, IACL::ACTION_READ
+                );
+                if (($r == 0 || $r == -1 && !$haclgOpenWikiAccess) &&
+                    !$wgRequest->getBool('hacl_nonreadable_create'))
                 {
                     $editpage->showEditForm();
                     return false;
@@ -439,41 +492,55 @@ class HACLToolbar
             // Some SD is selected by the user
             // Ignore selection of invalid SDs
             if (''.intval($selectedSD) !== $selectedSD)
+            {
                 $selectedSD = HACLSecurityDescriptor::idForSD($SDName);
+            }
         }
 
         if (!$selectedSD)
+        {
             return true;
+        }
 
         if ($selectedSD == 'unprotected')
+        {
             $selectedSD = NULL;
+        }
 
         // Check if current SD must be modified
         if ($article->exists())
         {
-            $pageSDId = HACLSecurityDescriptor::getSDForPE($article->getId(), HACLLanguage::PET_PAGE);
-            if ($pageSDId && $selectedSD)
+            $pageSD = IACLDefinition::getSDForPE(IACL::PE_PAGE, $article->getId());
+            if ($pageSD && $selectedSD)
             {
                 // Check if page's SD ID passed as selected
-                if ($selectedSD == $pageSDId)
+                if ($selectedSD == $pageSD)
+                {
                     return true;
+                }
                 // Check if page's SD is single inclusion and it is passed as selected
-                $pageSD = IACLStorage::get('SD')->getSDbyId($pageSDId);
                 if (($single = $pageSD->isSinglePredefinedRightInclusion()) &&
                     $selectedSD == $single)
+                {
                     return true;
+                }
             }
         }
+
         // Check if no protection selected and no protection exists
-        if (!$selectedSD && !$pageSDId)
+        if (!$selectedSD && !$pageSD)
+        {
             return true;
+        }
 
         // Check if other SD is a predefined right
         if ($selectedSD)
         {
             $sd = IACLStorage::get('SD')->getSDByID($selectedSD);
-            if ($sd->getPEType() != HACLLanguage::PET_RIGHT)
+            if ($sd->getPEType() != IACL::PE_RIGHT)
+            {
                 return true;
+            }
         }
 
         // Check SD modification rights
@@ -481,7 +548,9 @@ class HACLToolbar
         {
             $allowed = HACLEvaluator::checkACLManager(Title::newFromId($pageSDId), $wgUser, 'edit');
             if (!$allowed)
+            {
                 return true;
+            }
         }
 
         // Create an article object for the SD
@@ -491,18 +560,20 @@ class HACLToolbar
         haclfRestoreTitlePatch($etc);
         $newSDArticle = new Article($newSD);
 
-        // Create/modify page SD
         if ($selectedSD)
         {
+            // Create/modify page SD
             $selectedSDTitle = Title::newFromId($selectedSD);
             $pf = $haclgContLang->getParserFunction(HACLLanguage::PF_PREDEFINED_RIGHT);
             $pfp = $haclgContLang->getParserFunctionParameter(HACLLanguage::PFP_RIGHTS);
             $content = '{{#'.$pf.': '.$pfp.' = '.$selectedSDTitle->getText().'}}';
             $newSDArticle->doEdit($content, wfMsg('hacl_comment_protect_with', $selectedSDTitle->getFullText()));
         }
-        // Remove page SD
         else
+        {
+            // Remove page SD
             $newSDArticle->doDelete(wfMsg('hacl_comment_unprotect'));
+        }
 
         // Continue hook processing
         return true;
@@ -518,7 +589,9 @@ class HACLToolbar
         // Flag to prevent recursion
         static $InsideSaveEmbedded;
         if ($InsideSaveEmbedded)
+        {
             return true;
+        }
         $InsideSaveEmbedded = true;
 
         global $wgRequest, $wgOut, $haclgContLang, $wgUser;
@@ -526,8 +599,8 @@ class HACLToolbar
         $isACL = $article->getTitle()->getNamespace() == HACL_NS_ACL;
         if ($isACL)
         {
-            $articleSD = IACLStorage::get('SD')->getSDById($article->getId());
-            if (!$articleSD || $articleSD->getPEType() != 'page')
+            $articleSD = reset(IACLDefinition::newFromTitles(array($article->getTitle())));
+            if (!$articleSD || $articleSD['pe_type'] != IACL::PE_PAGE)
             {
                 // This is not a page SD, do nothing.
                 return true;
@@ -539,11 +612,11 @@ class HACLToolbar
             //       the problem here is that in ACL editor two different SDs
             //       may be created and queried for embedded content:
             //       for category article and for category itself
-            $articleSD = HACLSecurityDescriptor::getSDForPE($article->getId(), HACLLanguage::PET_PAGE);
+            $articleSD = IACLDefinition::getSDForPE(IACL::PE_PAGE, $article->getId());
             if (!$articleSD)
+            {
                 return true;
-            else
-                $articleSD = IACLStorage::get('SD')->getSDById($articleSD);
+            }
         }
 
         // Handle embedded content protection
@@ -559,23 +632,29 @@ class HACLToolbar
                 if ($emb_title)
                 {
                     $emb_sd_title = Title::newFromText(
-                        $haclgContLang->getPetPrefix(HACLLanguage::PET_PAGE)
+                        $haclgContLang->getPetPrefix(IACL::PE_PAGE)
                         . '/' . $emb_title->getPrefixedText(),
                         HACL_NS_ACL
                     );
                     $emb_sd_article = new Article($emb_sd_title);
                 }
                 // Check for errors:
-                // Embedded content deleted || Manage access denied
                 if (!$emb_title || !$emb_title->getArticleId() || !$emb_sd_title->userCan('edit'))
+                {
+                    // Embedded content deleted || Manage access denied
                     $errors[] = array($emb_title, 'canedit');
-                // Invalid SD requested for protection
+                }
                 elseif ($req_sd_id && $req_sd_id != $articleSD->getSDId())
+                {
+                    // Invalid SD requested for protection
                     $errors[] = array($emb_title, 'invalidsd');
-                // Mid-air collision: SD created/changed by someone in the meantime
+                }
                 elseif (!$emb_sd_timestamp && $emb_sd_article->exists() ||
                     $emb_sd_timestamp && $emb_sd_article->getTimestamp() > $emb_sd_timestamp)
+                {
+                    // Mid-air collision: SD created/changed by someone in the meantime
                     $errors[] = array($emb_title, 'midair');
+                }
                 else
                 {
                     // Save embedded element SD
@@ -593,7 +672,9 @@ class HACLToolbar
         if ($errors)
         {
             foreach ($errors as &$e)
+            {
                 $e = "[[:".$e[0]->getPrefixedText()."]] (".wfMsg('hacl_embedded_error_'.$e[1]).")";
+            }
             $wgOut->setTitle(Title::newFromText('Special:IntraACL'));
             $wgOut->addWikiText(wfMsgNoTrans(
                 'hacl_embedded_not_saved',
@@ -603,7 +684,7 @@ class HACLToolbar
             $wgOut->setPageTitle(wfMsg('hacl_embedded_not_saved_title'));
             $wgOut->output();
             // FIXME terminate MediaWiki more correctly
-            wfGetDB( DB_MASTER )->commit();
+            wfGetDB(DB_MASTER)->commit();
             exit;
         }
 
@@ -612,24 +693,28 @@ class HACLToolbar
         return true;
     }
 
-    // Get HTML code for linked content protection toolbar.
-    // Used by ACL editor and IntraACL toolbar.
-    // Handled by HACLToolbar::articleSaveComplete_SaveEmbedded.
-    //
-    // @param required int $peID - page ID to retrieve linked content from
-    // @param optional int $sdID - page SD ID to check if SDs of linked content are already
-    //     single inclusions of this SD.
-    // @return html code for embedded content protection toolbar
-    //     it containts checkboxes with names "sd_emb_$pageID" and values
-    //     "$sdID-$ts". $sdID here is the passed $sdID and $ts is the modification
-    //     timestamp of embedded element's SD, if it does exist.
-    //     Value may be even just "-" when the toolbar was queried for article without SD,
-    //     and when the embedded element did not have any SD.
+    /**
+     * Get HTML code for linked content protection toolbar.
+     * Used by ACL editor and IntraACL toolbar.
+     * Handled by HACLToolbar::articleSaveComplete_SaveEmbedded.
+     *
+     * @param required int $peID - page ID to retrieve linked content from
+     * @param optional int $sdID - page SD ID to check if SDs of linked content are already
+     *     single inclusions of this SD.
+     * @return html code for embedded content protection toolbar
+     *     it containts checkboxes with names "sd_emb_$pageID" and values
+     *     "$sdID-$ts". $sdID here is the passed $sdID and $ts is the modification
+     *     timestamp of embedded element's SD, if it does exist.
+     *     Value may be even just "-" when the toolbar was queried for article without SD,
+     *     and when the embedded element did not have any SD.
+     */
     public static function getEmbeddedHtml($peID, $sdID = '')
     {
         global $haclgContLang, $wgRequest;
         if (!$sdID)
+        {
             $sdID = '';
+        }
         // Retrieve the list of templates used on the page with id=$peID
         $templatelinks = IACLStorage::get('SD')->getEmbedded($peID, $sdID, 'templatelinks');
         // Retrieve the list of images used on the page
@@ -645,7 +730,9 @@ class HACLToolbar
             $t = $link['title']->getPrefixedText();
             $ts = $link['sd_touched'];
             if ($prev = $wgRequest->getVal("sd_emb_$id"))
+            {
                 list($unused, $ts) = explode($prev, '/', 2);
+            }
             if ($link['sd_title'])
             {
                 if ($link['sd_single'])
@@ -660,14 +747,18 @@ class HACLToolbar
                 }
             }
             else
+            {
                 $customprot = '';
+            }
             if ($link['used_on_pages'] > 1)
             {
                 $usedon = Title::newFromText("Special:WhatLinksHere/$t")->getLocalUrl(array('hidelinks' => 1));
                 $usedon = wfMsgForContent('hacl_toolbar_used_on', $link['used_on_pages'], $usedon);
             }
             else
+            {
                 $usedon = '';
+            }
             $P = $customprot || $usedon ? " — " : "";
             $S = $customprot && $usedon ? "; " : "";
             // [x] Title — custom SD defined; used on Y pages
@@ -682,7 +773,9 @@ class HACLToolbar
             $h = '<div class="hacl_embed'.($link['sd_single'] ? '_disabled' : '').'">'.$h.'</div>';
             $html[] = $h;
             if (!$link['sd_single'])
+            {
                 $all[] = $id;
+            }
         }
         if ($all)
         {
@@ -696,7 +789,9 @@ class HACLToolbar
                 wfMsg('hacl_toolbar_emb_all_already').'</div>';
         }
         if ($html)
+        {
             array_unshift($html, '<div class="hacl_emb_text">'.wfMsgForContent('hacl_toolbar_protect_embedded').'</div>');
+        }
         $html = implode("\n", $html);
         return $html;
     }
@@ -705,7 +800,9 @@ class HACLToolbar
     static function SkinTemplateContentActions(&$actions)
     {
         if ($act = self::getContentAction())
+        {
             array_splice($actions, 1, 0, array($act));
+        }
         return true;
     }
 
@@ -713,7 +810,9 @@ class HACLToolbar
     static function SkinTemplateNavigation(&$skin, &$links)
     {
         if ($act = self::getContentAction())
+        {
             array_splice($links['namespaces'], 1, 0, array($act));
+        }
         return true;
     }
 
@@ -738,7 +837,9 @@ class HACLToolbar
     {
         global $wgTitle, $haclgContLang, $haclgDisableACLTab, $wgUser;
         if ($wgUser->isAnon())
+        {
             return NULL;
+        }
         if ($wgTitle->getNamespace() == HACL_NS_ACL)
         {
             // Display the link to article or category
@@ -757,15 +858,21 @@ class HACLToolbar
         {
             // Display the link to category or page SD
             if ($wgTitle->getNamespace() == NS_CATEGORY)
-                $sd = $haclgContLang->getPetPrefix(HACLLanguage::PET_CATEGORY).
+            {
+                $sd = $haclgContLang->getPetPrefix(IACL::PE_CATEGORY).
                     '/'.$wgTitle->getText();
+            }
             else
-                $sd = $haclgContLang->getPetPrefix(HACLLanguage::PET_PAGE).
+            {
+                $sd = $haclgContLang->getPetPrefix(IACL::PE_PAGE).
                     '/'.$wgTitle->getPrefixedText();
+            }
             $sd = Title::newFromText($sd, HACL_NS_ACL);
             // Hide ACL tab if SD does not exist and $haclgDisableACLTab is true
             if (!$sd || !empty($haclgDisableACLTab) && !$sd->exists() && !$wgUser->getOption('showacltab'))
+            {
                 return NULL;
+            }
             return array(
                 'class' => $sd->exists() ? false : 'new',
                 'text'  => wfMsg('hacl_tab_acl'),

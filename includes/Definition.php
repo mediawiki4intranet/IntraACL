@@ -68,6 +68,12 @@ class IACLDefinition implements ArrayAccess
         return $self;
     }
 
+    /**
+     * Returns non-empty definitions by their page titles, indexed by full title texts
+     *
+     * @param array(Title|string) $titles
+     * @return array(IACLDefinition)
+     */
     static function newFromTitles($titles)
     {
         $where = array();
@@ -228,10 +234,10 @@ class IACLDefinition implements ArrayAccess
                 $sd->data['parents'] = array();
             }
         }
+        $ids = implode(', ', $ids);
         $rules = IACLStorage::get('SD')->getRules(array(
             "(child_type, child_id) IN ($ids)",
-            'rule_type' => self::ACTION_INCLUDE_SD,
-            'is_direct' => 1,
+            '(actions & '.IACL::ACTION_INCLUDE_SD.')',
         ));
         $ids = array();
         $keys = array();
@@ -268,8 +274,7 @@ class IACLDefinition implements ArrayAccess
         }
         $rules = IACLStorage::get('SD')->getRules(array(
             "(pe_type, pe_id) IN ($ids)",
-            'rule_type' => self::ACTION_INCLUDE_SD,
-            'is_direct' => 1,
+            '(actions & '.IACL::ACTION_INCLUDE_SD.')',
         ));
         $ids = array();
         $keys = array();
@@ -427,7 +432,7 @@ class IACLDefinition implements ArrayAccess
             !($loaded[$userID] & (1 << $isGroup)))
         {
             global $iaclPreloadLimit;
-            $loaded[$userID] |= (1 << $isGroup);
+            $loaded[$userID] = @$loaded[$userID] | (1 << $isGroup);
             // Preload up to $iaclPreloadLimit rules, preferring more general (pe_type ASC)
             // and more recent (pe_id DESC) rules for better cache hit ratio.
             // Groups are unused in permission checks and thus have no effect on permission check speed,
@@ -525,7 +530,7 @@ class IACLDefinition implements ArrayAccess
      * @param  int $peType  Type of the protected element
      * @return object|bool  Definition object or <false> if it does not exist
      */
-    public static function getSDForPE($peID, $peType)
+    public static function getSDForPE($peType, $peID)
     {
         $r = self::select(array('pe' => array($peType, $peID)));
         return $r ? $r[0] : false;
@@ -605,7 +610,7 @@ class IACLDefinition implements ArrayAccess
     public function save(&$preventLoop = array())
     {
         // Load ID and parents before saving, as the definition may be deleted next
-        $parents = $this->getDirectParents();
+        $parents = $this['parents'];
         $peType = $this['pe_type'];
         $peID = $this['pe_id'];
         $key = $peType.'-'.$peID;

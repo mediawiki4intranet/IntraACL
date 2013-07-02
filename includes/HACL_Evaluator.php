@@ -178,7 +178,7 @@ class HACLEvaluator
                 $seq[] = array('category SD for category page', IACL::PE_CATEGORY, $articleID);
             }
             // Check category rights
-            $seq[] = array('category SD', IACL::PE_CATEGORY, self::getParentCategoryIDs($articleID));
+            $seq[] = array('category SD', IACL::PE_CATEGORY, IACLStorage::get('Util')->getParentCategoryIDs($articleID));
         }
         $seq[] = array('namespace SD', IACL::PE_NAMESPACE, $title->getNamespace());
 
@@ -207,36 +207,6 @@ class HACLEvaluator
         }
 
         return array('', -1);
-    }
-
-    /**
-     * Returns IDs of all parent categories for article with ID $articleID
-     * (including non-direct inclusions)
-     * FIXME: Maybe speed up this by materializing?
-     */
-    protected function getParentCategoryIDs($articleID)
-    {
-        $dbr = wfGetDB(DB_SLAVE);
-        $ids = array($articleID => true);
-        $new = array($articleID);
-        while ($new)
-        {
-            $res = $dbr->select(
-                array('categorylinks', 'page'), 'page_id',
-                array('cl_from' => $new, 'cl_to=page_title', 'page_namespace' => NS_CATEGORY),
-                __METHOD__
-            );
-            $new = array();
-            foreach ($res as $row)
-            {
-                if (empty($ids[$row->page_id]))
-                {
-                    $ids[$row->page_id] = true;
-                    $new[] = $row->page_id;
-                }
-            }
-        }
-        return array_keys($ids);
     }
 
     /**
@@ -303,7 +273,7 @@ class HACLEvaluator
         haclfRestoreTitlePatch($etc);
         return
             IACLDefinition::userCan($userID, IACL::PE_NAMESPACE, $title->getNamespace(), IACL::ACTION_PROTECT_PAGES) > 0 ||
-            IACLDefinition::userCan($userID, IACL::PE_CATEGORY, self::getParentCategoryIDs($pageID), IACL::ACTION_PROTECT_PAGES) > 0;
+            IACLDefinition::userCan($userID, IACL::PE_CATEGORY, IACLStorage::get('Util')->getParentCategoryIDs($pageID), IACL::ACTION_PROTECT_PAGES) > 0;
     }
 
     /**
