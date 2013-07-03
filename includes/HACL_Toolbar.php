@@ -87,7 +87,7 @@ class HACLToolbar
             {
                 $pageSD = HACLSecurityDescriptor::newFromId($pageSDId);
                 $pageSDTitle = Title::newFromId($pageSDId);
-                $canModify = HACLEvaluator::checkACLManager($pageSDTitle, $wgUser, HACLLanguage::RIGHT_EDIT);
+                $canModify = IACLEvaluator::checkACLManager($pageSDTitle, $wgUser, IACL::ACTION_EDIT);
                 // Check if page SD is a single predefined right inclusion
                 if ($single = $pageSD->isSinglePredefinedRightInclusion())
                 {
@@ -179,7 +179,7 @@ class HACLToolbar
 
         // Check if page namespace has an ACL (for hint)
         if (!$pageSDId && !$globalACL &&
-            ($sdid = IACLDefinition::getSDForPE(IACL::PE_NAMESPACE, $title->getNamespace()))!!!!!!!
+            ($sdid = IACLDefinition::getSDForPE(IACL::PE_NAMESPACE, $title->getNamespace())))
         {
             $globalACL[] = Title::newFromId($sdid);
         }
@@ -273,11 +273,8 @@ class HACLToolbar
             !$editpage->mTitle->getArticleId() &&
             (!$g || !array_intersect($g, $haclgSuperGroups)))
         {
-            list($r, $sd) = HACLEvaluator::checkNamespaceRight(
-                $editpage->mTitle->getNamespace(),
-                $wgUser->getId(), HACLLanguage::RIGHT_READ
-            );
-            if (!($sd ? $r : $haclgOpenWikiAccess))
+            $r = IACLDefinition::userCan($wgUser->getId(), IACL::PE_NAMESPACE, $editpage->mTitle->getNamespace(), IACL::ACTION_READ);
+            if ($r == 0 || $r == -1 && !$haclgOpenWikiAccess)
             {
                 $editpage->eNonReadable = true;
             }
@@ -360,22 +357,16 @@ class HACLToolbar
             if (!$dest || !$dest->exists())
             {
                 // New file
-                list($cr, $sd) = HACLEvaluator::checkNamespaceRight(
-                    NS_FILE, $wgUser->getId(), HACLLanguage::RIGHT_CREATE
-                );
-                $cr = $sd ? $cr : $haclgOpenWikiAccess;
-                if (!$cr)
+                $r = IACLDefinition::userCan($wgUser->getId(), IACL::PE_NAMESPACE, NS_FILE, IACL::ACTION_CREATE);
+                if ($r == 0 || $r == -1 && !$haclgOpenWikiAccess)
                 {
                     $wgOut->showErrorPage('hacl_upload_forbidden', 'hacl_upload_forbidden_text');
                     return false;
                 }
                 else
                 {
-                    list($cr, $sd) = HACLEvaluator::checkNamespaceRight(
-                        NS_FILE, $wgUser->getId(), HACLLanguage::RIGHT_READ
-                    );
-                    $cr = $sd ? $cr : $haclgOpenWikiAccess;
-                    if (!$cr)
+                    $r = IACLDefinition::userCan($wgUser->getId(), IACL::PE_NAMESPACE, NS_FILE, IACL::ACTION_READ);
+                    if ($r == 0 || $r == -1 && !$haclgOpenWikiAccess)
                     {
                         $sel = self::getReadableCategoriesSelectBox(true);
                         if ($sel)
@@ -546,7 +537,7 @@ class HACLToolbar
         // Check SD modification rights
         if ($pageSDId)
         {
-            $allowed = HACLEvaluator::checkACLManager(Title::newFromId($pageSDId), $wgUser, 'edit');
+            $allowed = IACLEvaluator::checkACLManager(Title::newFromId($pageSDId), $wgUser, 'edit');
             if (!$allowed)
             {
                 return true;
@@ -554,7 +545,7 @@ class HACLToolbar
         }
 
         // Create an article object for the SD
-        $newSDName = HACLSecurityDescriptor::nameOfSD($article->getTitle()->getFullText(), HACLLanguage::PET_PAGE);
+        $newSDName = IACLDefinition::nameOfSD($article->getTitle()->getFullText(), IACL::PE_PAGE);
         $etc = haclfDisableTitlePatch();
         $newSD = Title::newFromText($newSDName);
         haclfRestoreTitlePatch($etc);
@@ -564,9 +555,7 @@ class HACLToolbar
         {
             // Create/modify page SD
             $selectedSDTitle = Title::newFromId($selectedSD);
-            $pf = $haclgContLang->getParserFunction(HACLLanguage::PF_PREDEFINED_RIGHT);
-            $pfp = $haclgContLang->getParserFunctionParameter(HACLLanguage::PFP_RIGHTS);
-            $content = '{{#'.$pf.': '.$pfp.' = '.$selectedSDTitle->getText().'}}';
+            $content = '{{#predefined right: rights = '.$selectedSDTitle->getText().'}}';
             $newSDArticle->doEdit($content, wfMsg('hacl_comment_protect_with', $selectedSDTitle->getFullText()));
         }
         else

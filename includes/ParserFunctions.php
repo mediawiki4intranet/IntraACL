@@ -23,7 +23,33 @@
  */
 
 if (!defined('MEDIAWIKI'))
+{
     die("This file is part of the IntraACL extension. It is not a valid entry point.");
+}
+
+class IACLParserFunctionHooks
+{
+    static $functions = array(
+        'access'          => true,
+        'predefinedRight' => true,
+        'manageRights'    => true,
+        'addMember'       => true,
+    );
+
+    static function __callStatic($function, $args)
+    {
+        $parser = array_shift($args);
+        if (isset(self::$functions[$function]))
+        {
+            $pf = IACLParserFunctions::instance($parser);
+            if ($pf)
+            {
+                return $pf->$function($parser, $args);
+            }
+        }
+        return '{{#' . $function . ': ' . implode(', ', $args) . '}}';
+    }
+}
 
 /**
  * Handles parser functions:
@@ -75,37 +101,6 @@ class IACLParserFunctions
         unset(self::$instances[''.$instance->title]);
     }
 
-    static function access($parser)
-    {
-        $args = func_get_args();
-        return self::instance($parser)->_access($parser, $args);
-    }
-
-    static function predefinedRight($parser)
-    {
-        $args = func_get_args();
-        return self::instance($parser)->_predefinedRight($parser, $args);
-    }
-
-    static function manageRights($parser)
-    {
-        $args = func_get_args();
-        return self::instance($parser)->_manageRights($parser, $args);
-    }
-
-    static function addMember($parser)
-    {
-        $args = func_get_args();
-        return self::instance($parser)->_addMember($parser, $args);
-    }
-
-    static function manageGroup($parser)
-    {
-        $args = func_get_args();
-        // Same handler as for manageRights
-        return self::instance($parser)->_manageRights($parser, $args);
-    }
-
     //--- Callbacks for parser functions ---
 
     /**
@@ -115,7 +110,7 @@ class IACLParserFunctions
      * @param Parser $parser
      * @return string Wikitext
      */
-    public function _access(&$parser, $args)
+    public function access(&$parser, $args)
     {
         if ($this->peType == IACL::PE_GROUP)
         {
@@ -151,7 +146,7 @@ class IACLParserFunctions
      * @param Parser $parser
      * @return string Wikitext
      */
-    public function _predefinedRight(&$parser, $args)
+    public function predefinedRight(&$parser, $args)
     {
         if ($this->peType == IACL::PE_GROUP)
         {
@@ -191,7 +186,7 @@ class IACLParserFunctions
      * @param Parser $parser
      * @return string Wikitext
      */
-    public function _manageRights(&$parser, $args)
+    public function manageRights(&$parser, $args)
     {
         $params = $this->getParameters($args);
 
@@ -218,7 +213,7 @@ class IACLParserFunctions
      * @param Parser $parser
      * @return string Wikitext
      */
-    public function _addMember(&$parser, $args)
+    public function addMember(&$parser, $args)
     {
         if ($this->peType != IACL::PE_GROUP)
         {
@@ -278,6 +273,7 @@ class IACLParserFunctions
     protected function assignedTo($params, $param, $actions)
     {
         $errors = array();
+        $all_reg = array();
         $users = array();
         $groups = array();
 
@@ -298,12 +294,12 @@ class IACLParserFunctions
             if ($assignee === '*')
             {
                 // all users
-                $users['*'] = IACL::ALL_USERS;
+                $all_reg[IACL::PE_ALL_USERS] = true;
             }
             elseif ($assignee === '#')
             {
                 // registered users
-                $users['#'] = IACL::REGISTERED_USERS;
+                $all_reg[IACL::PE_REG_USERS] = true;
             }
             elseif (($t = Title::newFromText($assignee)))
             {
@@ -332,8 +328,6 @@ class IACLParserFunctions
         if ($users)
         {
             $check = $users;
-            unset($check['*']);
-            unset($check['#']);
             $res = wfGetDB(DB_SLAVE)->select('user', '*', array('user_name' => array_keys($check)));
             foreach ($res as $ur)
             {
@@ -360,17 +354,24 @@ class IACLParserFunctions
                 $errors[] = wfMsgForContent('hacl_unknown_group', $invalid);
             }
         }
-        if (!$users && !$groups)
+        if (!$users && !$groups && !$all_reg)
         {
             // No users/groups specified at all => add error message
             $errors[] = wfMsgForContent('hacl_missing_parameter_values', $param);
+        }
+        else
+        {
+            $this->hasActions |= $actions;
+        }
+        foreach ($all_reg as $t => $true)
+        {
+            @$this->rules[$t][0] = true;
         }
         foreach ($users as $name => $id)
         {
             if ($id !== false)
             {
                 @$this->rules[IACL::PE_USER][$id] |= $actions;
-                $this->hasActions |= $actions;
             }
         }
         foreach ($groups as $name => $id)
@@ -378,7 +379,6 @@ class IACLParserFunctions
             if ($id !== false)
             {
                 @$this->rules[IACL::PE_GROUP][$id] |= $actions;
-                $this->hasActions |= $actions;
             }
         }
         haclfRestoreTitlePatch($etc);
@@ -500,9 +500,13 @@ class IACLParserFunctions
         global $haclgContLang, $wgTitle;
         $html = self::instance($wgTitle, false);
         if ($html)
+        {
             $html = $html->consistencyCheckHtml();
-        if ($html)
-            $out->addHTML($html);
+            if ($html)
+            {
+                $out->addHTML($html);
+            }
+        }
         return true;
     }
 
@@ -557,7 +561,7 @@ class IACLParserFunctions
             {
                 $this->def = IACLDefinition::newEmpty($this->peType, $id);
             }
-            $this->def['rights'] = $this->rules;
+            $this->def['rules'] = $this->rules;
         }
     }
 
@@ -572,26 +576,16 @@ class IACLParserFunctions
         return true;
     }
 
-    /* Remove definition completely (used with article delete or clear) */
+    /**
+     * Remove definition completely (used with article delete or clear)
+     */
     public static function removeDef($title)
     {
-        $type = HACLEvaluator::hacl_type($title);
-        if ($type == 'group')
-            self::removeGroup($title);
-        elseif ($type)
+        $this->def = reset(IACLDefinition::newFromTitles($title));
+        if ($this->def)
         {
-            // It is a right or security descriptor
-            if ($sd = HACLSecurityDescriptor::newFromID($title->getArticleId(), false))
-            {
-                // Check access
-                if (!$sd->userCanModify())
-                {
-                    wfDebug(__METHOD__.": INCONSISTENCY! Article '$title' deleted, but corresponding SD remains, because userCanModify() = false\n");
-                    return false;
-                }
-                // Delete SD permanently
-                $sd->delete();
-            }
+            $this->def['rules'] = array();
+            $this->def->save();
         }
     }
 
@@ -616,12 +610,10 @@ class IACLParserFunctions
         else
         {
             // If a protected article is deleted, its SD will be deleted as well
-            $sdID = HACLSecurityDescriptor::getSDForPE(
-                $article->getTitle()->getArticleID(),
-                HACLLanguage::PET_PAGE);
-            if ($sdID)
+            $sd = IACLDefinition::getSDForPE(IACL::PE_PAGE, $article->getTitle()->getArticleID());
+            if ($sd)
             {
-                $t = Title::newFromID($sdID);
+                $t = Title::newFromTitle(IACLDefinition::nameOfSD($article->getTitle(), IACL::PE_PAGE));
                 if ($t)
                 {
                     $a = new Article($t);
@@ -629,12 +621,9 @@ class IACLParserFunctions
                 }
                 else
                 {
-                    // SD article is already deleted somehow, but SD remains (DB inconsistency), delete it
-                    if ($sd = HACLSecurityDescriptor::newFromID($sd, false))
-                    {
-                        $sd->delete();
-                        wfDebug("DB INCONSISTENCY: $t already deleted, but corresponding SD remained, removing.\n");
-                    }
+                    // FIXME Article is already deleted somehow, but SD remains (DB inconsistency), delete it
+                    $sd['rules'] = array();
+                    $sd->save();
                 }
             }
         }
@@ -651,18 +640,19 @@ class IACLParserFunctions
     public static function TitleMoveComplete($oldTitle, $newTitle, $wgUser, $pageid, $redirid)
     {
         if ($oldTitle->getNamespace() == HACL_NS_ACL)
+        {
             return true;
+        }
         $newName = $newTitle->getFullText();
 
         // Check if the old title has an SD
-        $sd = HACLSecurityDescriptor::getSDForPE($pageid, HACLLanguage::PET_PAGE);
+        $sd = IACLDefinition::getSDForPE(IACL::PE_PAGE, $pageid);
         if ($sd !== false)
         {
             // move SD for page
             wfDebug("Move SD for page: ID=$sd, pageid=$pageid\n");
             $oldSD = Title::newFromID($sd);
-            $newSD = HACLSecurityDescriptor::nameOfSD($newName,
-                HACLLanguage::PET_PAGE);
+            $newSD = IACLDefinition::nameOfSD($newName, IACL::PE_PAGE);
             self::move($oldSD, $newSD);
         }
 
@@ -687,9 +677,13 @@ class IACLParserFunctions
         wfDebug(__METHOD__.": move SD requested from $from to $to\n");
         $etc = haclfDisableTitlePatch();
         if (!is_object($from))
+        {
             $from = Title::newFromText($from);
+        }
         if (!is_object($to))
+        {
             $to = Title::newFromText($to);
+        }
         haclfRestoreTitlePatch($etc);
         if ($to->exists() && $to->userCan('delete'))
         {
@@ -709,7 +703,9 @@ class IACLParserFunctions
     {
         global $wgParser;
         if (!self::$parser)
+        {
             self::$parser = clone $wgParser;
+        }
         $options = clone $wgParser->getOptions();
         self::$parser->parse($text, $title, $options);
     }
@@ -757,6 +753,9 @@ class IACLParserFunctions
         else
         {
             list($del, $add) = $this->def->diffRules();
+            var_dump($del);
+            var_dump($add);
+            exit;
             if ($del || $add)
             {
                 // TODO Show inconsistency details
@@ -809,11 +808,17 @@ class IACLParserFunctions
             foreach ($users as &$u)
             {
                 if ($u == '*')
+                {
                     $u = wfMsgForContent('hacl_all_users');
+                }
                 elseif ($u == '#')
+                {
                     $u = wfMsgForContent('hacl_registered_users');
+                }
                 else
+                {
                     $u = "[[$userNS:$u|$u]]";
+                }
             }
             $text .= implode(', ', $users);
             $text .= "\n";
@@ -829,9 +834,13 @@ class IACLParserFunctions
             foreach ($groups as $g)
             {
                 if (!$first)
+                {
                     $text .= ', ';
+                }
                 else
+                {
                     $first = false;
+                }
                 $text .= "[[$aclNS:$g|$g]]";
             }
             $text .= "\n";

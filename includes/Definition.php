@@ -42,7 +42,8 @@ For big databases:
  * SD may be either a right definition for some protected element
  * (page, category, namespace) or just a template suited for inclusion
  * into other SD(s).
- * SD can contain (action, user) and (action, group) grants and/or inclusions
+ *
+ * SD may contain (action, user) and (action, group) grants and/or inclusions
  * of other SDs.
  *
  * Group may contain users and/or other groups as its members, and also
@@ -138,11 +139,12 @@ class IACLDefinition implements ArrayAccess
         {
             $this->makeDirty();
         }
-        if ($k == 'child_ids')
+        if ($k == 'pe_id' || $k == 'pe_type' || $k == 'rules')
         {
-            unset($this->data['children']);
+            // FIXME unset(children, parents, etc)
+            return $this->data[$k] = $v;
         }
-        return $this->data[$k] = $v;
+        throw new Exception(__CLASS__.': Trying to set unknown field: '.$k);
     }
 
     function offsetExists($k)
@@ -294,49 +296,24 @@ class IACLDefinition implements ArrayAccess
         return $this->data['children'];
     }
 
-    // Returns array(user_id => rule)
-    protected function get_user_rights()
-    {
-        return $this['rules'][IACL::PE_USER];
-    }
-
-    // Returns array(group_id => rule)
-    protected function get_group_rights()
-    {
-        return $this['rules'][IACL::PE_GROUP];
-    }
-
-    // Returns array('<type>-<id>' => rule)
-    protected function get_child_ids()
-    {
-        $r = $this['rules'];
-        $res = array();
-        foreach (array(IACL::PE_CATEGORY, IACL::PE_PAGE, IACL::PE_NAMESPACE, IACL::PE_RIGHT) as $k)
-        {
-            if (isset($r[$k]))
-            {
-                foreach ($r[$k] as $sd => $rule)
-                {
-                    $res["$k-$sd"] = $rule;
-                }
-            }
-        }
-        return $res;
-    }
-
     /**
      * Checks whether this SD only includes SINGLE predefined right and
      * does not include any inline rights or manage template rights.
      * If so, the ID of this single predefined right is returned.
      * If not, NULL is returned.
+     *
+     * @return array($peType, $peId) Identifier of child SD or NULL
      */
     protected function get_single_child()
     {
-        if (!$this['user_rights'] &&
-            !$this['group_rights'] &&
-            count($i = $this['child_ids']) == 1)
+        $rules = $this['rules'];
+        $keys = array_keys($rules);
+        if (count($keys) == 1 &&
+            $keys[0] != IACL::PE_USER && $keys[0] != IACL::PE_GROUP &&
+            count($rules[$keys[0]]) == 1)
         {
-            return reset($i);
+            $id = reset($rules[$keys[0]]);
+            return array($keys[0], is_array($id) ? $id['child_id'] : $id);
         }
         return NULL;
     }
@@ -414,18 +391,23 @@ class IACLDefinition implements ArrayAccess
         if ($userID)
         {
             // Fallback chain: current user -> registered users (0) -> all users (-1)
-            $applicable = array($userID, IACL::ALL_USERS, IACL::REGISTERED_USERS);
+            $applicable = array(
+                '('.IACL::PE_USER.','.$userID.')',
+                '('.IACL::PE_REG_USERS.','.0.')',
+                '('.IACL::PE_ALL_USERS.','.0.')',
+            );
         }
         else
         {
-            $applicable = IACL::ALL_USERS;
+            $applicable = array(
+                '('.IACL::PE_ALL_USERS.','.0.')'
+            );
         }
         $where = array(
-            'child_type' => IACL::PE_USER,
-            'child_id' => $applicable,
+            '(child_type, child_id) IN '.implode(', ', $applicable),
         );
         $options = array(
-            'ORDER BY' => 'child_id DESC, pe_type ASC, pe_id DESC'
+            'ORDER BY' => 'child_type ASC, pe_type ASC, pe_id DESC'
         );
         $isGroup = ($peType == IACL::PE_GROUP);
         if (!isset($loaded[$userID]) ||
@@ -463,7 +445,7 @@ class IACLDefinition implements ArrayAccess
         }
         if (($loaded[$userID] & (4 << $isGroup)))
         {
-            // Not all rules were preloaded => database is very big, perform additional query
+            // Not all rules were preloaded => database is very big, perform a query for single PE
             $where['pe_type'] = $peType;
             $where['pe_id'] = $peID;
             $rules = IACLStorage::get('SD')->getRules($where, $options);
@@ -503,20 +485,35 @@ class IACLDefinition implements ArrayAccess
             $peName = str_replace(' ', '_', trim($peName, " _\t\n\r"));
             $idx = $wgContLang->getNsIndex($peName);
             if ($idx == false)
+            {
                 return (strtolower($peName) == 'main') ? 0 : false;
+            }
             return $idx;
         }
         elseif ($peType === IACL::PE_RIGHT)
+        {
             $ns = HACL_NS_ACL;
+        }
         elseif ($peType === IACL::PE_CATEGORY)
+        {
             $ns = NS_CATEGORY;
+        }
         elseif ($peType === IACL::PE_USER)
+        {
             $ns = NS_USER;
+        }
         elseif ($peType === IACL::PE_GROUP)
         {
             $ns = HACL_NS_ACL;
             $peName = "Group/$peName";
         }
+        elseif ($peType == IACL::PE_SPECIAL)
+        {
+            $ns = NS_SPECIAL;
+        }
+        !!!!!!!!!!!!!!!!!!!!!!!!!!
+        Continue refactoring here.
+        Need to a) deal with special pages b) make ACL:Page/<CanonicalNS>:Title
         // Return the page id
         // TODO add caching here
         $id = haclfArticleID($peName, $ns);
@@ -540,6 +537,7 @@ class IACLDefinition implements ArrayAccess
      * Determine protected element name and type by definition page title
      *
      *  ACL:Page/<Page title>               PE_PAGE
+     *  ACL:Special/<Special page title>    PE_SPECIAL
      *  ACL:Category/<Category name>        PE_CATEGORY
      *  ACL:Namespace/<Namespace name>      PE_NAMESPACE
      *  ACL:Namespace/Main                  PE_NAMESPACE
@@ -625,19 +623,14 @@ class IACLDefinition implements ArrayAccess
         else
         {
             // Update definition
-            if (isset($this->data['user_rights']) ||
-                isset($this->data['group_rights']) ||
-                isset($this->data['child_ids']))
+            list($delRules, $addRules) = $this->diffRules();
+            if ($delRules)
             {
-                list($delRules, $addRules) = $this->diffRules();
-                if ($delRules)
-                {
-                    $st->deleteRules($delRules);
-                }
-                if ($addRules)
-                {
-                    $st->dataRules($addRules);
-                }
+                $st->deleteRules($delRules);
+            }
+            if ($addRules)
+            {
+                $st->addRules($addRules);
             }
         }
         // Commit new state into cache
@@ -657,16 +650,47 @@ class IACLDefinition implements ArrayAccess
 
     public function diffRules()
     {
+        $oldRules = array();
+        if ($old = $this->clean())
+        {
+            foreach ($old['rules'] as $type => $children)
+            {
+                foreach ($children as $child => $rule)
+                {
+                    $oldRules["$type-$child"] = $rule;
+                }
+            }
+        }
         $oldRules = $this->clean();
         $oldRules = $oldRules ? $oldRules['rules'] : array();
         $addRules = $this->data['rules'] = $this->buildRules();
-        foreach ($oldRules as $k => $rule)
+        foreach ($oldRules as $type => $children)
         {
-            if (isset($addRules[$k]) && $addRules[$k]['actions'] == $rule['actions'])
+            foreach ($children as $child => $rule)
             {
-                unset($addRules[$k]);
-                unset($oldRules[$k]);
+                if (isset($addRules[$type][$child]) && $addRules[$type][$child]['actions'] == $rule['actions'])
+                {
+                    unset($addRules[$type][$child]);
+                    if (empty($addRules[$type]))
+                    {
+                        unset($addRules[$type]);
+                    }
+                    unset($oldRules[$type][$child]);
+                    if (empty($oldRules[$type]))
+                    {
+                        unset($oldRules[$type]);
+                    }
+                }
             }
+        }
+        // Return linear rule arrays
+        if ($oldRules)
+        {
+            $oldRules = call_user_func_array('array_merge', array_map('array_values', array_values($oldRules)));
+        }
+        if ($addRules)
+        {
+            $addRules = call_user_func_array('array_merge', array_map('array_values', array_values($addRules)));
         }
         return array($oldRules, $addRules);
     }
@@ -761,9 +785,9 @@ class IACLDefinition implements ArrayAccess
             }
         }
         // Add empty ALL_USERS grant if not yet
-        if (!isset($rules[IACL::PE_USER][IACL::ALL_USERS]))
+        if (!isset($rules[IACL::PE_ALL_USERS][0]))
         {
-            $rules[IACL::PE_USER][IACL::ALL_USERS] = $thisId + array(
+            $rules[IACL::PE_ALL_USERS][0] = $thisId + array(
                 'child_type' => IACL::PE_USER,
                 'child_id'   => IACL::ALL_USERS,
                 'actions'    => 0,

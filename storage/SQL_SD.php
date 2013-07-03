@@ -31,9 +31,9 @@ class IntraACL_SQL_SD
         $dbr = wfGetDB(DB_SLAVE);
         $res = $dbr->select('intraacl_rules', '*', $where, __METHOD__);
         $rows = array();
-        while ($r = $res->fetchRow())
+        while ($r = $res->fetchObject())
         {
-            $rows[] = $r;
+            $rows[] = (array)$r;
         }
         return $rows;
     }

@@ -25,19 +25,10 @@
 /**
  * HACLLanguage is the class where all shared constants and important
  * language-specific names live.
+ *
  * All properties are public, but use getters instead to get a runtime error
  * when trying to access non-existing property.
  */
-
-/**
- * Security descriptors protect different types of elements i.e. pages,
- * instances of categories and namespaces. The name of a security descriptor
- * has a prefix that matches this type. The prefix depends on the language.
- *
- * Example: ACL:Page/X is the security descriptor for page X. The prefix is
- *          "Page".
- */
-
 abstract class HACLLanguage
 {
     //////////////////////////////////
@@ -90,6 +81,7 @@ abstract class HACLLanguage
     // SD page prefixes (ACL:<Prefix>/<Name>) for different protected element types
     public $mPetPrefixes = array(
         IACL::PE_PAGE       => 'Page',
+        IACL::PE_SPECIAL    => 'Special',
         IACL::PE_CATEGORY   => 'Category',
         IACL::PE_NAMESPACE  => 'Namespace',
         IACL::PE_RIGHT      => 'Right',
@@ -107,11 +99,17 @@ abstract class HACLLanguage
     public function __construct()
     {
         foreach ($this->mPetPrefixes as $id => $prefix)
+        {
             $this->mPetAliases[mb_strtolower($prefix)] = $id;
+        }
         foreach ($this->mPetAliases as $prefix => $id)
+        {
             $this->mPrefixes[$prefix] = $id == IACL::PE_RIGHT ? 'right' : 'sd';
+        }
         foreach ($this->mActionNames as $id => $name)
+        {
             $this->mActionAliases[mb_strtolower($name)] = $id;
+        }
     }
 
     /////////////
@@ -155,7 +153,9 @@ abstract class HACLLanguage
     public function getActionId($name)
     {
         if (isset($this->mActionAliases[mb_strtolower($name)]))
+        {
             return $this->mActionAliases[mb_strtolower($name)];
+        }
         return false;
     }
 
@@ -172,7 +172,9 @@ abstract class HACLLanguage
     public function getPrefix($prefix)
     {
         if (isset($this->mPrefixes[mb_strtolower($prefix)]))
+        {
             return $this->mPrefixes[mb_strtolower($prefix)];
+        }
         return false;
     }
 
@@ -184,7 +186,9 @@ abstract class HACLLanguage
     public function getPetAlias($alias)
     {
         if (isset($this->mPetAliases[mb_strtolower($alias)]))
+        {
             return $this->mPetAliases[mb_strtolower($alias)];
+        }
         return false;
     }
 

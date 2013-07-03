@@ -142,7 +142,8 @@ function enableIntraACL()
         // Internals
         'IACLDefinition'            => "$haclgIP/includes/Definition.php",
         'IACLParserFunctions'       => "$haclgIP/includes/ParserFunctions.php",
-        'HACLEvaluator'             => "$haclgIP/includes/HACL_Evaluator.php",
+        'IACLParserFunctionHooks'   => "$haclgIP/includes/ParserFunctions.php",
+        'IACLEvaluator'             => "$haclgIP/includes/Evaluator.php",
         'HACLGroup'                 => "$haclgIP/includes/HACL_Group.php",
         'HACLSecurityDescriptor'    => "$haclgIP/includes/HACL_SecurityDescriptor.php",
         'HACLRight'                 => "$haclgIP/includes/HACL_Right.php",
@@ -224,7 +225,7 @@ function haclfSetupExtension()
         $wgHooks['ArticleSaveComplete'][] = 'HACLToolbar::articleSaveComplete_SaveEmbedded';
 
         // Permission and cache checks - intentionally disabled in console mode
-        $wgHooks['userCan'][] = 'HACLEvaluator::userCan';
+        $wgHooks['userCan'][] = 'IACLEvaluator::userCan';
         $wgHooks['IsFileCacheable'][] = 'haclfIsFileCacheable';
         $wgHooks['PageRenderingHash'][] = 'haclfPageRenderingHash';
     }
@@ -243,18 +244,22 @@ function haclfSetupExtension()
     {
         $ns = $wgContLang->getNsIndex($ns);
         if ($ns !== false)
+        {
             $haclgUnprotectableNamespaceIds[$ns] = true;
+        }
     }
 
     $wgHooks['GetPreferences'][] = 'HACLToolbar::GetPreferences';
 
     //-- includes for Ajax calls --
     global $wgUseAjax, $wgRequest;
-    if ($wgUseAjax && $wgRequest->getVal('action') == 'ajax' ) {
+    if ($wgUseAjax && $wgRequest->getVal('action') == 'ajax' )
+    {
         $funcName = isset( $_POST["rs"] )
                         ? $_POST["rs"]
                         : (isset( $_GET["rs"] ) ? $_GET["rs"] : NULL);
-        if (strpos($funcName, 'hacl') === 0) {
+        if (strpos($funcName, 'hacl') === 0)
+        {
             require_once("$haclgIP/includes/HACL_Toolbar.php");
             require_once("$haclgIP/includes/HACL_AjaxConnector.php");
         }
@@ -269,11 +274,11 @@ function haclfSetupExtension()
         'description' => 'The best MediaWiki rights extension, based on HaloACL.');
 
     // IACLParserFunctions callbacks
-    $wgParser->setFunctionHook('haclaccess',            'IACLParserFunctions::access');
-    $wgParser->setFunctionHook('haclpredefinedright',   'IACLParserFunctions::predefinedRight');
-    $wgParser->setFunctionHook('haclmanagerights',      'IACLParserFunctions::manageRights');
-    $wgParser->setFunctionHook('haclmember',            'IACLParserFunctions::addMember');
-    $wgParser->setFunctionHook('haclmanagegroup',       'IACLParserFunctions::manageGroup');
+    $wgParser->setFunctionHook('haclaccess',            'IACLParserFunctionHooks::access');
+    $wgParser->setFunctionHook('haclpredefinedright',   'IACLParserFunctionHooks::predefinedRight');
+    $wgParser->setFunctionHook('haclmanagerights',      'IACLParserFunctionHooks::manageRights');
+    $wgParser->setFunctionHook('haclmember',            'IACLParserFunctionHooks::addMember');
+    $wgParser->setFunctionHook('haclmanagegroup',       'IACLParserFunctionHooks::manageRights');
 
     haclCheckScriptPath();
 
@@ -529,12 +534,18 @@ function haclfArticleID($articleName, $defaultNS = NS_MAIN)
         haclfRestoreTitlePatch($etc);
     }
     if (!$t)
+    {
         return 0;
+    }
     if ($t->getNamespace() == NS_SPECIAL)
-        return IACLStorage::get('SpecialPage')->idForSpecial($t->getBaseText());
+    {
+        return -IACLStorage::get('SpecialPage')->idForSpecial($t->getBaseText());
+    }
     $id = $t->getArticleID();
     if ($id === 0)
+    {
         $id = $t->getArticleID(Title::GAID_FOR_UPDATE);
+    }
     return $id;
 }
 
@@ -545,7 +556,9 @@ function haclfArticleID($articleName, $defaultNS = NS_MAIN)
 function haclfAddToolbarForEditPage($editpage, $out)
 {
     if ($editpage->mTitle->mNamespace == HACL_NS_ACL)
+    {
         return true;
+    }
     $out->addHTML(HACLToolbar::get($editpage->mTitle, !empty($editpage->eNonReadable)));
     return true;
 }
@@ -629,8 +642,11 @@ class IACL
     const PE_CATEGORY   = 2;    // Category security descriptor, identified by category page ID
     const PE_RIGHT      = 3;    // Right template, identified by ACL definition (ACL:XXX) page ID
     const PE_PAGE       = 4;    // Page security descriptor, identified by page ID
-    const PE_GROUP      = 5;    // Group, identified by group (ACL:Group/XXX) page ID
-    const PE_USER       = 6;    // User, identified by user ID. Used only as child, not as definition (obviously)
+    const PE_SPECIAL    = 5;    // Special page, identified by a surrogate ID from special page table
+    const PE_ALL_USERS  = 6;    // All users including anonymous
+    const PE_REG_USERS  = 7;    // Registered users
+    const PE_GROUP      = 8;    // Group, identified by group (ACL:Group/XXX) page ID
+    const PE_USER       = 9;    // User, identified by user ID. Used only as child, not as definition (obviously)
 
     /**
      * Action/child relation details, stored as bitmap in rules table
@@ -653,9 +669,6 @@ class IACL
      * I.e., 8 means higher byte is for indirect rights
      */
     const INDIRECT_OFFSET       = 8;
-
-    const ALL_USERS             = -1;
-    const REGISTERED_USERS      = 0;
 
     static $nameToType = array(
         'right'     => IACL::PE_RIGHT,
