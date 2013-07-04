@@ -105,12 +105,9 @@ class IntraACL_SQL_SD
 
     /**
      * Select all SD pages (not only saved SDs as incorrect SDs may be not saved),
-     * with additional fields:
-     * - sd_single_id is ID of the only one included predefined right.
-     * - sd_single_title is page title of this PR.
-     * - sd_no_rights is true, if SD has no direct inline rights.
-     * I.e. when sd_no_rights is true, non-NULL sd_single_id means that SD
-     * contains only one predefined right inclusion.
+     * with an additional field:
+     *
+     *   single_child => NULL or [ peType, peID, pageTitle ] of a single included SD
      */
     public function getSDPages($types, $name, $offset, $limit, &$total)
     {
@@ -134,34 +131,31 @@ class IntraACL_SQL_SD
             'OFFSET' => $offset,
             'LIMIT' => $limit,
         ));
+        $titles = array();
         $rows = array();
         foreach ($res as $row)
         {
-            $row->sd_single_title = NULL;
-            $rows[$row->page_id] = $row;
+            $t = Title::newFromRow($row);
+            $titles[] = $t;
+            $rows["$t"] = $row;
         }
         if (!$rows)
         {
             return $rows;
         }
-        // Select total page count
-        $res = $dbr->query('SELECT FOUND_ROWS()', __METHOD__);
-        $total = $res->fetchRow();
-        $total = $total[0];
-        // Select single-inclusion information
-        $res = $dbr->select(array('i' => 'halo_acl_rights_hierarchy', 'r' => 'halo_acl_rights', 'p' => 'page'),
-            'i.parent_right_id, p.*',
-            array('r.origin_id IS NULL', 'i.parent_right_id' => array_keys($rows)),
-            __METHOD__,
-            array('GROUP BY' => 'i.parent_right_id', 'HAVING' => 'COUNT(i.child_id)=1'),
-            array(
-                'r' => array('LEFT JOIN', array('r.origin_id=i.parent_right_id')),
-                'p' => array('INNER JOIN', array('p.page_id=i.child_id'))
-            )
-        );
-        foreach ($res as $row)
+        $defs = IACLDefinitions::newFromTitles($titles);
+        foreach ($rows as $k => &$t)
         {
-            $rows[$row->parent_right_id]->sd_single_title = Title::newFromRow($row);
+            if (isset($defs[$k]))
+            {
+                $t->single_child = $defs[$k]['single_child'];
+                if ($t->single_child)
+                {
+                    // FIXME Will definitely have problems with ambigious SD titles
+                    $name = IACLDefinition::peNameForID($t->single_child[0], $t->single_child[1]);
+                    $t->single_child[2] = IACLDefinition::nameOfSD($name, $t->single_child[0]);
+                }
+            }
         }
         return $rows;
     }

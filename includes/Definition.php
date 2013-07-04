@@ -62,7 +62,7 @@ class IACLDefinition implements ArrayAccess
      * Returns non-empty definitions by their page titles, indexed by full title texts
      *
      * @param array(Title|string) $titles
-     * @return array(IACLDefinition)
+     * @return array(Title => IACLDefinition)
      */
     static function newFromTitles($titles)
     {
@@ -77,7 +77,7 @@ class IACLDefinition implements ArrayAccess
             {
                 $where[] = array($pe[0], $id);
             }
-            $k = array($pe[0], $pe[1], $id, $k);
+            $k = array($pe[0], $pe[1], $id, ''.$k);
         }
         $defs = self::select(array('pe' => $where));
         $r = array();
@@ -514,6 +514,39 @@ class IACLDefinition implements ArrayAccess
         return $id ? $id : false;
     }
 
+    public static function peNameForID($peType, $peID)
+    {
+        if ($peType === IACL::PE_NAMESPACE)
+        {
+            // $peName is a namespace => get its ID
+            global $wgCanonicalNamespaceNames;
+            $ns = $wgCanonicalNamespaceNames;
+            $ns[0] = 'Main';
+            return @$ns[$peID];
+        }
+        elseif ($peType === IACL::PE_RIGHT || $peType == IACL::PE_CATEGORY)
+        {
+            $t = Title::newFromId($peID);
+            return $t ? $t->getText() : NULL;
+        }
+        elseif ($peType === IACL::PE_USER)
+        {
+            $u = User::newFromId($peID);
+            return $u ? $u->getName() : NULL;
+        }
+        elseif ($peType === IACL::PE_GROUP)
+        {
+            $t = Title::newFromId($peID);
+            return $t ? substr($t->getText(), 6) : NULL;
+        }
+        elseif ($peType == IACL::PE_SPECIAL)
+        {
+            return IACLStorage::get('SpecialPage')->specialForID($peID);
+        }
+        $t = Title::newFromId($peID);
+        return $t ? $t->getPrefixedText() : false;
+    }
+
     /**
      * Tries to get definition by its composite ID (type, ID).
      *
@@ -597,6 +630,7 @@ class IACLDefinition implements ArrayAccess
     {
         global $wgContLang, $haclgContLang;
         // FIXME make canonical namespace names here
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         $defTitle = $wgContLang->getNsText(HACL_NS_ACL).':';
         if ($peType == IACL::PE_SPECIAL)
         {
