@@ -1,20 +1,17 @@
 <?php
 
-/* Copyright 2010+, Vitaliy Filippov <vitalif[d.o.g]mail.ru>
+/**
+ * Copyright 2010+, Vitaliy Filippov <vitalif[d.o.g]mail.ru>
  *                  Stas Fomin <stas.fomin[d.o.g]yandex.ru>
  * This file is part of IntraACL MediaWiki extension. License: GPLv3.
- * http://wiki.4intra.net/IntraACL
- * $Id$
+ * Homepage: http://wiki.4intra.net/IntraACL
  *
- * Based on HaloACL
- * Copyright 2009, ontoprise GmbH
- *
- * The IntraACL-Extension is free software; you can redistribute it and/or modify
+ * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
- * The IntraACL-Extension is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -30,7 +27,9 @@
  */
 
 if (!defined('MEDIAWIKI'))
+{
     die();
+}
 
 class IntraACLSpecial extends SpecialPage
 {
@@ -50,24 +49,34 @@ class IntraACLSpecial extends SpecialPage
 
     var $isAdmin;
 
-    /* Identical to Xml::element, but does no htmlspecialchars() on $contents */
+    /**
+     * Identical to Xml::element, but does no htmlspecialchars() on $contents
+     */
     static function xelement($element, $attribs = null, $contents = '', $allowShortTag = true)
     {
         if (is_null($contents))
+        {
             return Xml::openElement($element, $attribs);
+        }
         elseif ($contents == '')
+        {
             return Xml::element($element, $attribs, $contents, $allowShortTag);
+        }
         return Xml::openElement($element, $attribs) . $contents . Xml::closeElement($element);
     }
 
-    /* Constructor of IntraACL special page class */
+    /**
+     * Constructor of IntraACL special page class
+     */
     public function __construct()
     {
         $this->mRestriction = 'user';
         parent::__construct('IntraACL');
     }
 
-    /* Entry point */
+    /**
+     * Entry point
+     */
     public function execute($par)
     {
         global $wgOut, $wgRequest, $wgUser, $wgTitle, $haclgHaloScriptPath, $haclgSuperGroups;
@@ -92,7 +101,9 @@ class IntraACLSpecial extends SpecialPage
                 'href' => $haclgHaloScriptPath.'/skins/haloacl.css',
             ));
             if ($f == 'html_acllist')
+            {
                 $wgOut->addHTML('<p style="margin-top: -8px">'.wfMsgExt('hacl_acllist_hello', 'parseinline').'</p>');
+            }
             $this->_actions($q);
             $this->$f($q);
         }
@@ -110,24 +121,30 @@ class IntraACLSpecial extends SpecialPage
         }
     }
 
-    // key="value", key="value", ...
+    /**
+     * key="value", key="value", ...
+     */
     public static function attrstring($attr)
     {
         $a = array();
         foreach ($attr as $k => $v)
+        {
             $a[] = "$k=\"".str_replace('"', '\\"', $v)."\"";
+        }
         return implode(', ', $a);
     }
 
-    // Displays full graph of IntraACL rights using Graphviz, in SVG format
-    // Does not reflect the right override method - just displays which rights apply
-    // to different protected elements and which users have these rights
-    // SD -> (namespace = page cluster)
-    // SD -> page
-    // SD -> category -> subcategory -> subcluster of a namespace
-    // SD -> included SD
-    // User -> group -> SD
-    // User -> SD
+    /**
+     * Displays full graph of IntraACL rights using Graphviz, in SVG format
+     * Does not reflect the right override method - just displays which rights apply
+     * to different protected elements and which users have these rights
+     * SD -> (namespace = page cluster)
+     * SD -> page
+     * SD -> category -> subcategory -> subcluster of a namespace
+     * SD -> included SD
+     * User -> group -> SD
+     * User -> SD
+     */
     public function html_rightgraph(&$q)
     {
         global $wgOut, $wgContLang;
@@ -381,7 +398,9 @@ class IntraACLSpecial extends SpecialPage
         haclfRestoreTitlePatch($patch);
     }
 
-    /* Displays list of all ACL definitions, filtered and loaded using AJAX */
+    /**
+     * Displays list of all ACL definitions, filtered and loaded using AJAX
+     */
     public function html_acllist(&$q)
     {
         global $wgOut, $wgUser, $wgScript, $haclgHaloScriptPath, $haclgContLang;
@@ -421,7 +440,9 @@ class IntraACLSpecial extends SpecialPage
         $wgOut->addHTML($html);
     }
 
-    /* Create/edit ACL definition using interactive editor */
+    /**
+     * Create/edit ACL definition using interactive editor
+     */
     public function html_acl(&$q)
     {
         global $wgOut, $wgUser, $wgScript, $haclgHaloScriptPath, $haclgContLang, $wgContLang, $wgScriptPath;
@@ -441,7 +462,9 @@ class IntraACLSpecial extends SpecialPage
                     $aclSDName = $aclTitle->getText();
                 }
                 else
+                {
                     $aclArticle = NULL;
+                }
                 list($aclPEType, $aclPEName) = IACLDefinition::nameOfPE($aclTitle->getText());
             }
         }
@@ -451,17 +474,25 @@ class IntraACLSpecial extends SpecialPage
         $html = ob_get_contents();
         ob_end_clean();
         if ($aclArticle)
+        {
             $msg = 'hacl_acl_edit';
+        }
         elseif ($aclTitle)
+        {
             $msg = 'hacl_acl_create_title';
+        }
         else
+        {
             $msg = 'hacl_acl_create';
+        }
         $wgOut->addModules('ext.intraacl.acleditor');
         $wgOut->setPageTitle(wfMsg($msg, $aclTitle ? $aclTitle->getText() : ''));
         $wgOut->addHTML($html);
     }
 
-    /* Manage Quick Access ACL list */
+    /**
+     * Manage Quick Access ACL list
+     */
     public function html_quickaccess(&$args)
     {
         global $wgOut, $wgUser, $wgScript, $haclgHaloScriptPath, $wgRequest;
@@ -472,8 +503,12 @@ class IntraACLSpecial extends SpecialPage
         {
             $ids = array();
             foreach ($args as $k => $v)
+            {
                 if (substr($k, 0, 3) == 'qa_')
+                {
                     $ids[] = substr($k, 3);
+                }
+            }
             IACLStorage::get('QuickACL')->saveQuickAcl($wgUser->getId(), $ids, $args['qa_default']);
             wfGetDB(DB_MASTER)->commit();
             header("Location: $wgScript?title=Special:IntraACL&action=quickaccess&like=".urlencode($like));
@@ -499,19 +534,27 @@ class IntraACLSpecial extends SpecialPage
         $wgOut->addHTML($html);
     }
 
-    /* Add header with available actions */
+    /**
+     * Add header with available actions
+     */
     public function _actions(&$q)
     {
         global $wgScript, $wgOut, $wgUser;
         $act = $q['action'];
         if ($act == 'acl' && !empty($q['sd']))
+        {
             $act = 'acledit';
+        }
         elseif ($act == 'group' && !empty($q['group']))
+        {
             $act = 'groupedit';
+        }
         $html = array();
         $actions = array('acllist', 'acl', 'quickaccess', 'grouplist', 'group');
         if ($this->isAdmin)
+        {
             $actions[] = 'rightgraph';
+        }
         foreach ($actions as $action)
         {
             $a = '<b>'.wfMsg("hacl_action_$action").'</b>';
@@ -526,7 +569,9 @@ class IntraACLSpecial extends SpecialPage
         $wgOut->addHTML($html);
     }
 
-    /* Manage groups */
+    /**
+     * Manage groups
+     */
     public function html_grouplist(&$q)
     {
         global $wgOut, $wgUser, $wgScript, $haclgHaloScriptPath, $haclgContLang;
@@ -538,7 +583,9 @@ class IntraACLSpecial extends SpecialPage
         $wgOut->addHTML($html);
     }
 
-    /* Create or edit a group */
+    /**
+     * Create or edit a group
+     */
     public function html_group(&$q)
     {
         global $wgOut, $wgUser, $wgScript, $haclgHaloScriptPath, $wgContLang, $haclgContLang;
@@ -553,7 +600,9 @@ class IntraACLSpecial extends SpecialPage
             $grpName = '';
         }
         else
+        {
             list($grpPrefix, $grpName) = explode('/', $grpTitle->getText(), 2);
+        }
         /* Run template */
         ob_start();
         require(dirname(__FILE__).'/../templates/HACL_GroupEditor.tpl.php');
@@ -586,18 +635,26 @@ class IntraACLSpecial extends SpecialPage
             );
             list($d['type'], $d['real']) = explode('/', $d['real'], 2);
             if ($d['real'])
+            {
                 $d['type'] = $haclgContLang->getPetAlias($d['type']);
+            }
             else
+            {
                 $d['real'] = $d['type'];
+            }
             // Single SD inclusion
             $d['single'] = $r->sd_single_title;
             if ($r->sd_single_title)
             {
                 list($d['singletype'], $d['singlename']) = explode('/', $d['single']->getText(), 2);
                 if ($d['singlename'])
+                {
                     $d['singletype'] = $haclgContLang->getPetAlias($d['type']);
+                }
                 else
+                {
                     $d['singlename'] = $d['singletype'];
+                }
                 $d['singlelink'] = $d['single']->getLocalUrl();
                 $d['singletip'] = wfMsg('hacl_acllist_hint_single', $d['real'], $d['single']->getPrefixedText());
             }
@@ -611,9 +668,13 @@ class IntraACLSpecial extends SpecialPage
         ));
         $nextpage = $prevpage = false;
         if ($total > $limit+$offset)
+        {
             $nextpage = $pageurl.'&offset='.intval($offset+$limit);
+        }
         if ($offset >= $limit)
+        {
             $prevpage = $pageurl.'&offset='.intval($offset-$limit);
+        }
         // Run template
         ob_start();
         require(dirname(__FILE__).'/../templates/HACL_ACLListContents.tpl.php');
@@ -622,7 +683,9 @@ class IntraACLSpecial extends SpecialPage
         return $html;
     }
 
-    /* "Real" group list, loaded using AJAX */
+    /**
+     * "Real" group list, loaded using AJAX
+     */
     static function haclGrouplist($n, $not_n = NULL)
     {
         global $wgScript, $haclgHaloScriptPath;
@@ -639,7 +702,9 @@ class IntraACLSpecial extends SpecialPage
                 'viewlink' => Title::newFromText($gn, HACL_NS_ACL)->getLocalUrl(),
             );
             if ($p = strpos($g['real'], '/'))
+            {
                 $g['real'] = substr($g['real'], $p+1);
+            }
         }
         $max = false;
         /* Run template */

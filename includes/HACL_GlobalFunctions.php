@@ -1,19 +1,19 @@
 <?php
 
-/* Copyright 2010+, Vitaliy Filippov <vitalif[d.o.g]mail.ru>
+/**
+ * Copyright 2013+, Vitaliy Filippov <vitalif[d.o.g]mail.ru>
  *                  Stas Fomin <stas.fomin[d.o.g]yandex.ru>
  * This file is part of IntraACL MediaWiki extension. License: GPLv3.
- * http://wiki.4intra.net/IntraACL
- * $Id$
+ * Homepage: http://wiki.4intra.net/IntraACL
  *
  * Loosely based on HaloACL (c) 2009, ontoprise GmbH
  *
- * The IntraACL-Extension is free software; you can redistribute it and/or modify
+ * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
- * The IntraACL-Extension is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -27,7 +27,9 @@
  * extension.
  */
 if (!defined('MEDIAWIKI'))
+{
     die("This file is part of the IntraACL extension. It is not a valid entry point.");
+}
 
 /**
  * Switch on Halo Access Control Lists. This function must be called in
@@ -261,7 +263,7 @@ function haclfSetupExtension()
         if (strpos($funcName, 'hacl') === 0)
         {
             require_once("$haclgIP/includes/HACL_Toolbar.php");
-            require_once("$haclgIP/includes/HACL_AjaxConnector.php");
+            require_once("$haclgIP/includes/AjaxConnector.php");
         }
     }
 
@@ -294,7 +296,9 @@ function haclCheckScriptPath()
 {
     global $haclgHaloScriptPath, $wgScriptPath;
     if ($haclgHaloScriptPath{0} != '/')
+    {
         $haclgHaloScriptPath = $wgScriptPath.'/'.$haclgHaloScriptPath;
+    }
     return $haclgHaloScriptPath;
 }
 
@@ -313,7 +317,9 @@ function haclfInitNamespaces()
         $wgNamespacesWithSubpages, $wgLanguageCode, $haclgContLang;
 
     if (!isset($haclgNamespaceIndex))
+    {
         $haclgNamespaceIndex = 300;
+    }
 
     define('HACL_NS_ACL',       $haclgNamespaceIndex);
     define('HACL_NS_ACL_TALK',  $haclgNamespaceIndex+1);
@@ -322,7 +328,9 @@ function haclfInitNamespaces()
 
     // Register namespace identifiers
     if (!is_array($wgExtraNamespaces))
+    {
         $wgExtraNamespaces = array();
+    }
     $namespaces = $haclgContLang->getNamespaces();
     $namespacealiases = $haclgContLang->getNamespaceAliases();
     $wgExtraNamespaces = $wgExtraNamespaces + $namespaces;
@@ -349,14 +357,18 @@ function haclfInitContentLanguage($langcode)
 {
     global $haclgIP, $haclgContLang;
     if (!empty($haclgContLang))
+    {
         return;
+    }
     wfProfileIn(__FUNCTION__);
 
     $haclContLangFile = 'HACL_Language' . str_replace('-', '_', ucfirst($langcode));
     $haclContLangClass = 'HACLLanguage' . str_replace('-', '_', ucfirst($langcode));
     require_once "$haclgIP/languages/HACL_Language.php";
     if (file_exists("$haclgIP/languages/$haclContLangFile.php"))
+    {
         include_once("$haclgIP/languages/$haclContLangFile.php");
+    }
 
     // fallback if language not supported
     if (!class_exists($haclContLangClass))
@@ -471,7 +483,9 @@ function haclfPageRenderingHash(&$hash)
 {
     global $wgUser, $wgTitle;
     if (is_object($wgUser))
+    {
         $hash .= '!'.$wgUser->getId();
+    }
     return true;
 }
 

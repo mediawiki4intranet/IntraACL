@@ -1,40 +1,27 @@
 <?php
 
+/**
+ * Copyright 2013+, Vitaliy Filippov <vitalif[d.o.g]mail.ru>
+ *                  Stas Fomin <stas.fomin[d.o.g]yandex.ru>
+ * This file is part of IntraACL MediaWiki extension. License: GPLv3.
+ * Homepage: http://wiki.4intra.net/IntraACL
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 if (!defined('MEDIAWIKI'))
     die("This file is part of the IntraACL extension. It is not a valid entry point.");
-
-/*
-
-For small databases:
-
-1) Materialize everything
-2) On first request load ALL grants for current user
-   Memory consumption: O(n_groups_of_user + n_rights_of_user)
-3) => Every check is a SINGLE hash check without DB round-trips
-4) Update complexity: O((n_parent_groups + n_parent_rights) * n_users_in_group)
-   Most complex update is the update of a low-level group
-
-For big databases:
-
-1) Still materialize everything. It is unlikely that for a given definition
-   there will be a very big number of other definitions that use it. So update
-   complexity should be OK.
-2) But there can be a big (and growing) number of individually protected pages a given user can access.
-   So loading ALL grants for current user can be very memory consuming.
-   In PHP [5.4], each single integer stored in an array takes ~80 bytes
-   => 1000 indexed defs will take 80kb, and 10000 - 800kb.
-3) So we cache only N recent definitions for current user (N is configurable),
-   and starting with (N+1)th we make DB queries for each protected element.
-   Also we pre-cache rules for embedded elements (image/template/category links).
-
-'Manage rights' use cases:
-
-1) Create right/group and then be able to edit it
-2) Allow/restrict protecting of individual pages in namespace/category
-3) Allow some users to edit ALL right definitions
-   Probably solvable with MW right 'sysop'
-
-*/
 
 /**
  * 'Definition' is either a Security Descriptor or a Group
@@ -818,3 +805,36 @@ class IACLDefinition implements ArrayAccess
         return $rules;
     }
 }
+
+/*
+
+For small databases:
+
+1) Materialize everything
+2) On first request load ALL grants for current user
+   Memory consumption: O(n_groups_of_user + n_rights_of_user)
+3) => Every check is a SINGLE hash check without DB round-trips
+4) Update complexity: O((n_parent_groups + n_parent_rights) * n_users_in_group)
+   Most complex update is the update of a low-level group
+
+For big databases:
+
+1) Still materialize everything. It is unlikely that for a given definition
+   there will be a very big number of other definitions that use it. So update
+   complexity should be OK.
+2) But there can be a big (and growing) number of individually protected pages a given user can access.
+   So loading ALL grants for current user can be very memory consuming.
+   In PHP [5.4], each single integer stored in an array takes ~80 bytes
+   => 1000 indexed defs will take 80kb, and 10000 - 800kb.
+3) So we cache only N recent definitions for current user (N is configurable),
+   and starting with (N+1)th we make DB queries for each protected element.
+   Also we pre-cache rules for embedded elements (image/template/category links).
+
+'Manage rights' use cases:
+
+1) Create right/group and then be able to edit it
+2) Allow/restrict protecting of individual pages in namespace/category
+3) Allow some users to edit ALL right definitions
+   Probably solvable with MW right 'sysop'
+
+*/
