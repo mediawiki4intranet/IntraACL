@@ -85,7 +85,7 @@ mw.loader.using('ext.intraacl.acleditor', function()
     };
     AE = new HACLACLEditor({
         NS_ACL: '<?= $wgContLang->getNsText(HACL_NS_ACL) ?>',
-        group_prefix: '<?= $haclgContLang->getGroupPrefix() ?>',
+        group_prefix: 'Group',
         petPrefixes: petPrefixes,
         isSysop: <?= $this->isAdmin ? 1 : 0 ?>,
         initialTitle: "<?= $aclTitle ? addslashes($aclTitle->getText()) : '' ?>",

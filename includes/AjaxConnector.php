@@ -375,6 +375,6 @@ function haclSDExists_GetEmbedded($type, $name)
 function haclGroupExists($name)
 {
     global $haclgContLang;
-    $grpTitle = Title::newFromText($haclgContLang->getGroupPrefix().'/'.$name, HACL_NS_ACL);
+    $grpTitle = Title::makeTitleSafe(HACL_NS_ACL, 'Group/'.$name);
     return $grpTitle && $grpTitle->getArticleId() ? 'true' : 'false';
 }

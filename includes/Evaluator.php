@@ -45,6 +45,8 @@ class IACLEvaluator
      * if the article for the given title can be accessed.
      * See further information at: http://www.mediawiki.org/wiki/Manual:Hooks/userCan
      *
+     * TODO: Switch to getUserPermissionsErrors hooks
+     *
      * @param Title $title      The title object for the article that will be accessed.
      * @param User $user        Reference to the current user.
      * @param string $action    Action concerning the title in question
@@ -81,7 +83,9 @@ class IACLEvaluator
         return true;
     }
 
-    // Returns array(final log message, access granted?, continue hook processing?)
+    /**
+     * Returns array(final log message, access granted?, continue hook processing?)
+     */
     public static function userCan_Switches($title, $user, $action)
     {
         global $haclgContLang, $haclgSuperGroups;
@@ -171,15 +175,23 @@ class IACLEvaluator
         $seq = array();
         if ($articleID)
         {
-            // First check page rights
-            $seq[] = array('page SD', IACL::PE_PAGE, $articleID);
-            if ($title->getNamespace() == NS_CATEGORY)
+            if ($title->getNamespace() == NS_SPECIAL)
             {
-                // If the page is a category page, check that category's rights
-                $seq[] = array('category SD for category page', IACL::PE_CATEGORY, $articleID);
+                // Check special page rights (special pages have no categories)
+                $seq[] = array('special page SD', IACL::PE_SPECIAL, -$articleID);
             }
-            // Check category rights
-            $seq[] = array('category SD', IACL::PE_CATEGORY, IACLStorage::get('Util')->getParentCategoryIDs($articleID));
+            else
+            {
+                // First check page rights
+                $seq[] = array('page SD', IACL::PE_PAGE, $articleID);
+                if ($title->getNamespace() == NS_CATEGORY)
+                {
+                    // If the page is a category page, check that category's rights
+                    $seq[] = array('category SD for category page', IACL::PE_CATEGORY, $articleID);
+                }
+                // Check category rights
+                $seq[] = array('category SD', IACL::PE_CATEGORY, IACLStorage::get('Util')->getParentCategoryIDs($articleID));
+            }
         }
         $seq[] = array('namespace SD', IACL::PE_NAMESPACE, $title->getNamespace());
 

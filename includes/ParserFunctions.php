@@ -751,7 +751,7 @@ class IACLParserFunctions
                 $msg[] = wfMsgForContent('hacl_right_must_have_rights');
             }
         }
-        elseif (!$this->title->exists() && $this->rules)
+        elseif ($this->rules)
         {
             if (!$this->def)
             {
