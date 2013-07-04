@@ -151,9 +151,8 @@ class IntraACL_SQL_SD
                 $t->single_child = $defs[$k]['single_child'];
                 if ($t->single_child)
                 {
-                    // FIXME Will definitely have problems with ambigious SD titles
                     $name = IACLDefinition::peNameForID($t->single_child[0], $t->single_child[1]);
-                    $t->single_child[2] = IACLDefinition::nameOfSD($name, $t->single_child[0]);
+                    $t->single_child[2] = IACLDefinition::nameOfSD($t->single_child[0], $name);
                 }
             }
         }

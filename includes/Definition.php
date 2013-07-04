@@ -514,15 +514,14 @@ class IACLDefinition implements ArrayAccess
         return $id ? $id : false;
     }
 
+    /**
+     * Resolve protected element name by its ID
+     */
     public static function peNameForID($peType, $peID)
     {
         if ($peType === IACL::PE_NAMESPACE)
         {
-            // $peName is a namespace => get its ID
-            global $wgCanonicalNamespaceNames;
-            $ns = $wgCanonicalNamespaceNames;
-            $ns[0] = 'Main';
-            return @$ns[$peID];
+            return iaclfCanonicalNsText($peID);
         }
         elseif ($peType === IACL::PE_RIGHT || $peType == IACL::PE_CATEGORY)
         {
@@ -544,7 +543,12 @@ class IACLDefinition implements ArrayAccess
             return IACLStorage::get('SpecialPage')->specialForID($peID);
         }
         $t = Title::newFromId($peID);
-        return $t ? $t->getPrefixedText() : false;
+        if ($t)
+        {
+            // Always use canonical namespace names
+            return ($t->getNamespace() ? iaclfCanonicalNsText($t->getNamespace()).':' : '') . $t->getText();
+        }
+        return false;
     }
 
     /**
@@ -622,15 +626,13 @@ class IACLDefinition implements ArrayAccess
     /**
      * Determine ACL definition page title by protected element type and name
      *
-     * @param string $nameOfPE  PE name
      * @param string $peType    PE type
-     * @return string $defTitle Definition title
+     * @param string $nameOfPE  PE name
+     * @return string $defTitle Definition title text
      */
-    public static function nameOfSD($nameOfPE, $peType)
+    public static function nameOfSD($peType, $nameOfPE)
     {
         global $wgContLang, $haclgContLang;
-        // FIXME make canonical namespace names here
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         $defTitle = $wgContLang->getNsText(HACL_NS_ACL).':';
         if ($peType == IACL::PE_SPECIAL)
         {

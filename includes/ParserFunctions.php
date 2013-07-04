@@ -461,7 +461,7 @@ class IACLParserFunctions
             $r = trim($r);
             if ($r)
             {
-                list($peName, $peType) = IACLDefinition::nameOfPE();
+                list($peName, $peType) = IACLDefinition::nameOfPE($r);
                 $result[$r] = [ $peType, $peName ];
             }
         }
@@ -485,6 +485,32 @@ class IACLParserFunctions
         if ($article->getTitle()->getNamespace() == HACL_NS_ACL)
         {
             $pcache = false;
+        }
+        return true;
+    }
+
+    /**
+     * Redirect to canonical ACL page from a non-canonical one if the latter doesn't exist
+     */
+    public static function initializeArticleMaybeRedirect(&$title, &$request, &$ignoreRedirect, &$target, &$article)
+    {
+        if ($title->getNamespace() == HACL_NS_ACL && !$article->exists())
+        {
+            $pe = IACLDefinition::nameOfPE($title);
+            if ($pe)
+            {
+                $peID = IACLDefinition::peIDforName($pe[0], $pe[1]);
+                if ($peID)
+                {
+                    $peName = IACLDefinition::peNameForID($pe[0], $peID);
+                    $sdName = IACLDefinition::nameOfSD($pe[0], $peName);
+                    if ($sdName != $title->getPrefixedText())
+                    {
+                        $target = Title::newFromText($sdName);
+                        return false;
+                    }
+                }
+            }
         }
         return true;
     }
@@ -618,7 +644,7 @@ class IACLParserFunctions
             $sd = IACLDefinition::getSDForPE(IACL::PE_PAGE, $article->getTitle()->getArticleID());
             if ($sd)
             {
-                $t = Title::newFromTitle(IACLDefinition::nameOfSD($article->getTitle(), IACL::PE_PAGE));
+                $t = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_PAGE, $article->getTitle()));
                 if ($t)
                 {
                     $a = new Article($t);
@@ -648,7 +674,6 @@ class IACLParserFunctions
         {
             return true;
         }
-        $newName = $newTitle->getFullText();
 
         // Check if the old title has an SD
         $sd = IACLDefinition::getSDForPE(IACL::PE_PAGE, $pageid);
@@ -657,7 +682,7 @@ class IACLParserFunctions
             // move SD for page
             wfDebug("Move SD for page: ID=$sd, pageid=$pageid\n");
             $oldSD = Title::newFromID($sd);
-            $newSD = IACLDefinition::nameOfSD($newName, IACL::PE_PAGE);
+            $newSD = IACLDefinition::nameOfSD(IACL::PE_PAGE, $newTitle);
             self::move($oldSD, $newSD);
         }
 
@@ -727,6 +752,15 @@ class IACLParserFunctions
             $msg[] = wfMsgForContent('hacl_errors_in_definition');
         }
         $this->makeDef();
+        if ($this->def['pe_id'] && $this->title->exists())
+        {
+            $peName = IACLDefinition::peNameForID($this->peType, $this->def['pe_id']);
+            $sdName = IACLDefinition::nameOfSD($this->peType, $peName);
+            if ($sdName != $this->title->getPrefixedText())
+            {
+                $msg[] = wfMsgForContent('hacl_non_canonical_acl');
+            }
+        }
         if ($this->peType == IACL::PE_NAMESPACE)
         {
             global $haclgUnprotectableNamespaceIds;

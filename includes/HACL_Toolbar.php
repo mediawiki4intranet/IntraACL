@@ -548,7 +548,7 @@ class HACLToolbar
         }
 
         // Create an article object for the SD
-        $newSDName = IACLDefinition::nameOfSD($article->getTitle()->getFullText(), IACL::PE_PAGE);
+        $newSDName = IACLDefinition::nameOfSD(IACL::PE_PAGE, $article->getTitle());
         $etc = haclfDisableTitlePatch();
         $newSD = Title::newFromText($newSDName);
         haclfRestoreTitlePatch($etc);

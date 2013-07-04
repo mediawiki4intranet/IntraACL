@@ -169,6 +169,7 @@ function enableIntraACL()
     // ACL update hooks are registered even in commandline.
     global $wgHooks;
     $wgHooks['ArticleViewHeader'][]     = 'IACLParserFunctions::articleViewHeader';
+    $wgHooks['InitializeArticleMaybeRedirect'][] = 'IACLParserFunctions::initializeArticleMaybeRedirect';
     $wgHooks['OutputPageBeforeHTML'][]  = 'IACLParserFunctions::outputPageBeforeHTML';
     $wgHooks['ArticleEditUpdates'][]    = 'IACLParserFunctions::ArticleEditUpdates';
     $wgHooks['ArticleDelete'][]         = 'IACLParserFunctions::articleDelete';
@@ -178,6 +179,18 @@ function enableIntraACL()
     $wgHooks['LoadExtensionSchemaUpdates'][] = 'iaclfLoadExtensionSchemaUpdates';
 
     return true;
+}
+
+function iaclfCanonicalNsText($index)
+{
+    static $ns;
+    if (!$ns)
+    {
+        global $wgCanonicalNamespaceNames;
+        $ns = $wgCanonicalNamespaceNames;
+        $ns[0] = 'Main';
+    }
+    return @$ns[$index];
 }
 
 function haclfLanguageGetMagic(&$magicWords, $langCode)
