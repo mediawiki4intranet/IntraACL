@@ -120,8 +120,12 @@ class IntraACL_SQL_SD
         $n = str_replace(' ', '_', $name);
         $where = array();
         foreach ($haclgContLang->getPetAliases() as $k => $v)
+        {
             if (!$t || array_key_exists($v, $t))
+            {
                 $where[] = 'CAST(page_title AS CHAR CHARACTER SET utf8) COLLATE utf8_unicode_ci LIKE '.$dbr->addQuotes($k.'/'.$n.'%');
+            }
+        }
         $where = 'page_namespace='.HACL_NS_ACL.' AND ('.implode(' OR ', $where).')';
         // Select SDs
         $res = $dbr->select('page', '*', $where, __METHOD__, array(
@@ -137,7 +141,9 @@ class IntraACL_SQL_SD
             $rows[$row->page_id] = $row;
         }
         if (!$rows)
+        {
             return $rows;
+        }
         // Select total page count
         $res = $dbr->query('SELECT FOUND_ROWS()', __METHOD__);
         $total = $res->fetchRow();
@@ -154,7 +160,9 @@ class IntraACL_SQL_SD
             )
         );
         foreach ($res as $row)
+        {
             $rows[$row->parent_right_id]->sd_single_title = Title::newFromRow($row);
+        }
         return $rows;
     }
 

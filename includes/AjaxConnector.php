@@ -41,7 +41,9 @@ $wgAjaxExportList[] = 'haclGroupExists';
 function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
 {
     if (!$limit)
+    {
         $limit = 11;
+    }
     $a = array();
     $dbr = wfGetDB(DB_SLAVE);
     // Users
@@ -54,18 +56,25 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
             array('ORDER BY' => 'user_name', 'LIMIT' => $limit)
         );
         while ($row = $r->fetchRow())
+        {
             $a[] = array($row[1] ? $row[0] . ' (' . $row[1] . ')' : $row[0], $row[0]);
+        }
     }
     // IntraACL Groups
     elseif ($t == 'group')
     {
         $ip = 'hi_';
-        $r = IACLStorage::get('Groups')->getGroups($n, $limit);
+        $n = str_replace(' ', '_', $n);
+        $r = $dbr->select(
+            'page', '*', array(
+                'page_namespace' => HACL_NS_ACL,
+                'page_title LIKE '.$dbr->addQuotes('Group/%'.$n.'%')
+            ), __METHOD__, array('ORDER BY' => 'page_title', 'LIMIT' => $limit)
+        );
         foreach ($r as $group)
         {
-            $n = $group['group_name'];
-            if (($p = strpos($n, '/')) !== false)
-                $n = substr($n, $p+1);
+            // TODO filter unreadable?
+            $n = substr($group->page_title, 6);
             $a[] = array($n, $n);
         }
     }
@@ -85,6 +94,7 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
         }
         haclfRestoreTitlePatch($etc);
         // Select page titles
+        // FIXME: ??? CAST(page_title AS CHAR CHARACTER SET utf8)
         $where[] = 'page_title LIKE '.$dbr->addQuotes($n.'%');
         $r = $dbr->select(
             'page', 'page_title, page_namespace',
@@ -110,7 +120,7 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
         $ns = $wgCanonicalNamespaceNames;
         $ns[0] = 'Main';
         ksort($ns);
-        // Unlimited
+        // Always unlimited
         $limit = count($ns)+1;
         $n = mb_strtolower($n);
         $nl = mb_strlen($n);
@@ -119,7 +129,9 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
             $v = str_replace('_', ' ', $v);
             $name = str_replace('_', ' ', $wgContLang->getNsText($k));
             if (!$name)
+            {
                 $name = $v;
+            }
             if ($k >= 0 && (!$nl ||
                 mb_strtolower(mb_substr($v, 0, $nl)) == $n ||
                 mb_strtolower(mb_substr($name, 0, $nl)) == $n) &&
@@ -153,19 +165,30 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
             }
         }
     }
-    // ACL definitions, optionally of type = substr($t, 3)
-    elseif (substr($t, 0, 2) == 'sd')
+    // ACL definitions
+    elseif ($t == 'sd')
     {
         $ip = 'ri_';
-        foreach (IACLStorage::get('SD')->getSDs2($t == 'sd' ? NULL : substr($t, 3), $n, $limit) as $sd)
+        $n = str_replace(' ', '_', $n);
+        $r = $dbr->select(
+            'page', '*', array(
+                'page_namespace' => HACL_NS_ACL,
+                'page_title NOT LIKE '.$dbr->addQuotes('Group/%'),
+                'page_title LIKE '.$dbr->addQuotes('%'.$n.'%'),
+            ), __METHOD__, array('ORDER BY' => 'page_title', 'LIMIT' => $limit)
+        );
+        foreach ($r as $sd)
         {
-            $rn = $sd->getSDName();
-            $a[] = array($rn, $rn);
+            // TODO filter unreadable?
+            $n = $sd->page_title;
+            $a[] = array($n, $n);
         }
     }
     // No items
     if (!$a)
+    {
         return '<div class="hacl_tt">'.wfMsg('hacl_autocomplete_no_'.$t.'s').'</div>';
+    }
     // More than (limit-1) items => add '...' at the end of list
     $max = false;
     if (count($a) >= $limit)
@@ -199,7 +222,9 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
         }
     }
     if ($max)
+    {
         $html .= '<div class="hacl_tt">...</div>';
+    }
     return $html;
 }
 
@@ -244,13 +269,13 @@ function haclGroupClosure($groups, $rights)
     $users = $groups = array();
     foreach ($pe as $name => &$def)
     {
-        if (isset($def['rights'][IACL::PE_USER]))
+        if (isset($def['rules'][IACL::PE_USER]))
         {
-            $users += $def['rights'][IACL::PE_USER];
+            $users += $def['rules'][IACL::PE_USER];
         }
-        if (isset($def['rights'][IACL::PE_GROUP]))
+        if (isset($def['rules'][IACL::PE_GROUP]))
         {
-            $groups += $def['rights'][IACL::PE_GROUP];
+            $groups += $def['rules'][IACL::PE_GROUP];
         }
     }
     $users = IACLStorage::getUsers(array('user_id' => array_keys($users)));
@@ -263,46 +288,57 @@ function haclGroupClosure($groups, $rights)
     // Then form the result
     $memberAction = IACL::RIGHT_GROUP_MEMBER | (IACL::RIGHT_GROUP_MEMBER << IACL::INDIRECT_OFFSET);
     $members = array();
-    $rights = array();
+    $rules = array();
     foreach ($pe as $name => &$def)
     {
         if ($def['pe_type'] != IACL::PE_GROUP)
         {
-            // Select all user and group rights for SDs
-            if (isset($def['rights'][IACL::PE_USER]))
+            // Select all user and group rules for SDs
+            $cur = array();
+            if (isset($def['rules'][IACL::PE_ALL_USERS]))
             {
-                foreach ($def['rights'][IACL::PE_USER] as $uid => $right)
+                foreach ($def['rules'][IACL::PE_ALL_USERS] as $uid => $rule)
                 {
-                    if ($uid == IACL::ALL_USERS)
-                        $childName = '*';
-                    elseif ($uid == IACL::REGISTERED_USERS)
-                        $childName = '#';
-                    elseif (isset($users[$uid]))
-                        $childName = 'User:'.$users[$uid]->user_name;
-                    else
-                        continue;
-                    foreach (IACL::$actionToName as $i => $a)
-                    {
-                        if ($right['actions'] & $i)
-                        {
-                            $rights[$name][$childName][$a] = true;
-                        }
-                    }
+                    $cur[] = array('*', $rule['actions']);
                 }
             }
-            if (isset($def['rights'][IACL::PE_GROUP]))
+            if (isset($def['rules'][IACL::PE_REG_USERS]))
             {
-                foreach ($def['rights'][IACL::PE_GROUP] as $gid => $right)
+                foreach ($def['rules'][IACL::PE_REG_USERS] as $uid => $rule)
+                {
+                    $cur[] = array('#', $rule['actions']);
+                }
+            }
+            if (isset($def['rules'][IACL::PE_USER]))
+            {
+                foreach ($def['rules'][IACL::PE_USER] as $uid => $rule)
+                {
+                    if (!isset($users[$uid]))
+                    {
+                        continue;
+                    }
+                    $cur[] = array('User:'.$users[$uid]->user_name, $rule['actions']);
+                }
+            }
+            if (isset($def['rules'][IACL::PE_GROUP]))
+            {
+                foreach ($def['rules'][IACL::PE_GROUP] as $gid => $rule)
                 {
                     if (!isset($groups[$gid]))
-                        continue;
-                    $childName = str_replace('_', ' ', $groups[$gid]->page_title);
-                    foreach (IACL::$actionToName as $i => $a)
                     {
-                        if ($right['actions'] & $i)
-                        {
-                            $rights[$name][$childName][$a] = true;
-                        }
+                        continue;
+                    }
+                    $cur[] = array(str_replace('_', ' ', $groups[$gid]->page_title), $rule['actions']);
+                }
+            }
+            foreach ($cur as $child)
+            {
+                foreach (IACL::$actionToName as $i => $a)
+                {
+                    // Only direct rights
+                    if ($child[1] & $i)
+                    {
+                        $rules[$name][$child[0]][$a] = true;
                     }
                 }
             }
@@ -310,27 +346,39 @@ function haclGroupClosure($groups, $rights)
         else
         {
             // Select user and group members for groups
-            if (isset($def['rights'][IACL::PE_USER]))
+            if (isset($def['rules'][IACL::PE_ALL_USERS]))
             {
-                foreach ($g['rights'][IACL::PE_USER] as $uid => $right)
+                $rule = reset($def['rules'][IACL::PE_ALL_USERS]);
+                if ($rule['actions'] & $memberAction)
                 {
-                    if ($right['actions'] & $memberAction)
+                    $members[$name][] = '*';
+                }
+            }
+            if (isset($def['rules'][IACL::PE_REG_USERS]))
+            {
+                $rule = reset($def['rules'][IACL::PE_REG_USERS]);
+                if ($rule['actions'] & $memberAction)
+                {
+                    $members[$name][] = '#';
+                }
+            }
+            if (isset($def['rules'][IACL::PE_USER]))
+            {
+                foreach ($g['rules'][IACL::PE_USER] as $uid => $rule)
+                {
+                    if ($rule['actions'] & $memberAction)
                     {
-                        if ($uid == IACL::ALL_USERS)
-                            $childName = '*';
-                        elseif ($uid == IACL::REGISTERED_USERS)
-                            $childName = '#';
-                        elseif (isset($users[$uid]))
-                            $childName = 'User:'.$users[$uid]->user_name;
-                        else
+                        if (!isset($users[$uid]))
+                        {
                             continue;
-                        $members[$name][] = $childName;
+                        }
+                        $members[$name][] = 'User:'.$users[$uid]->user_name;
                     }
                 }
             }
-            if (isset($def['rights'][IACL::PE_GROUP]))
+            if (isset($def['rules'][IACL::PE_GROUP]))
             {
-                foreach ($g['rights'][IACL::PE_GROUP] as $gid => $right)
+                foreach ($g['rules'][IACL::PE_GROUP] as $gid => $right)
                 {
                     if ($right['actions'] & $memberAction)
                     {
@@ -341,7 +389,7 @@ function haclGroupClosure($groups, $rights)
             }
         }
     }
-    return json_encode(array('groups' => $members, 'rights' => $rights));
+    return json_encode(array('groups' => $members, 'rules' => $rules));
 }
 
 function haclSDExists_GetEmbedded($type, $name)
@@ -358,9 +406,9 @@ function haclSDExists_GetEmbedded($type, $name)
     $sd = IACLDefinition::newFromName($type, $name);
     if ($sd)
     {
-        if ($sd['rights'])
+        if ($sd['rules'])
         {
-            // FIXME Maybe check page instead of SD itself
+            // FIXME Maybe check page instead of SD itself?
             $data['exists'] = true;
         }
         if ($type == IACL::PE_PAGE)
