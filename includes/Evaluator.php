@@ -164,10 +164,12 @@ class IACLEvaluator
         return self::hasSD($title, $articleID, $userID, $actionID);
     }
 
-    // Checks if user $userID can do action $actionID on article $articleID (or $title)
-    // Returns array(log message, has right, has SD)
-    // Check sequence: page rights -> category rights -> namespace rights
-    // Global $haclgCombineMode specifies override mode.
+    /**
+     * Checks if user $userID can do action $actionID on article $articleID (or $title)
+     * Returns array(log message, has right, has SD)
+     * Check sequence: page rights -> category rights -> namespace rights
+     * Global $haclgCombineMode specifies override mode.
+     */
     public static function hasSD($title, $articleID, $userID, $actionID)
     {
         global $haclgCombineMode;
