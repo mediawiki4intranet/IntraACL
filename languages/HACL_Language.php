@@ -81,7 +81,6 @@ abstract class HACLLanguage
     // SD page prefixes (ACL:<Prefix>/<Name>) for different protected element types
     public $mPetPrefixes = array(
         IACL::PE_PAGE       => 'Page',
-        IACL::PE_SPECIAL    => 'Special',
         IACL::PE_CATEGORY   => 'Category',
         IACL::PE_NAMESPACE  => 'Namespace',
         IACL::PE_RIGHT      => 'Right',

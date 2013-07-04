@@ -753,9 +753,6 @@ class IACLParserFunctions
         else
         {
             list($del, $add) = $this->def->diffRules();
-            var_dump($del);
-            var_dump($add);
-            exit;
             if ($del || $add)
             {
                 // TODO Show inconsistency details

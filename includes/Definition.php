@@ -393,14 +393,14 @@ class IACLDefinition implements ArrayAccess
             // Fallback chain: current user -> registered users (0) -> all users (-1)
             $applicable = array(
                 '('.IACL::PE_USER.','.$userID.')',
-                '('.IACL::PE_REG_USERS.','.0.')',
-                '('.IACL::PE_ALL_USERS.','.0.')',
+                '('.IACL::PE_REG_USERS.',0)',
+                '('.IACL::PE_ALL_USERS.',0)',
             );
         }
         else
         {
             $applicable = array(
-                '('.IACL::PE_ALL_USERS.','.0.')'
+                '('.IACL::PE_ALL_USERS.',0)'
             );
         }
         $where = array(
@@ -511,12 +511,17 @@ class IACLDefinition implements ArrayAccess
         {
             $ns = NS_SPECIAL;
         }
-        !!!!!!!!!!!!!!!!!!!!!!!!!!
-        Continue refactoring here.
-        Need to a) deal with special pages b) make ACL:Page/<CanonicalNS>:Title
         // Return the page id
         // TODO add caching here
         $id = haclfArticleID($peName, $ns);
+        if ($id < 0)
+        {
+            if ($peType != IACL::PE_SPECIAL)
+            {
+                throw new Exception(__METHOD__.': BUG: Special page title passed, but PE type = '.$peType.' (not PE_SPECIAL)');
+            }
+            return -$id;
+        }
         return $id ? $id : false;
     }
 
@@ -537,7 +542,7 @@ class IACLDefinition implements ArrayAccess
      * Determine protected element name and type by definition page title
      *
      *  ACL:Page/<Page title>               PE_PAGE
-     *  ACL:Special/<Special page title>    PE_SPECIAL
+     *  ACL:Page/Special:<Special title>    PE_SPECIAL
      *  ACL:Category/<Category name>        PE_CATEGORY
      *  ACL:Namespace/<Namespace name>      PE_NAMESPACE
      *  ACL:Namespace/Main                  PE_NAMESPACE
@@ -577,6 +582,15 @@ class IACLDefinition implements ArrayAccess
         if ($type != IACL::PE_RIGHT)
         {
             $peName = substr($defTitle, $p+1);
+            if ($type == IACL::PE_PAGE)
+            {
+                $p = strpos($peName, ':');
+                if ($wgContLang->getNsIndex(substr($peName, 0, $p)) == NS_SPECIAL)
+                {
+                    // Special page maps to a separate PE type
+                    return array(IACL::PE_SPECIAL, substr($peName, $p+1));
+                }
+            }
             return array($type, $peName);
         }
         // Right by default
@@ -593,11 +607,19 @@ class IACLDefinition implements ArrayAccess
     public static function nameOfSD($nameOfPE, $peType)
     {
         global $wgContLang, $haclgContLang;
+        // FIXME make canonical namespace names here
         $defTitle = $wgContLang->getNsText(HACL_NS_ACL).':';
-        $prefix = $haclgContLang->getPetPrefix($peType);
-        if ($prefix)
+        if ($peType == IACL::PE_SPECIAL)
         {
-            $defTitle .= $prefix.'/';
+            $defTitle .= $haclgContLang->getPetPrefix(IACL::PE_PAGE).'/Special:';
+        }
+        else
+        {
+            $prefix = $haclgContLang->getPetPrefix($peType);
+            if ($prefix)
+            {
+                $defTitle .= $prefix.'/';
+            }
         }
         return $defTitle . $nameOfPE;
     }
@@ -788,8 +810,8 @@ class IACLDefinition implements ArrayAccess
         if (!isset($rules[IACL::PE_ALL_USERS][0]))
         {
             $rules[IACL::PE_ALL_USERS][0] = $thisId + array(
-                'child_type' => IACL::PE_USER,
-                'child_id'   => IACL::ALL_USERS,
+                'child_type' => IACL::PE_ALL_USERS,
+                'child_id'   => 0,
                 'actions'    => 0,
             );
         }
