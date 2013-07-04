@@ -294,12 +294,12 @@ class IACLParserFunctions
             if ($assignee === '*')
             {
                 // all users
-                $all_reg[IACL::PE_ALL_USERS] = true;
+                $all_reg[IACL::PE_ALL_USERS] = '*';
             }
             elseif ($assignee === '#')
             {
                 // registered users
-                $all_reg[IACL::PE_REG_USERS] = true;
+                $all_reg[IACL::PE_REG_USERS] = '#';
             }
             elseif (($t = Title::newFromText($assignee)))
             {
@@ -365,7 +365,7 @@ class IACLParserFunctions
         }
         foreach ($all_reg as $t => $true)
         {
-            @$this->rules[$t][0] = true;
+            @$this->rules[$t][0] |= $actions;
         }
         foreach ($users as $name => $id)
         {
@@ -382,6 +382,9 @@ class IACLParserFunctions
             }
         }
         haclfRestoreTitlePatch($etc);
+
+        // Append $all_reg to $users for display
+        $users += array_flip($all_reg);
 
         return array($users, $groups, $errors);
     }
@@ -565,7 +568,9 @@ class IACLParserFunctions
         }
     }
 
-    /* Also do handle article undeletes */
+    /**
+     * Also do handle article undeletes
+     */
     public static function articleUndelete(&$title, $isnew)
     {
         if ($title->getNamespace() == HACL_NS_ACL)

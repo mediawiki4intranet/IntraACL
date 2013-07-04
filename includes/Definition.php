@@ -404,7 +404,7 @@ class IACLDefinition implements ArrayAccess
             );
         }
         $where = array(
-            '(child_type, child_id) IN '.implode(', ', $applicable),
+            '(child_type, child_id) IN ('.implode(', ', $applicable).')',
         );
         $options = array(
             'ORDER BY' => 'child_type ASC, pe_type ASC, pe_id DESC'
@@ -421,11 +421,11 @@ class IACLDefinition implements ArrayAccess
             // so don't preload them until explicitly requested
             if ($peType != IACL::PE_GROUP)
             {
-                $where['pe_type'] = IACL::PE_GROUP;
+                $where[] = 'pe_type != '.IACL::PE_GROUP;
             }
             else
             {
-                $where[] = 'pe_type != '.IACL::PE_GROUP;
+                $where['pe_type'] = IACL::PE_GROUP;
             }
             $options['LIMIT'] = $iaclPreloadLimit;
             $rules = IACLStorage::get('SD')->getRules($where, $options);
@@ -757,7 +757,7 @@ class IACLDefinition implements ArrayAccess
         // Process indirect grants
         $children = self::select(array('pe' => $childIds));
         $member = IACL::ACTION_GROUP_MEMBER | (IACL::ACTION_GROUP_MEMBER << IACL::INDIRECT_OFFSET);
-        foreach ($childIds as $child)
+        foreach ($children as $child)
         {
             if ($child['pe_type'] == IACL::PE_GROUP)
             {
