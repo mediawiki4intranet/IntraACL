@@ -726,17 +726,6 @@ class IACLParserFunctions
         {
             $msg[] = wfMsgForContent('hacl_errors_in_definition');
         }
-        if (!$this->rules)
-        {
-            if ($this->peType == IACL::PE_GROUP)
-            {
-                $msg[] = wfMsgForContent('hacl_group_must_have_members');
-            }
-            else
-            {
-                $msg[] = wfMsgForContent('hacl_right_must_have_rights');
-            }
-        }
         $this->makeDef();
         if ($this->peType == IACL::PE_NAMESPACE)
         {
@@ -751,17 +740,31 @@ class IACLParserFunctions
                 $msg[] = wfMsgForContent('hacl_unprotectable_namespace');
             }
         }
-        if (!$this->def['pe_id'])
+        if ($this->title->exists() && !$this->rules)
         {
-            $msg[] = wfMsgForContent('hacl_pe_not_exists', $this->peName);
-        }
-        else
-        {
-            list($del, $add) = $this->def->diffRules();
-            if ($del || $add)
+            if ($this->peType == IACL::PE_GROUP)
             {
-                // TODO Show inconsistency details
-                $msg[] = wfMsgForContent('hacl_acl_element_inconsistent');
+                $msg[] = wfMsgForContent('hacl_group_must_have_members');
+            }
+            else
+            {
+                $msg[] = wfMsgForContent('hacl_right_must_have_rights');
+            }
+        }
+        elseif (!$this->title->exists() && $this->rules)
+        {
+            if (!$this->def)
+            {
+                $msg[] = wfMsgForContent('hacl_pe_not_exists', $this->peName);
+            }
+            else
+            {
+                list($del, $add) = $this->def->diffRules();
+                if ($del || $add)
+                {
+                    // TODO Show inconsistency details
+                    $msg[] = wfMsgForContent('hacl_acl_element_inconsistent');
+                }
             }
         }
         // Merge errors into HTML text
