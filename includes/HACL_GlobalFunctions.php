@@ -153,7 +153,7 @@ function enableIntraACL()
         'HACLToolbar'               => "$haclgIP/includes/HACL_Toolbar.php",
 
         // Special page
-        'IntraACLSpecial'           => "$haclgIP/includes/HACL_ACLSpecial.php",
+        'IntraACLSpecial'           => "$haclgIP/includes/ACLSpecial.php",
         'IntraACLSelftestSpecial'   => "$haclgIP/includes/SpecialSelftest.php",
 
         // Storage
