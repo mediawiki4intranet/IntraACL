@@ -788,11 +788,39 @@ class IACLDefinition implements ArrayAccess
             {
                 // Groups may be included in other groups or in right definitions
                 $actions = $rules[$child['pe_type']][$child['pe_id']]['actions'] << IACL::INDIRECT_OFFSET;
-                foreach ($child['rules'] as $rule)
+                foreach ($child['rules'] as $ccType => $ccs)
                 {
-                    // Only take member rules into account
-                    if ($rule['actions'] & $member)
+                    foreach ($ccs as $ccId => $rule)
                     {
+                        // Only take member rules into account
+                        if ($rule['actions'] & $member)
+                        {
+                            if (!isset($rules[$rule['child_type']][$rule['child_id']]))
+                            {
+                                $rules[$rule['child_type']][$rule['child_id']] = $thisId + array(
+                                    'child_type' => $rule['child_type'],
+                                    'child_id'   => $rule['child_id'],
+                                    'actions'    => $actions,
+                                );
+                            }
+                            else
+                            {
+                                $rules[$rule['child_type']][$rule['child_id']]['actions'] |= $actions;
+                            }
+                        }
+                    }
+                }
+            }
+            elseif ($this['pe_type'] != IACL::PE_GROUP)
+            {
+                // Right definitions can only be included into other right definitions
+                foreach ($child['rules'] as $ccType => $ccs)
+                {
+                    foreach ($ccs as $ccId => $rule)
+                    {
+                        // Make all rights indirect
+                        $actions = (($rule['actions'] & $directMask) << IACL::INDIRECT_OFFSET) |
+                            ($rule['actions'] & ($directMask << IACL::INDIRECT_OFFSET));
                         if (!isset($rules[$rule['child_type']][$rule['child_id']]))
                         {
                             $rules[$rule['child_type']][$rule['child_id']] = $thisId + array(
@@ -805,28 +833,6 @@ class IACLDefinition implements ArrayAccess
                         {
                             $rules[$rule['child_type']][$rule['child_id']]['actions'] |= $actions;
                         }
-                    }
-                }
-            }
-            elseif ($this['pe_type'] != IACL::PE_GROUP)
-            {
-                // Right definitions can only be included into other right definitions
-                foreach ($child['rules'] as $rule)
-                {
-                    // Make all rights indirect
-                    $actions = (($rule['actions'] & $directMask) << IACL::INDIRECT_OFFSET) |
-                        ($rule['actions'] & ($directMask << IACL::INDIRECT_OFFSET));
-                    if (!isset($rules[$rule['child_type']][$rule['child_id']]))
-                    {
-                        $rules[$rule['child_type']][$rule['child_id']] = $thisId + array(
-                            'child_type' => $rule['child_type'],
-                            'child_id'   => $rule['child_id'],
-                            'actions'    => $actions,
-                        );
-                    }
-                    else
-                    {
-                        $rules[$rule['child_type']][$rule['child_id']]['actions'] |= $actions;
                     }
                 }
             }

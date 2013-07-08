@@ -162,19 +162,19 @@ class IACLParserFunctions
         {
             if ($id)
             {
-                $this->rules[$id[0]][$id[1]] = IACL::ACTION_INCLUDE_SD;
+                $this->rules[$id[0]][$id[2]] = IACL::ACTION_INCLUDE_SD;
             }
             else
             {
                 $this->mDefinitionValid = false;
-                $em[] = wfMsgForContent('hacl_invalid_predefined_right', $name);
+                $errors[] = wfMsgForContent('hacl_invalid_predefined_right', $name);
             }
         }
 
         // Format the rights in Wikitext
         $text = wfMsgForContent('hacl_pf_predefined_rights_title');
         $text .= $this->showRights(array_keys($rights));
-        $text .= $this->showErrors($em);
+        $text .= $this->showErrors($errors);
 
         return $text;
     }
@@ -461,8 +461,9 @@ class IACLParserFunctions
             $r = trim($r);
             if ($r)
             {
-                list($peName, $peType) = IACLDefinition::nameOfPE($r);
-                $result[$r] = [ $peType, $peName ];
+                // FIXME: resolve multiple IDs at once
+                $result[$r] = IACLDefinition::nameOfPE($r);
+                $result[$r][2] = IACLDefinition::peIDforName($result[$r][0], $result[$r][1]);
             }
         }
         if (!$result)
@@ -470,7 +471,7 @@ class IACLParserFunctions
             $errMsgs[] = wfMsgForContent('hacl_missing_parameter_values', $param);
         }
 
-        return array($rights, $errMsgs);
+        return array($result, $errMsgs);
     }
 
     //--- MediaWiki Hooks ---
@@ -974,12 +975,12 @@ class IACLParserFunctions
         global $wgContLang;
         $aclNS = $wgContLang->getNsText(HACL_NS_ACL);
         $text = "";
-        foreach ($rights as $name => $peName)
+        foreach ($rights as $name => $r)
         {
             // Rights can be given without the namespace "ACL". However, the
             // right should be linked correctly. So if the namespace is missing,
             // the link is adapted.
-            if (strpos($r, $aclNS) === false && $addACLNS)
+            if (strpos($r, $aclNS) !== 0 && $addACLNS)
             {
                 $r = "$aclNS:$r|$r";
             }
