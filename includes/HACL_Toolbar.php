@@ -302,7 +302,7 @@ class HACLToolbar
     {
         global $wgUser;
         $groups = $wgUser->getId() ? IACLStorage::get('Groups')->getGroupsOfMember('user', $wgUser->getId()) : NULL;
-        list($uid) = haclfGetUserID($wgUser);
+        $uid = $wgUser->getId();
         // Lookup readable categories
         $pe = IACLStorage::get('IR')->lookupRights($uid, $groups, HACLLanguage::RIGHT_READ, 'category');
         if ($pe)
