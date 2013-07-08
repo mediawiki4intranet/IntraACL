@@ -499,14 +499,34 @@ class IACLParserFunctions
             $pe = IACLDefinition::nameOfPE($title);
             if ($pe)
             {
-                $peID = IACLDefinition::peIDforName($pe[0], $pe[1]);
-                if ($peID)
+                $peName = false;
+                if ($pe[0] == IACL::PE_PAGE)
                 {
-                    $peName = IACLDefinition::peNameForID($pe[0], $peID);
+                    // Pages may contain namespace name, and we want to redirect
+                    // from a non-canonical name even the page itself does not exist
+                    $t = Title::newFromText($pe[1]);
+                    if ($t)
+                    {
+                        $peName = ($t->getNamespace() ? iaclfCanonicalNsText($t->getNamespace()).':' : '') . $t->getText();
+                    }
+                }
+                else
+                {
+                    $peID = IACLDefinition::peIDforName($pe[0], $pe[1]);
+                    if ($peID)
+                    {
+                        $peName = IACLDefinition::peNameForID($pe[0], $peID);
+                    }
+                }
+                if ($peName)
+                {
                     $sdName = IACLDefinition::nameOfSD($pe[0], $peName);
                     if ($sdName != $title->getPrefixedText())
                     {
-                        $target = Title::newFromText($sdName);
+                        // Use $article instead of $target because MW doesn't redirect
+                        // when $target does not exist
+                        $article = new Article(Title::newFromText($sdName));
+                        $article->setRedirectedFrom($title);
                         return false;
                     }
                 }
@@ -752,13 +772,30 @@ class IACLParserFunctions
             $msg[] = wfMsgForContent('hacl_errors_in_definition');
         }
         $this->makeDef();
-        if ($this->def['pe_id'] && $this->title->exists())
+        // Non-canonical warning
+        $editor = true;
+        $peName = false;
+        if ($this->def['pe_id'])
         {
             $peName = IACLDefinition::peNameForID($this->peType, $this->def['pe_id']);
+        }
+        elseif ($this->peType == IACL::PE_PAGE)
+        {
+            // Pages may contain namespace name, and we want to redirect
+            // from a non-canonical name even the page itself does not exist
+            $t = Title::newFromText($peName);
+            if ($t)
+            {
+                $peName = ($t->getNamespace() ? iaclfCanonicalNsText($t->getNamespace()).':' : '') . $t->getText();
+            }
+        }
+        if ($peName)
+        {
             $sdName = IACLDefinition::nameOfSD($this->peType, $peName);
             if ($sdName != $this->title->getPrefixedText())
             {
-                $msg[] = wfMsgForContent('hacl_non_canonical_acl');
+                $msg[] = wfMsgExt('hacl_non_canonical_acl', 'parse', $sdName);
+                $editor = false;
             }
         }
         if ($this->peType == IACL::PE_NAMESPACE)
@@ -814,13 +851,16 @@ class IACLParserFunctions
             $html .= "</ul>";
         }
         // Add "Create/edit with IntraACL editor" link
-        // TODO do not display it when the user has no rights to change ACL
-        $html .= wfMsgForContent($this->def->clean() ? 'hacl_edit_with_special' : 'hacl_create_with_special',
-            Title::newFromText('Special:IntraACL')->getLocalUrl(array(
-                'action' => ($this->peType == IACL::PE_GROUP ? 'group' : 'acl'),
-                ($this->peType == IACL::PE_GROUP ? 'group' : 'sd') => $this->title->getPrefixedText(),
-            )),
-            $haclgHaloScriptPath . '/skins/images/edit.png');
+        if ($editor)
+        {
+            // TODO do not display it when the user has no rights to change ACL
+            $html .= wfMsgForContent($this->def->clean() ? 'hacl_edit_with_special' : 'hacl_create_with_special',
+                Title::newFromText('Special:IntraACL')->getLocalUrl(array(
+                    'action' => ($this->peType == IACL::PE_GROUP ? 'group' : 'acl'),
+                    ($this->peType == IACL::PE_GROUP ? 'group' : 'sd') => $this->title->getPrefixedText(),
+                )),
+                $haclgHaloScriptPath . '/skins/images/edit.png');
+        }
         return $html;
     }
 

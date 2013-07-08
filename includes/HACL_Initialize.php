@@ -113,6 +113,6 @@ $iaclPreloadLimit = 1000;
 # See also $wgWhitelistRead - IntraACL opens whitelisted pages for reading
 
 // load global functions
-require_once(dirname(__FILE__).'/HACL_GlobalFunctions.php');
+require_once(dirname(__FILE__).'/GlobalFunctions.php');
 
 haclfInitNamespaces();

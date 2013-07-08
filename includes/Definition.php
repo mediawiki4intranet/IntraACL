@@ -77,7 +77,7 @@ class IACLDefinition implements ArrayAccess
             {
                 $where[] = array($pe[0], $id);
             }
-            $k = array($pe[0], $pe[1], $id, ''.$k);
+            $k = array($pe[0], $pe[1], $id, "$k");
         }
         $defs = self::select(array('pe' => $where));
         $r = array();
@@ -85,7 +85,7 @@ class IACLDefinition implements ArrayAccess
         {
             if ($k[2])
             {
-                $r[$k[3]] = $defs[$k[0].'-'.$k[2]];
+                $r[$k[3]] = @$defs[$k[0].'-'.$k[2]];
             }
         }
         return $r;

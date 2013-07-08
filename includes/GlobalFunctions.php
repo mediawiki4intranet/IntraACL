@@ -702,6 +702,14 @@ class IACL
         'namespace' => IACL::PE_NAMESPACE,
         'category'  => IACL::PE_CATEGORY,
         'page'      => IACL::PE_PAGE,
+        'special'   => IACL::PE_SPECIAL,
+    );
+    static $typeToName = array(
+        IACL::PE_RIGHT     => 'right',
+        IACL::PE_NAMESPACE => 'namespace',
+        IACL::PE_CATEGORY  => 'category',
+        IACL::PE_PAGE      => 'page',
+        IACL::PE_SPECIAL   => 'special',
     );
     static $nameToAction = array(
         'read'   => IACL::ACTION_READ,

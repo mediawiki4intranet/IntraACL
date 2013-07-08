@@ -1,19 +1,19 @@
 <?php
 
-/* Copyright 2010+, Vitaliy Filippov <vitalif[d.o.g]mail.ru>
+/**
+ * Copyright 2013+, Vitaliy Filippov <vitalif[d.o.g]mail.ru>
  *                  Stas Fomin <stas.fomin[d.o.g]yandex.ru>
  * This file is part of IntraACL MediaWiki extension. License: GPLv3.
- * http://wiki.4intra.net/IntraACL
- * $Id$
+ * Homepage: http://wiki.4intra.net/IntraACL
  *
  * Loosely based on HaloACL (c) 2009, ontoprise GmbH
  *
- * The IntraACL-Extension is free software; you can redistribute it and/or modify
+ * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
- * The IntraACL-Extension is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -35,12 +35,19 @@ abstract class HACLLanguage
     // LANGUAGE-INDEPENDENT ALIASES //
     //////////////////////////////////
 
-    // THESE ARE NOT CONSTANTS, BUT WE STRONGLY RECOMMEND
-    // NOT TO OVERRIDE THESE VALUES (it is logically to have
-    // language-independent parser function names and parameters and etc):
+    // DO NOT OVERRIDE THESE VALUES
 
     // Default content for "Permission denied" page, is filled during installation
     public $mPermissionDeniedPageContent = "{{:MediaWiki:hacl_permission_denied}}";
+
+    // SD page prefixes (ACL:<Prefix>/<Name>) for different protected element types
+    public $mPetPrefixes = array(
+        IACL::PE_PAGE       => 'Page',
+        IACL::PE_CATEGORY   => 'Category',
+        IACL::PE_NAMESPACE  => 'Namespace',
+        IACL::PE_RIGHT      => 'Right',
+        IACL::PE_GROUP      => 'Group',
+    );
 
     // Action names
     public $mActionNames = array(
@@ -54,17 +61,12 @@ abstract class HACLLanguage
         IACL::ACTION_PROTECT_PAGES   => 'protect_pages',
     );
 
-    // Lookup array: ACL:Prefix/Name --> lowercased prefix --> type (sd, group, right)
-    public $mPrefixes = array();
-
     // Lookup array: lowercased action name --> action ID
     public $mActionAliases = array();
 
     ////////////////////////////////
     // LANGUAGE-DEPENDENT ALIASES //
     ////////////////////////////////
-
-    // THESE ARE RECOMMENDED TO BE OVERRIDDEN IN SUBCLASSES
 
     // IntraACL namespaces and aliases
     public $mNamespaces = array(
@@ -78,17 +80,12 @@ abstract class HACLLanguage
     // "Permission denied" page, inaccessible Title's are replaced with it
     public $mPermissionDeniedPage = 'Permission denied';
 
-    // SD page prefixes (ACL:<Prefix>/<Name>) for different protected element types
-    public $mPetPrefixes = array(
-        IACL::PE_PAGE       => 'Page',
-        IACL::PE_CATEGORY   => 'Category',
-        IACL::PE_NAMESPACE  => 'Namespace',
-        IACL::PE_RIGHT      => 'Right',
-        IACL::PE_GROUP      => 'Group',
-    );
-
-    // Lookup array: ACL:Prefix/Name --> lowercased prefix --> protected element type constant
     // Add language-dependent protected element type names here
+    // [ lowercased localized alias => IACL::PE_* ]
+    //
+    // Only for compatibility!
+    // From now all ACL title prefixes are always english.
+    // (because they're stored as-is in the DB, and won't survive $wgContLang change otherwise)
     public $mPetAliases = array();
 
     //////////////////////////////////////
@@ -100,10 +97,6 @@ abstract class HACLLanguage
         foreach ($this->mPetPrefixes as $id => $prefix)
         {
             $this->mPetAliases[mb_strtolower($prefix)] = $id;
-        }
-        foreach ($this->mPetAliases as $prefix => $id)
-        {
-            $this->mPrefixes[$prefix] = $id == IACL::PE_RIGHT ? 'right' : 'sd';
         }
         foreach ($this->mActionNames as $id => $name)
         {
@@ -135,19 +128,6 @@ abstract class HACLLanguage
         return $this->mPermissionDeniedPageContent;
     }
 
-    /**
-     * This method returns the language dependent names of all actions that
-     * are used in rights.
-     *
-     * @return array(int => string)
-     *         A mapping from action IDs to action names.
-     *         The possible IDs are HACLLanguage::ACTION_*
-     */
-    public function getActionNames()
-    {
-        return $this->mActionNames;
-    }
-
     // Get self::ACTION_* action ID by action name $name
     public function getActionId($name)
     {
@@ -166,20 +146,6 @@ abstract class HACLLanguage
     public function getPetPrefixes()
     {
         return $this->mPetPrefixes;
-    }
-
-    public function getPrefix($prefix)
-    {
-        if (isset($this->mPrefixes[mb_strtolower($prefix)]))
-        {
-            return $this->mPrefixes[mb_strtolower($prefix)];
-        }
-        return false;
-    }
-
-    public function getPrefixes()
-    {
-        return $this->mPrefixes;
     }
 
     public function getPetAlias($alias)

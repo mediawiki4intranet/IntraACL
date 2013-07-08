@@ -104,10 +104,7 @@ class IntraACL_SQL_SD
     }
 
     /**
-     * Select all SD pages (not only saved SDs as incorrect SDs may be not saved),
-     * with an additional field:
-     *
-     *   single_child => NULL or [ peType, peID, pageTitle ] of a single included SD
+     * Select all SD pages (not only saved SDs as incorrect SDs may be not saved).
      */
     public function getSDPages($types, $name, $offset, $limit, &$total)
     {
@@ -118,10 +115,14 @@ class IntraACL_SQL_SD
         $where = array();
         foreach ($haclgContLang->getPetAliases() as $k => $v)
         {
-            if (!$t || array_key_exists($v, $t))
+            if (!$t || array_key_exists($k, $t))
             {
                 $where[] = 'CAST(page_title AS CHAR CHARACTER SET utf8) COLLATE utf8_unicode_ci LIKE '.$dbr->addQuotes($k.'/'.$n.'%');
             }
+        }
+        if (!$where)
+        {
+            return array();
         }
         $where = 'page_namespace='.HACL_NS_ACL.' AND ('.implode(' OR ', $where).')';
         // Select SDs
@@ -131,30 +132,11 @@ class IntraACL_SQL_SD
             'OFFSET' => $offset,
             'LIMIT' => $limit,
         ));
-        $titles = array();
         $rows = array();
         foreach ($res as $row)
         {
             $t = Title::newFromRow($row);
-            $titles[] = $t;
-            $rows["$t"] = $row;
-        }
-        if (!$rows)
-        {
-            return $rows;
-        }
-        $defs = IACLDefinitions::newFromTitles($titles);
-        foreach ($rows as $k => &$t)
-        {
-            if (isset($defs[$k]))
-            {
-                $t->single_child = $defs[$k]['single_child'];
-                if ($t->single_child)
-                {
-                    $name = IACLDefinition::peNameForID($t->single_child[0], $t->single_child[1]);
-                    $t->single_child[2] = IACLDefinition::nameOfSD($t->single_child[0], $name);
-                }
-            }
+            $rows["$t"] = $t;
         }
         return $rows;
     }

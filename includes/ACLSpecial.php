@@ -621,40 +621,39 @@ class IntraACLSpecial extends SpecialPage
         global $wgScript, $wgTitle, $haclgHaloScriptPath, $haclgContLang, $wgUser;
         haclCheckScriptPath();
         // Load data
-        $sdpages = IACLStorage::get('SD')->getSDPages($t, $n, $offset, $limit, $total);
+        $titles = IACLStorage::get('SD')->getSDPages($t, $n, $offset, $limit, $total);
+        $defs = IACLDefinition::newFromTitles($titles);
+        foreach ($defs as $k => $def)
+        {
+            if ($def['single_child'])
+            {
+                $t->single_child = $defs[$k]['single_child'];
+                $name = IACLDefinition::peNameForID($t->single_child[0], $t->single_child[1]);
+                $t->single_child[2] = IACLDefinition::nameOfSD($t->single_child[0], $name);
+            }
+        }
         // Build SD data for template
         $lists = array();
-        foreach ($sdpages as $r)
+        foreach ($titles as $k => $sd)
         {
-            $sd = Title::newFromRow($r);
             $d = array(
                 'name' => $sd->getText(),
                 'real' => $sd->getText(),
-                'editlink' => $wgScript.'?title=Special:IntraACL&action=acl&sd='.urlencode($sd->getText()),
+                'editlink' => $wgTitle->getLocalUrl(array('action' => 'acl', 'sd' => $sd->getText())),
                 'viewlink' => $sd->getLocalUrl(),
+                'single' => NULL,
             );
-            list($d['type'], $d['real']) = explode('/', $d['real'], 2);
-            if ($d['real'])
-            {
-                $d['type'] = $haclgContLang->getPetAlias($d['type']);
-            }
-            else
-            {
-                $d['real'] = $d['type'];
-            }
+            $pe = IACLDefinition::nameOfPE($sd);
+            $d['type'] = IACL::$typeToName[$pe[0]];
+            $d['real'] = $pe[1];
             // Single SD inclusion
-            $d['single'] = $r->sd_single_title;
-            if ($r->sd_single_title)
+            if (isset($defs[$k]) && !empty($defs[$k]['single_child']))
             {
-                list($d['singletype'], $d['singlename']) = explode('/', $d['single']->getText(), 2);
-                if ($d['singlename'])
-                {
-                    $d['singletype'] = $haclgContLang->getPetAlias($d['type']);
-                }
-                else
-                {
-                    $d['singlename'] = $d['singletype'];
-                }
+                $s = $defs[$k]['single_child'];
+                $name = IACLDefinition::peNameForID($s[0], $s[1]);
+                $d['single'] = Title::newFromText(IACLDefinition::nameOfSD($s[0], $name));
+                $d['singletype'] = IACL::$typeToName[$s[0]];
+                $d['singlename'] = $name;
                 $d['singlelink'] = $d['single']->getLocalUrl();
                 $d['singletip'] = wfMsg('hacl_acllist_hint_single', $d['real'], $d['single']->getPrefixedText());
             }
