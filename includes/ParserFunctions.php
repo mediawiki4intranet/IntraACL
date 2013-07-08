@@ -479,12 +479,55 @@ class IACLParserFunctions
      * We need to create a work instance to display consistency checks
      * during display of an article;
      */
-    public static function articleViewHeader(&$article, &$outputDone, &$pcache)
+    public static function ArticleViewHeader(&$article, &$outputDone, &$pcache)
     {
-        // TODO make it different: disable cache for ACL
         if ($article->getTitle()->getNamespace() == HACL_NS_ACL)
         {
+            global $haclgHaloScriptPath, $wgOut;
+            // Disable parser cache
             $pcache = false;
+            // Warn for non-canonical titles
+            $self = self::instance($article->getTitle());
+            $editor = true;
+            $peName = false;
+            $self->makeDef();
+            $html = '';
+            if ($self->def['pe_id'])
+            {
+                $peName = IACLDefinition::peNameForID($self->peType, $self->def['pe_id']);
+            }
+            elseif ($self->peType == IACL::PE_PAGE)
+            {
+                // Pages may contain namespace name, and we want to redirect
+                // from a non-canonical name even the page itself does not exist
+                $t = Title::newFromText($peName);
+                if ($t)
+                {
+                    $peName = ($t->getNamespace() ? iaclfCanonicalNsText($t->getNamespace()).':' : '') . $t->getText();
+                }
+            }
+            if ($peName)
+            {
+                $sdName = IACLDefinition::nameOfSD($self->peType, $peName);
+                if ($sdName != $self->title->getPrefixedText())
+                {
+                    $html .= '<div class="error"><p>'.wfMsgForContent('hacl_non_canonical_acl',
+                        Title::newFromText($sdName)->getLocalUrl(), $sdName, $self->title->getPrefixedText()).'</p></div>';
+                    $editor = false;
+                }
+            }
+            // Add "Create/edit with IntraACL editor" link
+            if ($editor)
+            {
+                // TODO do not display it when the user has no rights to change ACL
+                $html .= wfMsgForContent($self->def->clean() ? 'hacl_edit_with_special' : 'hacl_create_with_special',
+                    Title::newFromText('Special:IntraACL')->getLocalUrl(array(
+                        'action' => ($self->peType == IACL::PE_GROUP ? 'group' : 'acl'),
+                        ($self->peType == IACL::PE_GROUP ? 'group' : 'sd') => $self->title->getPrefixedText(),
+                    )),
+                    $haclgHaloScriptPath . '/skins/images/edit.png');
+            }
+            $wgOut->addHTML($html);
         }
         return true;
     }
@@ -544,16 +587,16 @@ class IACLParserFunctions
      * @param unknown_type $text
      * @return bool true
      */
-    public static function outputPageBeforeHTML(&$out, &$text)
+    public static function ArticleViewFooter($article)
     {
-        global $haclgContLang, $wgTitle;
-        $html = self::instance($wgTitle, false);
+        global $wgOut;
+        $html = self::instance($article->getTitle(), true);
         if ($html)
         {
             $html = $html->consistencyCheckHtml();
             if ($html)
             {
-                $out->addHTML($html);
+                $wgOut->addHTML($html);
             }
         }
         return true;
@@ -597,19 +640,25 @@ class IACLParserFunctions
      */
     protected function makeDef()
     {
-        $id = IACLDefinition::peIDforName($this->peType, $this->peName);
-        // FIXME When $id is NULL => PE does not exist, but we should report this error
-        if ($id)
+        if (!$this->def)
         {
-            $this->def = IACLDefinition::select(array('pe' => array($this->peType, $id)));
-            if ($this->def)
+            $id = IACLDefinition::peIDforName($this->peType, $this->peName);
+            // FIXME When $id is NULL => PE does not exist, but we should report this error
+            if ($id)
             {
-                $this->def = reset($this->def);
+                $this->def = IACLDefinition::select(array('pe' => array($this->peType, $id)));
+                if ($this->def)
+                {
+                    $this->def = reset($this->def);
+                }
+                else
+                {
+                    $this->def = IACLDefinition::newEmpty($this->peType, $id);
+                }
             }
-            else
-            {
-                $this->def = IACLDefinition::newEmpty($this->peType, $id);
-            }
+        }
+        if ($this->def)
+        {
             $this->def['rules'] = $this->rules;
         }
     }
@@ -772,32 +821,6 @@ class IACLParserFunctions
             $msg[] = wfMsgForContent('hacl_errors_in_definition');
         }
         $this->makeDef();
-        // Non-canonical warning
-        $editor = true;
-        $peName = false;
-        if ($this->def['pe_id'])
-        {
-            $peName = IACLDefinition::peNameForID($this->peType, $this->def['pe_id']);
-        }
-        elseif ($this->peType == IACL::PE_PAGE)
-        {
-            // Pages may contain namespace name, and we want to redirect
-            // from a non-canonical name even the page itself does not exist
-            $t = Title::newFromText($peName);
-            if ($t)
-            {
-                $peName = ($t->getNamespace() ? iaclfCanonicalNsText($t->getNamespace()).':' : '') . $t->getText();
-            }
-        }
-        if ($peName)
-        {
-            $sdName = IACLDefinition::nameOfSD($this->peType, $peName);
-            if ($sdName != $this->title->getPrefixedText())
-            {
-                $msg[] = wfMsgExt('hacl_non_canonical_acl', 'parse', $sdName);
-                $editor = false;
-            }
-        }
         if ($this->peType == IACL::PE_NAMESPACE)
         {
             global $haclgUnprotectableNamespaceIds;
@@ -849,17 +872,6 @@ class IACLParserFunctions
                 $html .= "<li>$m</li>";
             }
             $html .= "</ul>";
-        }
-        // Add "Create/edit with IntraACL editor" link
-        if ($editor)
-        {
-            // TODO do not display it when the user has no rights to change ACL
-            $html .= wfMsgForContent($this->def->clean() ? 'hacl_edit_with_special' : 'hacl_create_with_special',
-                Title::newFromText('Special:IntraACL')->getLocalUrl(array(
-                    'action' => ($this->peType == IACL::PE_GROUP ? 'group' : 'acl'),
-                    ($this->peType == IACL::PE_GROUP ? 'group' : 'sd') => $this->title->getPrefixedText(),
-                )),
-                $haclgHaloScriptPath . '/skins/images/edit.png');
         }
         return $html;
     }

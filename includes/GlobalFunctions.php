@@ -168,9 +168,9 @@ function enableIntraACL()
 
     // ACL update hooks are registered even in commandline.
     global $wgHooks;
-    $wgHooks['ArticleViewHeader'][]     = 'IACLParserFunctions::articleViewHeader';
+    $wgHooks['ArticleViewHeader'][]     = 'IACLParserFunctions::ArticleViewHeader';
     $wgHooks['InitializeArticleMaybeRedirect'][] = 'IACLParserFunctions::initializeArticleMaybeRedirect';
-    $wgHooks['OutputPageBeforeHTML'][]  = 'IACLParserFunctions::outputPageBeforeHTML';
+    $wgHooks['ArticleViewFooter'][]     = 'IACLParserFunctions::ArticleViewFooter';
     $wgHooks['ArticleEditUpdates'][]    = 'IACLParserFunctions::ArticleEditUpdates';
     $wgHooks['ArticleDelete'][]         = 'IACLParserFunctions::articleDelete';
     $wgHooks['ArticleUndelete'][]       = 'IACLParserFunctions::articleUndelete';
