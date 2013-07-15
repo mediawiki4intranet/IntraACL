@@ -61,11 +61,19 @@ class IntraACL_SQL_Util
         {
             $res = $dbr->select('page', '*', array('page_id' => $ids), __METHOD__);
             if (!$as_object)
+            {
                 foreach ($res as $r)
+                {
                     $rows[$r->page_id] = $r;
+                }
+            }
             else
+            {
                 foreach ($res as $r)
+                {
                     $rows[$r->page_id] = Title::newFromRow($r);
+                }
+            }
         }
         return $rows;
     }

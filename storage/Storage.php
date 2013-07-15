@@ -8,8 +8,6 @@
  * This file is part of IntraACL MediaWiki extension
  * http://wiki.4intra.net/IntraACL
  *
- * Loosely based on HaloACL (c) 2009, ontoprise GmbH
- *
  * The IntraACL-Extension is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or

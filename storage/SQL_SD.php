@@ -86,23 +86,6 @@ class IntraACL_SQL_SD
         }
     }
 
-
-
-    // OLD METHODS
-
-    /**
-     * Retrieves the full hierarchy of SDs from the DB
-     */
-    public function getFullSDHierarchy()
-    {
-        $dbr = wfGetDB(DB_SLAVE);
-        $res = $dbr->select('halo_acl_rights_hierarchy', '*', '1', __METHOD__);
-        $rows = array();
-        foreach ($res as $row)
-            $rows[] = $row;
-        return $rows;
-    }
-
     /**
      * Select all SD pages (not only saved SDs as incorrect SDs may be not saved).
      */
@@ -160,7 +143,7 @@ class IntraACL_SQL_SD
      * @param int $peID
      *      Page ID to retrieve the list of content used in.
      * @param int $incSDType
-            (optional) SD type to to check if used content SDs are a single inclusion of this SD.
+     *      (optional) SD type to to check if used content SDs are a single inclusion of this SD.
      * @param int $incSDId
      *      (optional) SD ID to check if used content SDs are a single inclusion of this SD.
      * @param $linkstable

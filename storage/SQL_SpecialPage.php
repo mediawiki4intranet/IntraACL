@@ -28,15 +28,11 @@ class IntraACL_SQL_SpecialPage
 {
     /**
      * Special pages do not have an article ID, however access control relies
-     * on IDs. This method assigns a (negative) ID to each Special Page whose ID
+     * on IDs. This method assigns an ID to each Special Page whose ID
      * is requested. If no ID is stored yet for a given name, a new one is created.
      *
-     * @param string $name
-     *         Full name of the special page
-     *
-     * @return int id
-     *         The ID of the page. These IDs are negative, so they do not collide
-     *         with normal page IDs.
+     * @param string $name  Full name of the special page.
+     * @return int          The generated ID of the page.
      */
     public function idForSpecial($name)
     {
@@ -56,11 +52,8 @@ class IntraACL_SQL_SpecialPage
      * Special pages do not have an article ID, however access control relies
      * on IDs. This method retrieves the name of a special page for its ID.
      *
-     * @param int $id
-     *         ID of the special page
-     *
-     * @return string name
-     *         The name of the page if the ID is valid. <0> otherwise
+     * @param int $id       ID of the special page.
+     * @return string name  The name of the page if the ID is valid, 0 otherwise.
      */
     public function specialForID($id)
     {
