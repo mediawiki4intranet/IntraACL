@@ -30,7 +30,7 @@ if (!defined('MEDIAWIKI'))
  * On each article edit, there is a small toolbar at the top of the page with
  * a selectbox allowing to select desired page protection from Quick ACL list.
  */
-class HACLToolbar
+class IACLToolbar
 {
     /**
      * This method returns HTML code for the IntraACL toolbar,
@@ -81,20 +81,20 @@ class HACLToolbar
         // I.e. category and namespace ACLs
         $globalACL = array();
 
-        $pageSDId = 0;
+        $pageSDId = NULL;
         if ($title->exists())
         {
             // Check SD modification rights
-            $realPageSDId = $pageSDId = IACLDefinition::getSDForPE(IACL::PE_PAGE, $title->getArticleId());
-            if ($pageSDId)
+            $pageSDTitle = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_PAGE, $title));
+            $pageSD = IACLDefinition::getSDForPE(IACL::PE_PAGE, $title->getArticleId());
+            $realPageSDId = $pageSDId = array($pageSD['pe_type'], $pageSD['pe_id']);
+            if ($pageSD)
             {
-                $pageSD = HACLSecurityDescriptor::newFromId($pageSDId);
-                $pageSDTitle = Title::newFromId($pageSDId);
                 $canModify = IACLEvaluator::checkACLManager($pageSDTitle, $wgUser, IACL::ACTION_EDIT);
                 // Check if page SD is a single predefined right inclusion
-                if ($single = $pageSD->isSinglePredefinedRightInclusion())
+                if ($pageSD['single_child'])
                 {
-                    $pageSDId = $single;
+                    $pageSDId = $pageSD['single_child'];
                     // But don't change $realPageSDId
                 }
                 else
@@ -102,7 +102,7 @@ class HACLToolbar
                     $found = true;
                     $options[] = array(
                         'current' => true,
-                        'value' => $pageSDId,
+                        'value' => implode('-', $pageSDId),
                         'name' => $pageSDTitle->getFullText(),
                         'title' => $pageSDTitle->getFullText(),
                     );
@@ -111,58 +111,61 @@ class HACLToolbar
             else
             {
                 // Get categories which have SDs and to which belongs this article (for hint)
-                $globalACL = array_merge($globalACL, IACLStorage::get('SD')->getParentCategorySDs($title));
+                $categories = IACLStorage::get('Util')->getParentCategoryIDs($articleID);
+                foreach ($categories as &$cat)
+                {
+                    $cat = array(IACL::PE_CATEGORY, $cat);
+                }
+                unset($cat); // prevent reference bugs
+                $globalACL = array_merge($globalACL, IACLDefinition::select(array('pe' => $categories)));
             }
         }
 
         // Add Quick ACLs
-        $quickacl = HACLQuickacl::newForUserId($wgUser->getId());
+        $quickacl = IACLQuickacl::newForUserId($wgUser->getId());
         $default = $quickacl->getDefaultSD_ID();
         $hasQuickACL = false;
-        foreach ($quickacl->getSDs() as $sd)
+        foreach ($quickacl->getPEIds() as $def)
         {
             $hasQuickACL = true;
-            // Check if the template is valid or corrupted by missing groups, user, ...
-            // FIXME do no such check, simply remove SD definition from database when it is corrupted
-            if ($sd->checkIntegrity() === true)
+            $title = IACLDefinition::getSDTitle($def);
+            $option = array(
+                'value' => implode('-', $def),
+                'current' => ($def == $pageSDId),
+                'name' => $title->getPrefixedText(),
+                'title' => $title->getPrefixedText(),
+            );
+            $found = $found || $option['current'];
+            if ($default == $def)
             {
-                $option = array(
-                    'name'    => $sd->getPEName(),
-                    'value'   => $sd->getSDId(),
-                    'current' => $pageSDId == $sd->getSDId(),
-                    'title'   => $ns.':'.$sd->getSDName(),
-                );
-                $found = $found || ($pageSDId == $sd->getSDId());
-                if ($default == $sd->getSDId())
+                if (!$title->exists())
                 {
-                    // Always insert default SD as the second option
-                    if (!$title->exists())
-                    {
-                        $option['current'] = true;
-                    }
-                    array_splice($options, 1, 0, array($option));
+                    // Select default option for new articles
+                    $option['current'] = true;
                 }
-                else
-                {
-                    $options[] = $option;
-                }
+                // Always insert default SD as the second option
+                array_splice($options, 1, 0, array($option));
+            }
+            else
+            {
+                $options[] = $option;
             }
         }
 
         // If page SD is not yet in the list, insert it as the second option
-        if ($pageSDId && !$found &&
-            ($sd = HACLSecurityDescriptor::newFromId($pageSDId, false)))
+        if ($pageSDId && !$found)
         {
+            $title = IACLDefinition::getSDTitle($pageSDId);
             array_splice($options, 1, 0, array(array(
-                'name'    => $sd->getPEName(),
-                'value'   => $sd->getSDId(),
+                'name'    => $title->getPrefixedText(),
+                'value'   => implode('-', $pageSDId),
                 'current' => true,
-                'title'   => $ns.':'.$sd->getSDName(),
+                'title'   => $title->getPrefixedText(),
             )));
         }
 
-        // Alter selection using request data (haloacl_protect_with)
-        if ($canModify && ($st = $wgRequest->getVal('haloacl_protect_with')))
+        // Alter selection using request data (hacl_protected_with)
+        if ($canModify && ($st = $wgRequest->getVal('hacl_protected_with')))
         {
             foreach ($options as &$o)
             {
@@ -181,10 +184,13 @@ class HACLToolbar
         }
 
         // Check if page namespace has an ACL (for hint)
-        if (!$pageSDId && !$globalACL &&
-            ($sdid = IACLDefinition::getSDForPE(IACL::PE_NAMESPACE, $title->getNamespace())))
+        if (!$pageSDId && !$globalACL)
         {
-            $globalACL[] = Title::newFromId($sdid);
+            $title = IACLDefinition::getSDTitle($pageSDId);
+            if ($title->exists())
+            {
+                $globalACL[] = $title;
+            }
         }
 
         if ($globalACL)
@@ -221,7 +227,7 @@ class HACLToolbar
             {
                 // If there were any changes in the embedded content
                 // toolbar, display it initially
-                $embeddedToolbar = self::getEmbeddedHtml($title->getArticleId(), $realPageSDId);
+                $embeddedToolbar = self::getEmbeddedHtml($title->getArticleId(), $realPageSDId[0], $realPageSDId[1]);
             }
             else
             {
@@ -238,7 +244,9 @@ class HACLToolbar
                 );
                 $res = $res->fetchObject();
                 if ($res)
+                {
                     $anyLinks = true;
+                }
             }
         }
 
@@ -253,7 +261,10 @@ class HACLToolbar
         return $html;
     }
 
-    // Add toolbar head-items to $out
+    /**
+     * Add toolbar head-items to $out
+     * FIXME: Use ResourceLoader
+     */
     public static function addToolbarLinks($out)
     {
         global $haclgHaloScriptPath;
@@ -304,12 +315,17 @@ class HACLToolbar
         $groups = $wgUser->getId() ? IACLStorage::get('Groups')->getGroupsOfMember('user', $wgUser->getId()) : NULL;
         $uid = $wgUser->getId();
         // Lookup readable categories
-        $pe = IACLStorage::get('IR')->lookupRights($uid, $groups, HACLLanguage::RIGHT_READ, 'category');
+        $pe = IACLStorage::get('SD')->getRules(array(
+            'pe_type' => IACL::PE_CATEGORY,
+            'child_type' => IACL::PE_USER,
+            'child_id' => $uid,
+            '(actions & '.(IACL::ACTION_READ | (IACL::ACTION_READ << IACL::INDIRECT_SHIFT)).')',
+        ));
         if ($pe)
         {
             foreach ($pe as &$e)
             {
-                $e = $e[1];
+                $e = $e['pe_id'];
             }
             unset($e);
             $dbr = wfGetDB(DB_SLAVE);
@@ -325,7 +341,9 @@ class HACLToolbar
         return $pe;
     }
 
-    // Get the selectbox which adds a category to wikitext when changed
+    /**
+     * Get the selectbox which adds a category to wikitext when changed
+     */
     public static function getReadableCategoriesSelectBox($for_upload = false)
     {
         $pe = self::getReadableCategories();
@@ -445,7 +463,7 @@ class HACLToolbar
      * This is the server side of IntraACL protection toolbar,
      * allowing to modify page SD together with article save.
      *
-     * No modifications are made if:
+     * No modifications are made if either:
      * - Page namespace is ACL
      * - User is anonymous
      * - Users don't have the right to modify page SD
@@ -479,15 +497,16 @@ class HACLToolbar
         }
 
         // Obtain user selection
-        // haloacl_protect_with is an ID of SD/right or 'unprotected'
+        // hacl_protected_with == '<peType>:<peID>' or 'unprotected'
         $selectedSD = $wgRequest->getVal('hacl_protected_with');
         if ($selectedSD && $selectedSD != 'unprotected')
         {
             // Some SD is selected by the user
             // Ignore selection of invalid SDs
-            if (''.intval($selectedSD) !== $selectedSD)
+            $selectedSD = array_map('intval', explode('-', $selectedSD, 2));
+            if (count($selectedSD) != 2)
             {
-                $selectedSD = HACLSecurityDescriptor::idForSD($SDName);
+                $selectedSD = NULL;
             }
         }
 
@@ -508,13 +527,13 @@ class HACLToolbar
             if ($pageSD && $selectedSD)
             {
                 // Check if page's SD ID passed as selected
-                if ($selectedSD == $pageSD)
+                if ($pageSD['pe_type'] == $selectedSD[0] &&
+                    $pageSD['pe_id'] == $selectedSD[1])
                 {
                     return true;
                 }
                 // Check if page's SD is single inclusion and it is passed as selected
-                if (($single = $pageSD->isSinglePredefinedRightInclusion()) &&
-                    $selectedSD == $single)
+                if ($pageSD['single_child'] == $selectedSD)
                 {
                     return true;
                 }
@@ -528,36 +547,28 @@ class HACLToolbar
         }
 
         // Check if other SD is a predefined right
-        if ($selectedSD)
+        // FIXME Allow selecting non-PE_RIGHTs in quick acl toolbar?
+        if ($selectedSD && $selectedSD[0] != IACL::PE_RIGHT)
         {
-            $sd = IACLStorage::get('SD')->getSDByID($selectedSD);
-            if ($sd->getPEType() != IACL::PE_RIGHT)
-            {
-                return true;
-            }
+            return true;
         }
 
         // Check SD modification rights
-        if ($pageSDId)
+        $pageSDName = IACLDefinition::nameOfSD(IACL::PE_PAGE, $article->getTitle());
+        $etc = haclfDisableTitlePatch();
+        $pageSDTitle = Title::newFromText($newSDName);
+        haclfRestoreTitlePatch($etc);
+        $allowed = IACLEvaluator::checkACLManager($pageSDTitle, $wgUser, IACL::ACTION_EDIT);
+        if (!$allowed)
         {
-            $allowed = IACLEvaluator::checkACLManager(Title::newFromId($pageSDId), $wgUser, 'edit');
-            if (!$allowed)
-            {
-                return true;
-            }
+            return true;
         }
 
-        // Create an article object for the SD
-        $newSDName = IACLDefinition::nameOfSD(IACL::PE_PAGE, $article->getTitle());
-        $etc = haclfDisableTitlePatch();
-        $newSD = Title::newFromText($newSDName);
-        haclfRestoreTitlePatch($etc);
-        $newSDArticle = new Article($newSD);
-
+        $newSDArticle = new Article($pageSDTitle);
         if ($selectedSD)
         {
             // Create/modify page SD
-            $selectedSDTitle = Title::newFromId($selectedSD);
+            $selectedSDTitle = IACLDefinition::getSDTitle($selectedSD);
             $content = '{{#predefined right: rights = '.$selectedSDTitle->getText().'}}';
             $newSDArticle->doEdit($content, wfMsg('hacl_comment_protect_with', $selectedSDTitle->getFullText()));
         }
@@ -688,7 +699,7 @@ class HACLToolbar
     /**
      * Get HTML code for linked content protection toolbar.
      * Used by ACL editor and IntraACL toolbar.
-     * Handled by HACLToolbar::articleSaveComplete_SaveEmbedded.
+     * Handled by IACLToolbar::articleSaveComplete_SaveEmbedded.
      *
      * @param required int $peID - page ID to retrieve linked content from
      * @param optional int $sdID - page SD ID to check if SDs of linked content are already
@@ -700,7 +711,7 @@ class HACLToolbar
      *     Value may be even just "-" when the toolbar was queried for article without SD,
      *     and when the embedded element did not have any SD.
      */
-    public static function getEmbeddedHtml($peID, $sdID = '')
+    public static function getEmbeddedHtml($peID, $sdType, $sdID)
     {
         global $haclgContLang, $wgRequest;
         if (!$sdID)
@@ -708,9 +719,9 @@ class HACLToolbar
             $sdID = '';
         }
         // Retrieve the list of templates used on the page with id=$peID
-        $templatelinks = IACLStorage::get('SD')->getEmbedded($peID, $sdID, 'templatelinks');
+        $templatelinks = IACLStorage::get('SD')->getEmbedded($peID, $sdType, $sdID, 'templatelinks');
         // Retrieve the list of images used on the page
-        $imagelinks = IACLStorage::get('SD')->getEmbedded($peID, $sdID, 'imagelinks');
+        $imagelinks = IACLStorage::get('SD')->getEmbedded($peID, $sdType, $sdID, 'imagelinks');
         // Build HTML code for embedded content toolbar
         $links = array_merge($templatelinks, $imagelinks);
         $html = array();
@@ -788,7 +799,9 @@ class HACLToolbar
         return $html;
     }
 
-    // Hook for displaying "ACL" tab for standard skins
+    /**
+     * Hook for displaying "ACL" tab for standard skins
+     */
     static function SkinTemplateContentActions(&$actions)
     {
         if ($act = self::getContentAction())
@@ -798,7 +811,9 @@ class HACLToolbar
         return true;
     }
 
-    // Hook for displaying "ACL" tab for Vector skin
+    /**
+     * Hook for displaying "ACL" tab for Vector skin
+     */
     static function SkinTemplateNavigation(&$skin, &$links)
     {
         if ($act = self::getContentAction())
@@ -808,7 +823,9 @@ class HACLToolbar
         return true;
     }
 
-    // User setting hook allowing user to select whether to display "ACL" tab for 
+    /**
+     * User setting hook allowing user to select whether to display "ACL" tab
+     */
     static function GetPreferences($user, &$prefs)
     {
         global $haclgDisableACLTab;

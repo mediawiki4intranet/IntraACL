@@ -14,9 +14,11 @@ CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/halo_acl_special_pages (
     name VARCHAR(255) NOT NULL
 ) /*$wgDBTableOptions*/;
 
-CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/halo_acl_quickacl (
-    sd_id INT NOT NULL,
-    user_id INT NOT NULL,
+CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/intraacl_quickacl (
+    user_id INT UNSIGNED NOT NULL,
+    pe_type TINYINT(1) NOT NULL,
+    pe_id INT UNSIGNED NOT NULL,
     qa_default TINYINT(1) NOT NULL,
-    PRIMARY KEY (sd_id, user_id)
+    PRIMARY KEY (user_id, pe_type, pe_id),
+    KEY (pe_type, pe_id)
 ) /*$wgDBTableOptions*/;

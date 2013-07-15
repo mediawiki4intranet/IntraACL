@@ -159,13 +159,15 @@ class IntraACL_SQL_SD
      *
      * @param int $peID
      *      Page ID to retrieve the list of content used in.
-     * @param int $sdID
-     *      (optional) SD ID to check if used content SDs are a single inclusion of $sdID.
+     * @param int $incSDType
+            (optional) SD type to to check if used content SDs are a single inclusion of this SD.
+     * @param int $incSDId
+     *      (optional) SD ID to check if used content SDs are a single inclusion of this SD.
      * @param $linkstable
      *      'imagelinks' (retrieve used images) or 'templatelinks' (retrieve used templates).
      * @return array(array('title' => , 'sd_touched' => , 'single' => ))
      */
-    public function getEmbedded($peID, $sdID, $linkstable)
+    public function getEmbedded($peID, $incSDType, $incSDId, $linkstable)
     {
         $dbr = wfGetDB(DB_SLAVE);
         if ($linkstable == 'imagelinks')
@@ -179,89 +181,51 @@ class IntraACL_SQL_SD
             $linksfield = "tl_from";
         }
         else
+        {
             die("Unknown \$linkstable='$linkstable' passed to ".__METHOD__);
+        }
         $linksjoin2 = str_replace('il1.', 'il2.', $linksjoin);
         $il = $dbr->tableName($linkstable);
-        $p  = $dbr->tableName('page');
-        $sd = $dbr->tableName('halo_acl_security_descriptors');
-        $r  = $dbr->tableName('halo_acl_rights');
-        $rh = $dbr->tableName('halo_acl_rights_hierarchy');
+        $p = $dbr->tableName('page');
+        $rules = $dbr->tableName('intraacl_rules');
         $rev = $dbr->tableName('revision');
-        $sql_is_single = $sdID ?
-                "(SELECT 1=SUM(CASE WHEN child_id=$sdID THEN 1 ELSE 2 END)
-                  FROM $rh rh WHERE rh.parent_right_id=sd.sd_id)" : "0";
-        $sql = "SELECT p1.*, p2.page_title sd_title, rev.rev_timestamp sd_touched,
-                 $sql_is_single sd_inc_single,
-                 (NOT EXISTS (SELECT * FROM $r r WHERE r.origin_id=sd.sd_id)) sd_no_rights,
-                 (COUNT(il2.$linksfield)) used_on_pages
-                FROM $il il1 INNER JOIN $p p1 ON $linksjoin
-                LEFT JOIN $sd sd ON sd.type='page' AND sd.pe_id=p1.page_id
-                LEFT JOIN $p p2 ON p2.page_id=sd.sd_id
-                LEFT JOIN $rev rev ON rev.rev_id=p2.page_latest
-                LEFT JOIN $il il2 ON $linksjoin2
-                WHERE il1.$linksfield=$peID
-                GROUP BY p1.page_id
-                ORDER BY p1.page_namespace, p1.page_title";
+        $sql_is_single = $incSDType && $incSDId ?
+            "(SELECT 1=SUM(CASE WHEN child_type=".$incSDType." AND child_id=".$incSDId.
+            " AND (actions & ".((1 << IACL::INDIRECT_OFFSET) - 1).") = ".IACL::ACTION_INCLUDE_SD.
+            " THEN 1 WHEN !(action & ".((1 << IACL::INDIRECT_OFFSET) - 1).") THEN 0 ELSE 2 END) FROM $rules r".
+            " WHERE r.pe_type=".IACL::PE_PAGE." AND r.pe_id=p1.page_id)" : "0";
+        $sql =
+            "SELECT p1.*, $sql_is_single sd_inc_single,"
+            " (COUNT(il2.$linksfield)) used_on_pages".
+            " FROM $il il1 INNER JOIN $p p1 ON $linksjoin".
+            " LEFT JOIN $il il2 ON $linksjoin2".
+            " WHERE il1.$linksfield=$peID".
+            " GROUP BY p1.page_id".
+            " ORDER BY p1.page_namespace, p1.page_title";
         $res = $dbr->query($sql, __METHOD__);
         $embedded = array();
+        $batch = new LinkBatch();
         foreach ($res as $obj)
         {
+            $title = Title::newFromRow($obj);
+            $sd_title = IACLDefinition::nameOfSD(IACL::PE_PAGE, $title);
+            $batch->addObj($sd_title);
             $embedded[] = array(
-                'title' => Title::newFromRow($obj),
-                'sd_title' => $obj->sd_title ? Title::makeTitleSafe(HACL_NS_ACL, $obj->sd_title) : NULL,
-                // Modification timestamp of an SD
-                'sd_touched' => $obj->sd_touched,
-                // Is SD a single inclusion of $sdID?
-                'sd_single' => $obj->sd_inc_single && $obj->sd_no_rights,
-                // Count of pages on which it is used
-                'used_on_pages' => $obj->used_on_pages,
+                'title' => $title,                      // Embedded content title
+                'sd_title' => $sd_title,                // SD title (if it exists)
+                'sd_touched' => $obj->sd_touched,       // Modification timestamp of an SD
+                'sd_single' => $obj->sd_inc_single,     // Is SD a single inclusion of $incSDType/$incSDId?
+                'used_on_pages' => $obj->used_on_pages, // Count of pages on which it is used
             );
         }
-        return $embedded;
-    }
-
-    /**
-     * Retrieve the category SDs of categories $title belongs to,
-     * including parent ones.
-     */
-    public function getParentCategorySDs($title)
-    {
-        $id = $title->getArticleId();
-        if (!$id)
-            return array();
-        // First retrieve IDs of categories which have corresponding page
-        $dbr = wfGetDB(DB_SLAVE);
-        $catids = array();
-        $ids = array($id => true);
-        while ($ids)
+        $batch->execute();
+        foreach ($embedded as &$e)
         {
-            $res = $dbr->select(
-                array('categorylinks', 'page'), 'page_id',
-                array(
-                    'cl_from' => array_keys($ids),
-                    'page_namespace' => NS_CATEGORY,
-                    'page_title=cl_to',
-                ), __METHOD__
-            );
-            $ids = array();
-            foreach ($res as $row)
+            if (!$e['sd_title']->exists())
             {
-                $row = $row->page_id;
-                if (!isset($catids[$row]))
-                    $ids[$row] = $catids[$row] = true;
+                $e['sd_title'] = NULL;
             }
         }
-        // Then retrieve their SDs if they exist
-        if (!$catids)
-            return array();
-        $res = $dbr->select(
-            array('p' => 'page', 'halo_acl_security_descriptors'), 'p.*',
-            array('page_id=sd_id', 'pe_id' => array_keys($catids), 'type' => HACLLanguage::PET_CATEGORY),
-            __METHOD__
-        );
-        $prot = array();
-        foreach ($res as $row)
-            $prot[] = Title::newFromRow($row);
-        return $prot;
+        return $embedded;
     }
 }

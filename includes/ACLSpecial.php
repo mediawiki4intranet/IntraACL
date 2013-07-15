@@ -516,7 +516,7 @@ class IntraACLSpecial extends SpecialPage
         }
         /* Load data */
         $templates = IACLStorage::get('SD')->getSDs2('right', $like);
-        $quickacl = HACLQuickacl::newForUserId($wgUser->getId());
+        $quickacl = IACLQuickacl::newForUserId($wgUser->getId());
         $quickacl_ids = array_flip($quickacl->getSD_IDs());
         foreach ($templates as $sd)
         {
@@ -621,6 +621,7 @@ class IntraACLSpecial extends SpecialPage
         global $wgScript, $wgTitle, $haclgHaloScriptPath, $haclgContLang, $wgUser;
         haclCheckScriptPath();
         // Load data
+        $spec = SpecialPage::getTitleFor('IntraACL');
         $titles = IACLStorage::get('SD')->getSDPages($t, $n, $offset, $limit, $total);
         $defs = IACLDefinition::newFromTitles($titles);
         foreach ($defs as $k => $def)
@@ -639,7 +640,7 @@ class IntraACLSpecial extends SpecialPage
             $d = array(
                 'name' => $sd->getText(),
                 'real' => $sd->getText(),
-                'editlink' => $wgTitle->getLocalUrl(array('action' => 'acl', 'sd' => $sd->getText())),
+                'editlink' => $spec->getLocalUrl(array('action' => 'acl', 'sd' => $sd->getText())),
                 'viewlink' => $sd->getLocalUrl(),
                 'single' => NULL,
             );

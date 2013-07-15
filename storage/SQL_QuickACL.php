@@ -8,8 +8,6 @@
  * This file is part of IntraACL MediaWiki extension
  * http://wiki.4intra.net/IntraACL
  *
- * Loosely based on HaloACL (c) 2009, ontoprise GmbH
- *
  * The IntraACL-Extension is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
@@ -26,48 +24,53 @@
 
 class IntraACL_SQL_QuickACL
 {
+    /**
+     * Save Quick ACL options for a user
+     */
     public function saveQuickAcl($user_id, $sd_ids, $default_sd_id = NULL)
     {
         $dbw = wfGetDB(DB_MASTER);
-
-        // delete old quickacl entries
-        $dbw->delete('halo_acl_quickacl', array('user_id' => $user_id), __METHOD__);
-
+        $dbw->delete('intraacl_quickacl', array('user_id' => $user_id), __METHOD__);
         $rows = array();
         foreach ($sd_ids as $sd_id)
         {
             $rows[] = array(
-                'sd_id'      => $sd_id,
+                'pe_type'    => $sd_id[0],
+                'pe_id'      => $sd_id[1],
                 'user_id'    => $user_id,
                 'qa_default' => $default_sd_id == $sd_id ? 1 : 0,
             );
         }
-        $dbw->insert('halo_acl_quickacl', $rows, __METHOD__);
+        $dbw->insert('intraacl_quickacl', $rows, __METHOD__);
     }
 
+    /**
+     * Get Quick ACL options for a user
+     */
     public function getQuickacl($user_id)
     {
         $dbr = wfGetDB(DB_SLAVE);
-
-        $res = $dbr->select('halo_acl_quickacl', 'sd_id, qa_default', array('user_id' => $user_id), __METHOD__);
+        $res = $dbr->select('intraacl_quickacl', '*', array('user_id' => $user_id), __METHOD__);
         $sd_ids = array();
         $default_id = NULL;
         foreach ($res as $row)
         {
-            $sd_ids[] = $row->sd_id;
+            $sd_ids[] = array($row->pe_type, $row->pe_id);
             if ($row->qa_default)
-                $default_id = $row->sd_id;
+            {
+                $default_id = array($row->pe_type, $row->pe_id);
+            }
         }
-
-        $quickacl = new HACLQuickacl($user_id, $sd_ids, $default_id);
-        return $quickacl;
+        return array($sd_ids, $default_id);
     }
 
-    public function deleteQuickaclForSD($sdid)
+    /**
+     * Delete Quick ACL entries for SD
+     */
+    public function deleteQuickaclForSD($peType, $peID)
     {
         $dbw = wfGetDB(DB_MASTER);
-        // delete old quickacl entries
-        $dbw->delete('halo_acl_quickacl', array('sd_id' => $sdid), __METHOD__);
+        $dbw->delete('intraacl_quickacl', array('pe_type' => $peType, 'pe_id' => $peID), __METHOD__);
         return true;
     }
 }

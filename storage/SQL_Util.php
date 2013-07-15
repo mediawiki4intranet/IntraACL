@@ -33,15 +33,17 @@ class IntraACL_SQL_Util
      * Massively retrieves users with IDs $user_ids from the DB
      * @return array(int $userID => stdClass $row)
      */
-    public function getUsers($where)
+    public function getUsers($user_ids)
     {
         $dbr = wfGetDB(DB_SLAVE);
         $rows = array();
         if ($user_ids)
         {
-            $res = $dbr->select('user', '*', $where, __METHOD__);
+            $res = $dbr->select('user', '*', array('user_id' => $user_ids), __METHOD__);
             foreach ($res as $r)
+            {
                 $rows[$r->user_id] = $r;
+            }
         }
         return $rows;
     }
@@ -75,13 +77,17 @@ class IntraACL_SQL_Util
     public function getCategoryLinks($dbkeys)
     {
         if (!$dbkeys)
+        {
             return array();
+        }
         $dbr = wfGetDB(DB_SLAVE);
         $res = $dbr->select(array('categorylinks', 'p' => 'page'), 'cl_to, p.*',
             array('page_id=cl_from', 'cl_to' => $dbkeys), __METHOD__);
         $cont = array();
         foreach ($res as $row)
+        {
             $cont[$row->cl_to][] = Title::newFromRow($row);
+        }
         return $cont;
     }
 
@@ -92,11 +98,15 @@ class IntraACL_SQL_Util
     public function getAllChildrenCategories($categories)
     {
         if (!$categories)
+        {
             return array();
+        }
         $dbr = wfGetDB(DB_SLAVE);
         $cats = array();
         foreach ($categories as $c)
+        {
             $cats[$c->getDBkey()] = $c;
+        }
         $categories = array_keys($cats);
         // Get subcategories
         while ($categories)

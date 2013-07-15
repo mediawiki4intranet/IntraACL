@@ -629,6 +629,7 @@ class IACLParserFunctions
                 $self = self::instance($title);
                 self::parse($article->getContent(), $title);
             }
+            // TODO Remove incorrect definitions from the DB?
             $self->makeDef();
             $self->def->save();
             self::destroyInstance($self);

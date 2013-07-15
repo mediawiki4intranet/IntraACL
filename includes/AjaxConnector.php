@@ -278,15 +278,18 @@ function haclGroupClosure($groups, $rights)
             $groups += $def['rules'][IACL::PE_GROUP];
         }
     }
-    $users = IACLStorage::getUsers(array('user_id' => array_keys($users)));
-    $res = wfGetDB(DB_SLAVE)->select('page', '*', array('page_id' => array_keys($groups)));
-    $groups = array();
-    foreach ($res as $row)
+    $users = IACLStorage::get('Util')->getUsers(array_keys($users));
+    if ($groups)
     {
-        $groups[$row->page_id] = $row;
+        $res = wfGetDB(DB_SLAVE)->select('page', '*', array('page_id' => array_keys($groups)));
+        $groups = array();
+        foreach ($res as $row)
+        {
+            $groups[$row->page_id] = $row;
+        }
     }
     // Then form the result
-    $memberAction = IACL::RIGHT_GROUP_MEMBER | (IACL::RIGHT_GROUP_MEMBER << IACL::INDIRECT_OFFSET);
+    $memberAction = IACL::ACTION_GROUP_MEMBER | (IACL::ACTION_GROUP_MEMBER << IACL::INDIRECT_OFFSET);
     $members = array();
     $rules = array();
     foreach ($pe as $name => &$def)
@@ -414,7 +417,7 @@ function haclSDExists_GetEmbedded($type, $name)
         if ($type == IACL::PE_PAGE)
         {
             // Build HTML code for embedded protection toolbar
-            $data['embedded'] = HACLToolbar::getEmbeddedHtml($sd);
+            $data['embedded'] = IACLToolbar::getEmbeddedHtml($sd);
         }
     }
     return json_encode($data);

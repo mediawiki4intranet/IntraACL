@@ -626,7 +626,7 @@ class IACLDefinition implements ArrayAccess
     /**
      * Determine ACL definition page title by protected element type and name
      *
-     * @param string $peType    PE type
+     * @param int    $peType    PE type
      * @param string $nameOfPE  PE name
      * @return string $defTitle Definition title text
      */
@@ -647,6 +647,18 @@ class IACLDefinition implements ArrayAccess
             }
         }
         return $defTitle . $nameOfPE;
+    }
+
+    /**
+     * Get SD title for a PE given by its type and ID
+     *
+     * @param array(int, int) $pe PE type and ID
+     * @return Title
+     */
+    public static function getSDTitle($pe)
+    {
+        $peName = IACLDefinition::peNameForID($pe[0], $pe[1]);
+        return Title::newFromText(IACLDefinition::nameOfSD($pe[0], $pe[1]));
     }
 
     /**

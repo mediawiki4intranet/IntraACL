@@ -149,8 +149,8 @@ function enableIntraACL()
         'HACLGroup'                 => "$haclgIP/includes/HACL_Group.php",
         'HACLSecurityDescriptor'    => "$haclgIP/includes/HACL_SecurityDescriptor.php",
         'HACLRight'                 => "$haclgIP/includes/HACL_Right.php",
-        'HACLQuickacl'              => "$haclgIP/includes/HACL_Quickacl.php",
-        'HACLToolbar'               => "$haclgIP/includes/HACL_Toolbar.php",
+        'IACLQuickacl'              => "$haclgIP/includes/Quickacl.php",
+        'IACLToolbar'               => "$haclgIP/includes/Toolbar.php",
 
         // Special page
         'IntraACLSpecial'           => "$haclgIP/includes/ACLSpecial.php",
@@ -228,16 +228,16 @@ function haclfSetupExtension()
         define('HACL_HALOACL_VERSION', '1.0');
 
         // UI hooks - useless in console mode
-        $wgHooks['EditPage::showEditForm:initial'][] = 'HACLToolbar::warnNonReadableCreate';
-        $wgHooks['UploadForm:initial'][] = 'HACLToolbar::warnNonReadableUpload';
-        $wgHooks['EditPage::attemptSave'][] = 'HACLToolbar::attemptNonReadableCreate';
+        $wgHooks['EditPage::showEditForm:initial'][] = 'IACLToolbar::warnNonReadableCreate';
+        $wgHooks['UploadForm:initial'][] = 'IACLToolbar::warnNonReadableUpload';
+        $wgHooks['EditPage::attemptSave'][] = 'IACLToolbar::attemptNonReadableCreate';
         $wgHooks['EditPage::showEditForm:fields'][] = 'haclfAddToolbarForEditPage';
-        $wgHooks['SkinTemplateContentActions'][] = 'HACLToolbar::SkinTemplateContentActions';
-        $wgHooks['SkinTemplateNavigation'][] = 'HACLToolbar::SkinTemplateNavigation';
+        $wgHooks['SkinTemplateContentActions'][] = 'IACLToolbar::SkinTemplateContentActions';
+        $wgHooks['SkinTemplateNavigation'][] = 'IACLToolbar::SkinTemplateNavigation';
         // UI hooks used to update permissions along with article modification
         // ArticleSaveComplete_SaveSD hook must run before articleSaveComplete_SaveEmbedded
-        $wgHooks['ArticleSaveComplete'][] = 'HACLToolbar::articleSaveComplete_SaveSD';
-        $wgHooks['ArticleSaveComplete'][] = 'HACLToolbar::articleSaveComplete_SaveEmbedded';
+        $wgHooks['ArticleSaveComplete'][] = 'IACLToolbar::articleSaveComplete_SaveSD';
+        $wgHooks['ArticleSaveComplete'][] = 'IACLToolbar::articleSaveComplete_SaveEmbedded';
 
         // Permission and cache checks - intentionally disabled in console mode
         $wgHooks['userCan'][] = 'IACLEvaluator::userCan';
@@ -264,7 +264,7 @@ function haclfSetupExtension()
         }
     }
 
-    $wgHooks['GetPreferences'][] = 'HACLToolbar::GetPreferences';
+    $wgHooks['GetPreferences'][] = 'IACLToolbar::GetPreferences';
 
     //-- includes for Ajax calls --
     global $wgUseAjax, $wgRequest;
@@ -511,7 +511,7 @@ function haclfAddToolbarForEditPage($editpage, $out)
     {
         return true;
     }
-    $out->addHTML(HACLToolbar::get($editpage->mTitle, !empty($editpage->eNonReadable)));
+    $out->addHTML(IACLToolbar::get($editpage->mTitle, !empty($editpage->eNonReadable)));
     return true;
 }
 
@@ -628,6 +628,7 @@ class IACL
         'category'  => IACL::PE_CATEGORY,
         'page'      => IACL::PE_PAGE,
         'special'   => IACL::PE_SPECIAL,
+        'group'     => IACL::PE_GROUP,
     );
     static $typeToName = array(
         IACL::PE_RIGHT     => 'right',
@@ -635,6 +636,7 @@ class IACL
         IACL::PE_CATEGORY  => 'category',
         IACL::PE_PAGE      => 'page',
         IACL::PE_SPECIAL   => 'special',
+        IACL::PE_GROUP     => 'group',
     );
     static $nameToAction = array(
         'read'   => IACL::ACTION_READ,
