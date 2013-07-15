@@ -195,7 +195,7 @@ class IntraACL_SQL_SD
             " THEN 1 WHEN !(action & ".((1 << IACL::INDIRECT_OFFSET) - 1).") THEN 0 ELSE 2 END) FROM $rules r".
             " WHERE r.pe_type=".IACL::PE_PAGE." AND r.pe_id=p1.page_id)" : "0";
         $sql =
-            "SELECT p1.*, $sql_is_single sd_inc_single,"
+            "SELECT p1.*, $sql_is_single sd_inc_single,".
             " (COUNT(il2.$linksfield)) used_on_pages".
             " FROM $il il1 INNER JOIN $p p1 ON $linksjoin".
             " LEFT JOIN $il il2 ON $linksjoin2".

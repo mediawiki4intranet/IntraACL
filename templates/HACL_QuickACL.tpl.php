@@ -23,14 +23,14 @@
   <?php foreach ($templates as $sd) { ?>
    <tr>
     <td style="text-align: center">
-     <input type="checkbox" name="qa_<?= $sd->getSDId() ?>" id="qa_<?= $sd->getSDId() ?>" <?= $sd->selected ? ' checked="checked"' : '' ?> />
+     <input type="checkbox" name="qa_<?= $sd['id'] ?>" id="qa_<?= $sd['id'] ?>" <?= $sd['selected'] ? ' checked="checked"' : '' ?> />
     </td>
     <td style="text-align: center">
-     <input onchange="set_checked(<?= $sd->getSDId() ?>)" type="radio" name="qa_default" id="qd_<?= $sd->getSDId() ?>" value="<?= $sd->getSDId() ?>" <?= $sd->default ? ' checked="checked"' : '' ?> />
+     <input onchange="set_checked(<?= $sd['id'] ?>)" type="radio" name="qa_default" id="qd_<?= $sd['id'] ?>" value="<?= $sd['id'] ?>" <?= $sd['default'] ? ' checked="checked"' : '' ?> />
     </td>
-    <td style="text-align: center"><a title="<?= $sd->getSDName() ?>" href="<?= $sd->viewlink ?>"><?= $sd->getSDName() ?></a></td>
+    <td style="text-align: center"><a title="<?= $sd['title']->getText() ?>" href="<?= $sd['viewlink'] ?>"><?= $sd['title']->getText() ?></a></td>
     <td style="text-align: center">
-     <a title="<?= wfMsg('hacl_acllist_edit') ?>" href="<?= $sd->editlink ?>">
+     <a title="<?= wfMsg('hacl_acllist_edit') ?>" href="<?= $sd['editlink'] ?>">
       <img src="<?= $haclgHaloScriptPath ?>/skins/images/edit.png" />
      </a>
     </td>
@@ -38,7 +38,7 @@
   <?php } ?>
   <tr>
    <td></td>
-   <td style="text-align: center"><input type="radio" name="qa_default" id="qd_clear" value="" <?= !$quickacl->default_sd_id ? ' checked="checked"' : '' ?> /></td>
+   <td style="text-align: center"><input type="radio" name="qa_default" id="qd_clear" value="" <?= !$quickacl->default_pe_id ? ' checked="checked"' : '' ?> /></td>
    <td style="text-align: center" colspan="2"><?= wfMsg('hacl_qacl_empty_default') ?></td>
   </tr>
  </table>
@@ -47,8 +47,9 @@
  </p>
 </form>
 <script language="JavaScript">
-var curDefault = <?= $quickacl->getDefaultSD_ID() ?>;
-var clear_default = function() {
+var curDefault = '<?= implode('-', $quickacl->default_pe_id) ?>';
+var clear_default = function()
+{
   var d = document.getElementById('qd_'+curDefault);
   if (d)
   {
@@ -56,7 +57,8 @@ var clear_default = function() {
     curDefault = 0;
   }
 };
-var set_checked = function(x) {
+var set_checked = function(x)
+{
   if (document.getElementById('qd_'+x).checked)
   {
     curDefault = x;

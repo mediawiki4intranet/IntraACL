@@ -515,15 +515,26 @@ class IntraACLSpecial extends SpecialPage
             exit;
         }
         /* Load data */
-        $templates = IACLStorage::get('SD')->getSDs2('right', $like);
+        $total = 0;
+        $titles = IACLStorage::get('SD')->getSDPages('right', $like, 0, 1000000, $total);
         $quickacl = IACLQuickacl::newForUserId($wgUser->getId());
-        $quickacl_ids = array_flip($quickacl->getSD_IDs());
-        foreach ($templates as $sd)
+        $quickacl_ids = $quickacl->getPEIds();
+        $defs = IACLDefinition::newFromTitles($titles);
+        $templates = array();
+        foreach ($titles as $k => $title)
         {
-            $sd->default = $quickacl->default_sd_id == $sd->getSDId();
-            $sd->selected = array_key_exists($sd->getSDId(), $quickacl_ids);
-            $sd->editlink = $wgScript.'?title=Special:IntraACL&action=acl&sd='.urlencode($sd->getSDName());
-            $sd->viewlink = Title::newFromText($sd->getSDName(), HACL_NS_ACL)->getLocalUrl();
+            if (isset($defs[$k]))
+            {
+                $pe = array($defs[$k]['pe_type'], $defs[$k]['pe_id']);
+                $templates[] = array(
+                    'default' => $quickacl->default_pe_id == $pe,
+                    'selected' => array_key_exists(implode('-', $pe), $quickacl_ids),
+                    'editlink' => $wgScript.'?title=Special:IntraACL&action=acl&sd='.urlencode($title->getText()),
+                    'viewlink' => $title->getLocalUrl(),
+                    'title' => $title,
+                    'id' => implode('-', $pe),
+                );
+            }
         }
         /* Run template */
         ob_start();

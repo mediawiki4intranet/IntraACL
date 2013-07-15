@@ -36,7 +36,7 @@ class IACLQuickacl
 
     static function newForUserId($userid)
     {
-        list($pe_id, $default_pe_id) = IACLStorage::get('QuickACL')->getQuickacl($user_id);
+        list($pe_ids, $default_pe_id) = IACLStorage::get('QuickACL')->getQuickacl($userid);
         return new self($userid, $pe_ids, $default_pe_id);
     }
 
