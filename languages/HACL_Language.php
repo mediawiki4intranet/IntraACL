@@ -140,6 +140,10 @@ abstract class HACLLanguage
 
     public function getPetPrefix($type)
     {
+        if (!$type)
+        {
+            throw new Exception('BUG: Empty $type parameter passed to '.__METHOD__);
+        }
         return $this->mPetPrefixes[$type];
     }
 

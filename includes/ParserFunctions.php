@@ -478,7 +478,7 @@ class IACLParserFunctions
 
     /**
      * We need to create a work instance to display consistency checks
-     * during display of an article;
+     * during display of an article
      */
     public static function ArticleViewHeader(&$article, &$outputDone, &$pcache)
     {
@@ -624,6 +624,7 @@ class IACLParserFunctions
         if ($title->getNamespace() == HACL_NS_ACL)
         {
             $self = self::instance($title, true);
+            // FIXME Actually, we can rely to the article being parsed, but only in ArticleEditUpdates hook
             if (!$self)
             {
                 $self = self::instance($title);
@@ -679,15 +680,16 @@ class IACLParserFunctions
     }
 
     /**
-     * Remove definition completely (used with article delete or clear)
+     * Completely remove definition (when article is deleted or cleared)
      */
     public static function removeDef($title)
     {
-        $this->def = reset(IACLDefinition::newFromTitles($title));
-        if ($this->def)
+        $def = IACLDefinition::newFromTitles($title);
+        $def = reset($def);
+        if ($def)
         {
-            $this->def['rules'] = array();
-            $this->def->save();
+            $def['rules'] = array();
+            $def->save();
         }
     }
 
@@ -696,9 +698,9 @@ class IACLParserFunctions
      * belongs to the namespace ACL (i.e. a right, SD, group)
      * its removal is reflected in the database.
      *
-     * @param unknown_type $article
-     * @param unknown_type $user
-     * @param unknown_type $reason
+     * @param Article $article
+     * @param User $user
+     * @param string $reason
      */
     public static function articleDelete(&$article, &$user, &$reason)
     {
@@ -736,10 +738,13 @@ class IACLParserFunctions
      * This method is called, after an article is moved. If the article has a
      * security descriptor of type page, the SD is moved accordingly.
      *
-     * @param unknown_type $oldTitle
-     * @param unknown_type $newTitle
+     * @param Title $oldTitle
+     * @param Title $newTitle
+     * @param User $user
+     * @param int $pageid
+     * @param int $redirid
      */
-    public static function TitleMoveComplete($oldTitle, $newTitle, $wgUser, $pageid, $redirid)
+    public static function TitleMoveComplete($oldTitle, $newTitle, $user, $pageid, $redirid)
     {
         if ($oldTitle->getNamespace() == HACL_NS_ACL)
         {
@@ -799,7 +804,9 @@ class IACLParserFunctions
         $fromA->doEdit('{{#predefined right:rights='.$to->getPrefixedText().'}}', wfMsg('hacl_move_acl_include'));
     }
 
-    /* Parse wikitext inside a separate parser to overcome its non-reenterability */
+    /**
+     * Parse wikitext inside a separate parser to overcome its non-reenterability
+     */
     static function parse($text, $title)
     {
         global $wgParser;

@@ -87,9 +87,9 @@ class IACLToolbar
             // Check SD modification rights
             $pageSDTitle = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_PAGE, $title));
             $pageSD = IACLDefinition::getSDForPE(IACL::PE_PAGE, $title->getArticleId());
-            $realPageSDId = $pageSDId = array($pageSD['pe_type'], $pageSD['pe_id']);
             if ($pageSD)
             {
+                $realPageSDId = $pageSDId = array($pageSD['pe_type'], $pageSD['pe_id']);
                 $canModify = IACLEvaluator::checkACLManager($pageSDTitle, $wgUser, IACL::ACTION_EDIT);
                 // Check if page SD is a single predefined right inclusion
                 if ($pageSD['single_child'])
@@ -111,7 +111,7 @@ class IACLToolbar
             else
             {
                 // Get categories which have SDs and to which belongs this article (for hint)
-                $categories = IACLStorage::get('Util')->getParentCategoryIDs($articleID);
+                $categories = IACLStorage::get('Util')->getParentCategoryIDs($title->getArticleId());
                 foreach ($categories as &$cat)
                 {
                     $cat = array(IACL::PE_CATEGORY, $cat);
@@ -123,7 +123,7 @@ class IACLToolbar
 
         // Add Quick ACLs
         $quickacl = IACLQuickacl::newForUserId($wgUser->getId());
-        $default = $quickacl->getDefaultSD_ID();
+        $default = $quickacl->default_pe_id;
         $hasQuickACL = false;
         foreach ($quickacl->getPEIds() as $def)
         {
@@ -186,7 +186,7 @@ class IACLToolbar
         // Check if page namespace has an ACL (for hint)
         if (!$pageSDId && !$globalACL)
         {
-            $title = IACLDefinition::getSDTitle($pageSDId);
+            $title = IACLDefinition::getSDTitle(array(IACL::PE_NAMESPACE, $title->getNamespace()));
             if ($title->exists())
             {
                 $globalACL[] = $title;

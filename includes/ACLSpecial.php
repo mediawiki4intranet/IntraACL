@@ -23,6 +23,8 @@
 /**
  * A special page for defining and managing IntraACL objects
  *
+ * FIXME: Add read access checks on SDs.
+ *
  * @author Vitaliy Filippov
  */
 
@@ -496,20 +498,24 @@ class IntraACLSpecial extends SpecialPage
     public function html_quickaccess(&$args)
     {
         global $wgOut, $wgUser, $wgScript, $haclgHaloScriptPath, $wgRequest;
-        /* Handle save */
+        /* Handle save request */
         $args = $wgRequest->getValues();
         $like = empty($args['like']) ? '' : $args['like'];
         if (!empty($args['save']))
         {
             $ids = array();
+            $default = NULL;
             foreach ($args as $k => $v)
             {
-                if (substr($k, 0, 3) == 'qa_')
+                if (substr($k, 0, 3) == 'qa_' && $k !== 'qa_default')
                 {
-                    $ids[] = substr($k, 3);
+                    $ids[] = array_map('intval', explode('-', substr($k, 3), 2));
                 }
             }
-            IACLStorage::get('QuickACL')->saveQuickAcl($wgUser->getId(), $ids, $args['qa_default']);
+            $default = !empty($args['qa_default']) ? array_map('intval', explode('-', $args['qa_default'], 2)) : NULL;
+            $quickacl = new IACLQuickacl($wgUser->getId(), $ids, $default);
+            $quickacl->save();
+            // FIXME Terminate MediaWiki more correctly
             wfGetDB(DB_MASTER)->commit();
             header("Location: $wgScript?title=Special:IntraACL&action=quickaccess&like=".urlencode($like));
             exit;

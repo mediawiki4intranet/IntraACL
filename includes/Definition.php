@@ -67,6 +67,10 @@ class IACLDefinition implements ArrayAccess
     static function newFromTitles($titles)
     {
         $where = array();
+        if (!is_array($titles))
+        {
+            $titles = array($titles);
+        }
         foreach ($titles as &$k)
         {
             // FIXME: resolve multiple IDs at once
@@ -639,7 +643,7 @@ class IACLDefinition implements ArrayAccess
         {
             $defTitle .= $haclgContLang->getPetPrefix(IACL::PE_PAGE).'/Special:';
         }
-        else
+        elseif ($peType != IACL::PE_RIGHT)
         {
             $prefix = $haclgContLang->getPetPrefix($peType);
             if ($prefix)
@@ -851,7 +855,7 @@ class IACLDefinition implements ArrayAccess
             }
         }
         // Add empty ALL_USERS grant if not yet
-        if (!isset($rules[IACL::PE_ALL_USERS][0]))
+        if ($rules && !isset($rules[IACL::PE_ALL_USERS][0]))
         {
             $rules[IACL::PE_ALL_USERS][0] = $thisId + array(
                 'child_type' => IACL::PE_ALL_USERS,

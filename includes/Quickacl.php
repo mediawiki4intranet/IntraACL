@@ -44,9 +44,13 @@ class IACLQuickacl
     {
         $this->userid = $userid;
         $this->default_pe_id = $default_pe_id ?: NULL;
+        if ($default_pe_id)
+        {
+            $pe_ids[] = $default_pe_id;
+        }
         foreach ($pe_ids as $pe)
         {
-            $this->addPE($pe);
+            $this->addPE($pe[0], $pe[1]);
         }
     }
 
