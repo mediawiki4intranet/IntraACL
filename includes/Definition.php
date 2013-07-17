@@ -493,8 +493,9 @@ class IACLDefinition implements ArrayAccess
         }
         elseif ($peType === IACL::PE_GROUP)
         {
+            global $haclgContLang;
             $ns = HACL_NS_ACL;
-            $peName = "Group/$peName";
+            $peName = $haclgContLang->getPetPrefix(IACL::PE_GROUP).'/'.$peName;
         }
         elseif ($peType == IACL::PE_SPECIAL)
         {

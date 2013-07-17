@@ -40,6 +40,7 @@ $wgAjaxExportList[] = 'haclGroupExists';
 
 function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
 {
+    global $haclgContLang;
     if (!$limit)
     {
         $limit = 11;
@@ -68,13 +69,13 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
         $r = $dbr->select(
             'page', '*', array(
                 'page_namespace' => HACL_NS_ACL,
-                'page_title LIKE '.$dbr->addQuotes('Group/%'.$n.'%')
+                'page_title LIKE '.$dbr->addQuotes($haclgContLang->getPetPrefix(IACL::PE_GROUP).'/%'.$n.'%')
             ), __METHOD__, array('ORDER BY' => 'page_title', 'LIMIT' => $limit)
         );
         foreach ($r as $group)
         {
             // TODO filter unreadable?
-            $n = substr($group->page_title, 6);
+            $n = str_replace('_', ' ', substr($group->page_title, 6));
             $a[] = array($n, $n);
         }
     }
@@ -145,9 +146,10 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
     elseif ($t == 'category')
     {
         $ip = 'ti_';
+        $n = str_replace(' ', '_', $n);
         $where = array(
             'page_namespace' => NS_CATEGORY,
-            'page_title LIKE '.$dbr->addQuotes(str_replace(' ', '_', $n).'%')
+            'page_title LIKE '.$dbr->addQuotes($n.'%')
         );
         $r = $dbr->select(
             'page', 'page_title',
@@ -173,14 +175,14 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
         $r = $dbr->select(
             'page', '*', array(
                 'page_namespace' => HACL_NS_ACL,
-                'page_title NOT LIKE '.$dbr->addQuotes('Group/%'),
+                'page_title NOT LIKE '.$dbr->addQuotes($haclgContLang->getPetPrefix(IACL::PE_GROUP).'/%'),
                 'page_title LIKE '.$dbr->addQuotes('%'.$n.'%'),
             ), __METHOD__, array('ORDER BY' => 'page_title', 'LIMIT' => $limit)
         );
         foreach ($r as $sd)
         {
             // TODO filter unreadable?
-            $n = $sd->page_title;
+            $n = str_replace('_', ' ', $sd->page_title);
             $a[] = array($n, $n);
         }
     }
@@ -255,10 +257,16 @@ function haclGrouplist()
  */
 function haclGroupClosure($groups, $rights)
 {
+    global $haclgContLang;
     $pe = array();
+    $grp = $haclgContLang->getPetPrefix(IACL::PE_GROUP).'/';
     foreach (explode(',', $groups) as $k)
     {
-        $pe[] = "Group/$k";
+        if (substr($k, 0, strlen($grp)) !== $grp)
+        {
+            $k = $grp.$k;
+        }
+        $pe[] = $k;
     }
     foreach (explode('[', $rights) as $k)
     {
@@ -351,7 +359,8 @@ function haclGroupClosure($groups, $rights)
             // Select user and group members for groups
             if (isset($def['rules'][IACL::PE_ALL_USERS]))
             {
-                $rule = reset($def['rules'][IACL::PE_ALL_USERS]);
+                $rule = $def['rules'][IACL::PE_ALL_USERS];
+                $rule = reset($rule);
                 if ($rule['actions'] & $memberAction)
                 {
                     $members[$name][] = '*';
@@ -367,7 +376,7 @@ function haclGroupClosure($groups, $rights)
             }
             if (isset($def['rules'][IACL::PE_USER]))
             {
-                foreach ($g['rules'][IACL::PE_USER] as $uid => $rule)
+                foreach ($def['rules'][IACL::PE_USER] as $uid => $rule)
                 {
                     if ($rule['actions'] & $memberAction)
                     {
@@ -426,6 +435,6 @@ function haclSDExists_GetEmbedded($type, $name)
 function haclGroupExists($name)
 {
     global $haclgContLang;
-    $grpTitle = Title::makeTitleSafe(HACL_NS_ACL, 'Group/'.$name);
+    $grpTitle = Title::makeTitleSafe(HACL_NS_ACL, $haclgContLang->getPetPrefix(IACL::PE_GROUP).'/'.$name);
     return $grpTitle && $grpTitle->getArticleId() ? 'true' : 'false';
 }

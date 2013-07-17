@@ -89,12 +89,13 @@ class IntraACL_SQL_SD
     /**
      * Select all SD pages (not only saved SDs as incorrect SDs may be not saved).
      */
-    public function getSDPages($types, $name, $offset, $limit, &$total)
+    public function getSDPages($types, $name, $not_name, $offset, $limit, &$total)
     {
         global $haclgContLang;
         $dbr = wfGetDB(DB_SLAVE);
         $t = $types ? array_flip(IACLStorage::explode($types)) : NULL;
         $n = str_replace(' ', '_', $name);
+        $not_n = $not_name ? str_replace(' ', '_', $not_name) : NULL;
         $where = array();
         foreach ($haclgContLang->getPetAliases() as $k => $v)
         {
@@ -108,6 +109,10 @@ class IntraACL_SQL_SD
             return array();
         }
         $where = 'page_namespace='.HACL_NS_ACL.' AND ('.implode(' OR ', $where).')';
+        if ($not_n)
+        {
+            $where .= ' AND CAST(page_title AS CHAR CHARACTER SET utf8) COLLATE utf8_unicode_ci NOT LIKE '.$dbr->addQuotes('%'.$not_n.'%');
+        }
         // Select SDs
         $res = $dbr->select('page', '*', $where, __METHOD__, array(
             'SQL_CALC_FOUND_ROWS',

@@ -516,7 +516,7 @@ class IntraACLSpecial extends SpecialPage
         }
         /* Load data */
         $total = 0;
-        $titles = IACLStorage::get('SD')->getSDPages('right', $like, 0, 1000000, $total);
+        $titles = IACLStorage::get('SD')->getSDPages('right', $like, NULL, NULL, NULL, $total);
         $quickacl = IACLQuickacl::newForUserId($wgUser->getId());
         $quickacl_ids = $quickacl->getPEIds();
         $defs = IACLDefinition::newFromTitles($titles);
@@ -600,19 +600,22 @@ class IntraACLSpecial extends SpecialPage
     public function html_group(&$q)
     {
         global $wgOut, $wgUser, $wgScript, $haclgHaloScriptPath, $wgContLang, $haclgContLang;
-        if (empty($q['group']) ||
-            !($grpTitle = Title::newFromText($q['group'], HACL_NS_ACL)) ||
-            HACLEvaluator::hacl_type($grpTitle) != 'group' ||
-            !($grpArticle = new Article($grpTitle)) ||
-            !$grpArticle->exists())
+        $grpTitle = $grpArticle = $grpName = $grpPrefix = NULL;
+        if (!empty($q['group']))
         {
-            $grpTitle = NULL;
-            $grpArticle = NULL;
-            $grpName = '';
-        }
-        else
-        {
-            list($grpPrefix, $grpName) = explode('/', $grpTitle->getText(), 2);
+            $pe = IACLDefinition::nameOfPE($q['group']);
+            $t = Title::newFromText($q['group'], HACL_NS_ACL);
+            if ($t && $pe[0] == IACL::PE_GROUP)
+            {
+                $a = new Article($t);
+                if ($a->exists())
+                {
+                    $grpTitle = $t;
+                    $grpArticle = $a;
+                    $grpPrefix = $haclgContLang->getPetPrefix(IACL::PE_GROUP);
+                    $grpName = $pe[1];
+                }
+            }
         }
         /* Run template */
         ob_start();
@@ -633,7 +636,7 @@ class IntraACLSpecial extends SpecialPage
         haclCheckScriptPath();
         // Load data
         $spec = SpecialPage::getTitleFor('IntraACL');
-        $titles = IACLStorage::get('SD')->getSDPages($t, $n, $offset, $limit, $total);
+        $titles = IACLStorage::get('SD')->getSDPages($t, $n, NULL, $offset, $limit, $total);
         $defs = IACLDefinition::newFromTitles($titles);
         foreach ($defs as $k => $def)
         {
@@ -699,23 +702,21 @@ class IntraACLSpecial extends SpecialPage
      */
     static function haclGrouplist($n, $not_n = NULL)
     {
-        global $wgScript, $haclgHaloScriptPath;
+        global $wgScript, $haclgHaloScriptPath, $haclgContLang;
         haclCheckScriptPath();
         /* Load data */
-        $groups = IACLStorage::get('Groups')->getGroups($n, $not_n);
-        foreach ($groups as &$g)
+        $total = 0;
+        $titles = IACLStorage::get('SD')->getSDPages('group', $n, $not_n, NULL, NULL, $total);
+        $groups = array();
+        $l = strlen($haclgContLang->getPetPrefix(IACL::PE_GROUP))+1;
+        foreach ($titles as $t)
         {
-            $gn = $g['group_name'];
-            $g = array(
-                'name' => $gn,
-                'real' => $gn,
-                'editlink' => $wgScript.'?title=Special:IntraACL&action=group&group='.urlencode($gn),
-                'viewlink' => Title::newFromText($gn, HACL_NS_ACL)->getLocalUrl(),
+            $groups[] = array(
+                'name' => $t->getText(),
+                'real' => substr($t->getText(), $l),
+                'editlink' => $wgScript.'?title=Special:IntraACL&action=group&group='.urlencode($t->getText()),
+                'viewlink' => $t->getLocalUrl(),
             );
-            if ($p = strpos($g['real'], '/'))
-            {
-                $g['real'] = substr($g['real'], $p+1);
-            }
         }
         $max = false;
         /* Run template */
