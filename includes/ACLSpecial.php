@@ -501,7 +501,7 @@ class IntraACLSpecial extends SpecialPage
         $aclPEName = $aclPEType = '';
         if (!empty($q['sd']))
         {
-            $aclTitle = Title::makeTitleSafe(HACL_NS_ACL, $q['sd']);
+            $aclTitle = Title::newFromText($q['sd'], HACL_NS_ACL);
             $defId = IACLDefinition::nameOfPE($aclTitle);
             if ($aclTitle && $defId[0] != IACL::PE_GROUP)
             {

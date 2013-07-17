@@ -80,6 +80,8 @@ $messages['en'] = array(
     'hacl_move_acl'                     => 'ACL moved with the article',
     'hacl_move_acl_include'             => 'Include move target rights (protect RC)',
 
+    'hacl_create_nonreadable_article'   => 'Create a non-readable article',
+
     'hacl_nonreadable_create'           =>
 '<div style="border: 0.2em solid red; padding: 0 0.5em 0.5em">
 <span style="color: red; font-weight: bold">Warning!</span>
@@ -401,6 +403,8 @@ $messages['ru'] = array(
     'hacl_permission_denied'            => "Вам запрещено это действие на данной странице.\n\nВернуться на [[Заглавная страница|главную страницу]].",
     'hacl_move_acl'                     => 'Права перемещены вместе со страницей',
     'hacl_move_acl_include'             => 'Включение прав перемещённой страницы (защита RC)',
+
+    'hacl_create_nonreadable_article'   => 'Создать нечитаемую статью',
 
     'hacl_nonreadable_create'           =>
 '<div style="border: 0.2em solid red; padding: 0 0.5em 0.5em">

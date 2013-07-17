@@ -226,13 +226,14 @@ class IACLEvaluator
 
     /**
      * This method checks if a user wants to create/modify an article in the ACL namespace.
+     * Should not be used outside of IACLEvaluator because doesn't do any additional access checks.
      *
      * @param Title $t
      * @param User $user
      * @param int $actionID     Action ID
      * @return bool             Whether the user has the right to perform the action
      */
-    public static function checkACLManager(Title $t, $user, $actionID)
+    protected static function checkACLManager(Title $t, User $user, $actionID)
     {
         global $haclgSuperGroups;
         $userID = $user->getId();

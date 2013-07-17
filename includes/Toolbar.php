@@ -90,7 +90,7 @@ class IACLToolbar
             if ($pageSD)
             {
                 $realPageSDId = $pageSDId = array($pageSD['pe_type'], $pageSD['pe_id']);
-                $canModify = IACLEvaluator::checkACLManager($pageSDTitle, $wgUser, IACL::ACTION_EDIT);
+                $canModify = $pageSDTitle->userCan('edit');
                 // Check if page SD is a single predefined right inclusion
                 if ($pageSD['single_child'])
                 {
@@ -363,7 +363,9 @@ class IACLToolbar
         return implode(', ', $select);
     }
 
-    // Similar to warnNonReadableCreate, but warns about non-readable file uploads
+    /**
+     * Similar to warnNonReadableCreate, but warns about non-readable file uploads
+     */
     public static function warnNonReadableUpload($upload)
     {
         global $haclgOpenWikiAccess, $wgUser, $wgOut, $haclgSuperGroups;
@@ -470,16 +472,13 @@ class IACLToolbar
      * - 'haloacl_protect_with' request value is invalid
      *   (valid are 'unprotected', or ID/name of predefined right or THIS page SD)
      *
-     * @param Article $article
-     *        The article which was saved
-     * @param User $user
-     *        The user who saved the article
-     * @param string $text
-     *        The content of the article
+     * @param WikiPage $article The article which was saved
+     * @param User $user        The user who saved the article
+     * @param string $text      The content of the article
      *
      * @return true
      */
-    public static function articleSaveComplete_SaveSD(&$article, &$user, $text)
+    public static function articleSaveComplete_SaveSD($article, User $user, $text)
     {
         global $wgUser, $wgRequest, $haclgContLang;
 
@@ -556,10 +555,9 @@ class IACLToolbar
         // Check SD modification rights
         $pageSDName = IACLDefinition::nameOfSD(IACL::PE_PAGE, $article->getTitle());
         $etc = haclfDisableTitlePatch();
-        $pageSDTitle = Title::newFromText($newSDName);
+        $pageSDTitle = Title::newFromText($pageSDName);
         haclfRestoreTitlePatch($etc);
-        $allowed = IACLEvaluator::checkACLManager($pageSDTitle, $wgUser, IACL::ACTION_EDIT);
-        if (!$allowed)
+        if (!$pageSDTitle->userCan('edit'))
         {
             return true;
         }
@@ -569,7 +567,8 @@ class IACLToolbar
         {
             // Create/modify page SD
             $selectedSDTitle = IACLDefinition::getSDTitle($selectedSD);
-            $content = '{{#predefined right: rights = '.$selectedSDTitle->getText().'}}';
+            $content = '{{#predefined right: rights = '.$selectedSDTitle->getText()."}}\n".
+                '{{#manage rights: assigned to = User:'.$wgUser->getName()."}}\n";
             $newSDArticle->doEdit($content, wfMsg('hacl_comment_protect_with', $selectedSDTitle->getFullText()));
         }
         else

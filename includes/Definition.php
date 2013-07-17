@@ -300,16 +300,32 @@ class IACLDefinition implements ArrayAccess
      */
     protected function get_single_child()
     {
-        $rules = $this['rules'];
-        $keys = array_keys($rules);
-        if (count($keys) == 1 &&
-            $keys[0] != IACL::PE_USER && $keys[0] != IACL::PE_GROUP &&
-            count($rules[$keys[0]]) == 1)
+        $direct = (1 << IACL::INDIRECT_OFFSET) - 1;
+        $single = NULL;
+        foreach ($this['rules'] as $type => $rules)
         {
-            $id = reset($rules[$keys[0]]);
-            return array($keys[0], is_array($id) ? $id['child_id'] : $id);
+            foreach ($rules as $id => $actions)
+            {
+                $actions = is_array($actions) ? $actions['actions'] : $actions;
+                if ($type == IACL::PE_USER ||
+                    $type == IACL::PE_GROUP ||
+                    $type == IACL::PE_ALL_USERS ||
+                    $type == IACL::PE_REG_USERS ||
+                    ($actions & $direct) != IACL::ACTION_INCLUDE_SD)
+                {
+                    if ($actions & $direct)
+                    {
+                        return NULL;
+                    }
+                    // Do not return for empty actions
+                }
+                else
+                {
+                    $single = array($type, $id);
+                }
+            }
         }
-        return NULL;
+        return $single;
     }
 
     /**
@@ -534,7 +550,7 @@ class IACLDefinition implements ArrayAccess
     public static function peIDforName($peType, $peName)
     {
         $ns = NS_MAIN;
-        if ($peType === IACL::PE_NAMESPACE)
+        if ($peType == IACL::PE_NAMESPACE)
         {
             // $peName is a namespace => get its ID
             global $wgContLang;
@@ -546,19 +562,19 @@ class IACLDefinition implements ArrayAccess
             }
             return $idx;
         }
-        elseif ($peType === IACL::PE_RIGHT)
+        elseif ($peType == IACL::PE_RIGHT)
         {
             $ns = HACL_NS_ACL;
         }
-        elseif ($peType === IACL::PE_CATEGORY)
+        elseif ($peType == IACL::PE_CATEGORY)
         {
             $ns = NS_CATEGORY;
         }
-        elseif ($peType === IACL::PE_USER)
+        elseif ($peType == IACL::PE_USER)
         {
             $ns = NS_USER;
         }
-        elseif ($peType === IACL::PE_GROUP)
+        elseif ($peType == IACL::PE_GROUP)
         {
             global $haclgContLang;
             $ns = HACL_NS_ACL;
@@ -587,21 +603,21 @@ class IACLDefinition implements ArrayAccess
      */
     public static function peNameForID($peType, $peID)
     {
-        if ($peType === IACL::PE_NAMESPACE)
+        if ($peType == IACL::PE_NAMESPACE)
         {
             return iaclfCanonicalNsText($peID);
         }
-        elseif ($peType === IACL::PE_RIGHT || $peType == IACL::PE_CATEGORY)
+        elseif ($peType == IACL::PE_RIGHT || $peType == IACL::PE_CATEGORY)
         {
             $t = Title::newFromId($peID);
             return $t ? $t->getText() : NULL;
         }
-        elseif ($peType === IACL::PE_USER)
+        elseif ($peType == IACL::PE_USER)
         {
             $u = User::newFromId($peID);
             return $u ? $u->getName() : NULL;
         }
-        elseif ($peType === IACL::PE_GROUP)
+        elseif ($peType == IACL::PE_GROUP)
         {
             $t = Title::newFromId($peID);
             return $t ? substr($t->getText(), 6) : NULL;
@@ -630,7 +646,7 @@ class IACLDefinition implements ArrayAccess
     public static function getSDForPE($peType, $peID)
     {
         $r = self::select(array('pe' => array($peType, $peID)));
-        return $r ? $r[0] : false;
+        return reset($r);
     }
 
     /**
@@ -728,7 +744,7 @@ class IACLDefinition implements ArrayAccess
     public static function getSDTitle($pe)
     {
         $peName = IACLDefinition::peNameForID($pe[0], $pe[1]);
-        return Title::newFromText(IACLDefinition::nameOfSD($pe[0], $pe[1]));
+        return Title::newFromText(IACLDefinition::nameOfSD($pe[0], $peName));
     }
 
     /**
@@ -746,8 +762,7 @@ class IACLDefinition implements ArrayAccess
         {
             // Delete definition
             $this->data = array();
-            $delRules = array(array('pe_type' => $peType, 'pe_id' => $peID));
-            $addRules = array();
+            $st->deleteRules(array(array('pe_type' => $peType, 'pe_id' => $peID)));
         }
         else
         {
@@ -774,22 +789,11 @@ class IACLDefinition implements ArrayAccess
                 $p->save($preventLoop);
             }
         }
-        // TODO Invalidate cache (if any)
+        // FIXME Invalidate cache (if any)
     }
 
     public function diffRules()
     {
-        $oldRules = array();
-        if ($old = $this->clean())
-        {
-            foreach ($old['rules'] as $type => $children)
-            {
-                foreach ($children as $child => $rule)
-                {
-                    $oldRules["$type-$child"] = $rule;
-                }
-            }
-        }
         $oldRules = $this->clean();
         $oldRules = $oldRules ? $oldRules['rules'] : array();
         $addRules = $this->data['rules'] = $this->buildRules();
@@ -920,7 +924,7 @@ class IACLDefinition implements ArrayAccess
             }
         }
         // Add empty ALL_USERS grant if not yet
-        if ($rules && !isset($rules[IACL::PE_ALL_USERS][0]))
+        if ($rules && $this['pe_type'] != IACL::PE_GROUP && !isset($rules[IACL::PE_ALL_USERS][0]))
         {
             $rules[IACL::PE_ALL_USERS][0] = $thisId + array(
                 'child_type' => IACL::PE_ALL_USERS,

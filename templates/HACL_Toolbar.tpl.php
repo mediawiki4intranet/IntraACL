@@ -34,12 +34,12 @@
   </div></div>
  </div>
 <?php } if ($title->exists()) { ?>
- <a style="text-decoration: none" class="haclt_title" target="_blank" href="index.php?title=Special:IntraACL&action=acl&sd=<?= urlencode($haclgContLang->getPetPrefix($title->getNamespace() == NS_CATEGORY ? HACLLanguage::PET_CATEGORY : HACLLanguage::PET_PAGE).'/'.$title) ?>"><img src="<?= $haclgHaloScriptPath ?>/skins/images/edit.png" width="16" height="16" alt="Edit" /> <?= wfMsg('hacl_toolbar_advanced_'.($pageSDId ? 'edit' : 'create')) ?></a>
+ <a style="text-decoration: none" class="haclt_title" target="_blank" href="index.php?title=Special:IntraACL&action=acl&sd=<?= urlencode($haclgContLang->getPetPrefix($title->getNamespace() == NS_CATEGORY ? IACL::PE_CATEGORY : IACL::PE_PAGE).'/'.$title) ?>"><img src="<?= $haclgHaloScriptPath ?>/skins/images/edit.png" width="16" height="16" alt="Edit" /> <?= wfMsg('hacl_toolbar_advanced_'.($pageSDId ? 'edit' : 'create')) ?></a>
 <?php } elseif (!$hasQuickACL) {?>
  <?= wfMsg('hacl_toolbar_select_qacl', $quick_acl_link) ?>
 <?php } if ($nonreadable) { ?>
  <input style="vertical-align: middle" type="checkbox" name="hacl_nonreadable_create" id="hacl_nonreadable_create" />
- <label style="vertical-align: middle" for="hacl_nonreadable_create">Создать нечитаемую статью</label>
+ <label style="vertical-align: middle" for="hacl_nonreadable_create"><?= wfMsg('hacl_create_unreadable_article') ?></label>
 <?php } ?>
  <div class="qacl"><a target="_blank" href="<?= $quick_acl_link ?>" title="<?= wfMsg('hacl_toolbar_qacl_title') ?>"><?= wfMsg('hacl_toolbar_qacl') ?></a></div>
 </div>

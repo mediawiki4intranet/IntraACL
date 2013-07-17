@@ -79,9 +79,9 @@ class IntraACL_SQL_SD
                 $method
             );
         }
-        else
+        elseif ($rows)
         {
-            // By conditions
+            // By conditions (if not empty)
             $dbw->delete($table, $rows, $method);
         }
     }
