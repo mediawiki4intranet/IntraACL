@@ -49,16 +49,20 @@ class IntraACL_SQL_SpecialPage
     }
 
     /**
-     * Special pages do not have an article ID, however access control relies
-     * on IDs. This method retrieves the name of a special page for its ID.
+     * Retrieve multiple special page IDs at once.
      *
-     * @param int $id       ID of the special page.
-     * @return string name  The name of the page if the ID is valid, 0 otherwise.
+     * @param array|int $ids        Generated special page IDs.
+     * @return array(int => string) Special page names.
      */
-    public function specialForID($id)
+    public function specialsForIds($ids)
     {
-        $dbw = wfGetDB(DB_MASTER);
-        $obj = $dbw->selectRow('halo_acl_special_pages', 'name', array('id' => $id), __METHOD__);
-        return ($obj === false) ? 0 : $obj->name;
+        $dbr = wfGetDB(DB_MASTER);
+        $names = array();
+        $res = $dbr->select('halo_acl_special_pages', '*', array('id' => (array)$ids), __METHOD__);
+        foreach ($res as $row)
+        {
+            $names[$row->id] = $row->name;
+        }
+        return $names;
     }
 }

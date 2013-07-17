@@ -80,6 +80,8 @@ class IntraACL_SQL_Util
 
     /**
      * Massively retrieves contents of categories with db-keys $dbkeys
+     *
+     * @param array(string) $dbkeys
      * @return array(category_dbkey => array(Title))
      */
     public function getCategoryLinks($dbkeys)
@@ -100,8 +102,10 @@ class IntraACL_SQL_Util
     }
 
     /**
-     * Get Title objects for child categories, recursively, including initial $categories
-     * $categories: array(Title) - Title objects of parent categories
+     * Get Title objects for child categories, recursively, including initial $categories.
+     *
+     * @param array(Title) $categories Title objects of parent categories.
+     * @return array(Title) Titles for all categories and their subcategories.
      */
     public function getAllChildrenCategories($categories)
     {

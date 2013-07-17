@@ -123,6 +123,7 @@ class IACLDefinition implements ArrayAccess
             return $this->data[$k];
         }
         $m = 'get_'.$k;
+        // Crash with "unknown method" error on unknown field request
         return $this->$m();
     }
 
@@ -309,6 +310,68 @@ class IACLDefinition implements ArrayAccess
             return array($keys[0], is_array($id) ? $id['child_id'] : $id);
         }
         return NULL;
+    }
+
+    /**
+     * Returns definition page title (programmatically, without DB access)
+     *
+     * @return Title
+     */
+    protected function get_def_title()
+    {
+        return self::getSDTitle(array($this->data['pe_type'], $this->data['pe_id']));
+    }
+
+    /**
+     * Returns Title of the protected element if it is a PE_PAGE, PE_CATEGORY or PE_SPECIAL,
+     * using mass-fetch DB operations for the current type.
+     *
+     * @return Title
+     */
+    protected function get_pe_title()
+    {
+        $t = $this->data['pe_type'];
+        if ($t != IACL::PE_PAGE && $t != IACL::PE_CATEGORY && $t != IACL::PE_SPECIAL)
+        {
+            return NULL;
+        }
+        $sds = $this->collection ?: array($this['key'] => $this);
+        $ids = array();
+        foreach ($sds as $sd)
+        {
+            if (!isset($sd->data['pe_title']) && $sd->data['pe_type'] == $t)
+            {
+                $ids[] = $sd->data['pe_id'];
+            }
+        }
+        if ($t == IACL::PE_SPECIAL)
+        {
+            $names = IACLStorage::get('SpecialPage')->specialsForIds($ids);
+            foreach ($names as &$n)
+            {
+                $n = SpecialPage::getTitleFor($n);
+            }
+        }
+        else
+        {
+            $names = IACLStorage::get('Util')->getTitles($ids, true);
+        }
+        foreach ($sds as $sd)
+        {
+            if (!isset($sd->data['pe_title']) && $sd->data['pe_type'] == $t)
+            {
+                if (!isset($names[$sd->data['pe_id']]))
+                {
+                    // Database inconsistency :-(
+                    throw new Exception(
+                        'BUG: Definition ('.$sd->data['pe_type'].', '.
+                        $sd->data['pe_id'].') is saved, but PE does not exist!'
+                    );
+                }
+                $sd->data['pe_title'] = $names[$sd->data['pe_id']];
+            }
+        }
+        return $this->data['pe_title'];
     }
 
     function makeDirty()
@@ -545,7 +608,8 @@ class IACLDefinition implements ArrayAccess
         }
         elseif ($peType == IACL::PE_SPECIAL)
         {
-            return IACLStorage::get('SpecialPage')->specialForID($peID);
+            $name = IACLStorage::get('SpecialPage')->specialsForIds($peID);
+            return reset($name);
         }
         $t = Title::newFromId($peID);
         if ($t)
@@ -641,6 +705,7 @@ class IACLDefinition implements ArrayAccess
         $defTitle = $wgContLang->getNsText(HACL_NS_ACL).':';
         if ($peType == IACL::PE_SPECIAL)
         {
+            // FIXME We need to canonicalize special page titles!
             $defTitle .= $haclgContLang->getPetPrefix(IACL::PE_PAGE).'/Special:';
         }
         elseif ($peType != IACL::PE_RIGHT)

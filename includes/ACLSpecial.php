@@ -137,83 +137,74 @@ class IntraACLSpecial extends SpecialPage
     }
 
     /**
-     * Displays full graph of IntraACL rights using Graphviz, in SVG format
+     * Displays full graph of IntraACL rights using Graphviz, in SVG format.
      * Does not reflect the right override method - just displays which rights apply
-     * to different protected elements and which users have these rights
+     * to different protected elements.
+     *
      * SD -> (namespace = page cluster)
      * SD -> page
-     * SD -> category -> subcategory -> subcluster of a namespace
-     * SD -> included SD
-     * User -> group -> SD
-     * User -> SD
+     * SD -> category -> each subcategory -> subcluster of a namespace
+     * Included SD -> SD
      */
     public function html_rightgraph(&$q)
     {
         global $wgOut, $wgContLang;
         $patch = haclfDisableTitlePatch();
-        // Group members
-        $groups = IACLStorage::get('Groups')->getGroupsByIds(NULL);
-        $ids = array();
-        foreach ($groups as $g)
-            $ids[] = $g->group_id;
-        $members = IACLStorage::get('Groups')->getMembersOfGroups($ids);
-        // Security descriptors
-        $sds = IACLStorage::get('SD')->getSDs2(NULL, NULL, NULL, false);
-        $ids = array();
-        foreach ($sds as $r)
+        // FIXME Special pages?
+        // Select ALL SDs
+        $titles = array();
+        $defs = IACLDefinition::select(array('pe_type != '.IACL::PE_GROUP));
+        $cats = array();
+        foreach ($defs as $def)
         {
-            if ($r->type == 'page' || $r->type == 'category')
-                $ids[] = $r->pe_id;
-            $ids[] = $r->sd_id;
+            $titles[$def['key']] = $def['def_title'];
+            if ($def['pe_type'] == IACL::PE_CATEGORY)
+            {
+                $cats[] = $def['pe_title'];
+            }
+            if ($def['pe_type'] == IACL::PE_CATEGORY ||
+                $def['pe_type'] == IACL::PE_PAGE)
+            {
+                $titles[$def['pe_id']] = $def['pe_title'];
+            }
         }
-        $titles = IACLStorage::get('Util')->getTitles($ids, true);
-        // Inline rights
-        $rights = IACLStorage::get('IR')->getAllRights();
-        // Fetch categories and subcategories
-        $cattitles = array();
-        foreach ($sds as $r)
-            if ($r->type == 'category' && isset($titles[$r->pe_id]))
-                $cattitles[] = $titles[$r->pe_id];
-        $cattitles = IACLStorage::get('Util')->getAllChildrenCategories($cattitles);
+        $cattitles = IACLStorage::get('Util')->getAllChildrenCategories($cats);
         $catkeys = array();
         foreach ($cattitles as $t)
         {
-            $catkeys[$t->getArticleId()] = $t->getDBkey();
+            // FIXME Mass-fetch article IDs using LinkBatch
             $titles[$t->getArticleId()] = $t;
+            $catkeys[$t->getDBkey()] = $t->getArticleId();
         }
-        $catlinks = IACLStorage::get('Util')->getCategoryLinks($catkeys);
-        $catkeys = array_flip($catkeys);
-        // Filter inconsistent SDs
-        $newsds = array();
-        foreach ($sds as $r)
-            if ($r->type != 'template' &&
-                ($r->type != 'page' && $r->type != 'category' || isset($titles[$r->pe_id])))
-                $newsds[] = $r;
-        $sds = $newsds;
+        $catlinks = IACLStorage::get('Util')->getCategoryLinks(array_keys($catkeys));
         // Draw security descriptors
         $nodes = array();
         $ns_first = array();
-        $cat_cluster = array();
-        $cat_cluster[NS_CATEGORY][''] = array();
-        foreach ($sds as $r)
+        foreach ($defs as $def)
         {
-            if ($r->type != 'page')
-                $nodes['sd'.$r->sd_id] = $r;
-            if ($r->type == 'page')
+            if ($def['pe_type'] != IACL::PE_PAGE)
             {
-                $nodes['pg'.$r->pe_id] = true;
-                $edges['sd'.$r->sd_id]['pg'.$r->pe_id] = true;
-                if (!isset($ns_first[$titles[$r->pe_id]->getNamespace()]))
-                    $ns_first[$titles[$r->pe_id]->getNamespace()] = 'pg'.$r->pe_id;
+                $nodes['sd'.$def['key']] = $def;
+                if ($def['pe_type'] == IACL::PE_CATEGORY)
+                {
+                    $edges['sd'.$def['key']]['cat'.$def['pe_id']] = true;
+                    $nodes['cat'.$def['pe_id']] = true;
+                    $cluster['sd'.$def['key']] = "clusterns".NS_CATEGORY;
+                }
             }
-            elseif ($r->type == 'category')
+            else
             {
-                $edges['sd'.$r->sd_id]['cat'.$r->pe_id] = true;
-                $nodes['cat'.$r->pe_id] = true;
-                $cluster['sd'.$r->sd_id] = "clusterns".NS_CATEGORY;
+                $nodes['pg'.$def['pe_id']] = true;
+                $edges['sd'.$def['key']]['pg'.$def['pe_id']] = true;
+                if (!isset($ns_first[$titles[$def['pe_id']]->getNamespace()]))
+                {
+                    $ns_first[$titles[$def['pe_id']]->getNamespace()] = 'pg'.$def['pe_id'];
+                }
             }
         }
         // Group pages in category clusters within namespaces
+        $cat_cluster = array();
+        $cat_cluster[NS_CATEGORY][''] = array();
         foreach ($catlinks as $catkey => $cattitles)
         {
             $cattitle = $titles[$catkeys[$catkey]];
@@ -226,7 +217,9 @@ class IntraACLSpecial extends SpecialPage
                 {
                     $edges["cat$catid"]["cat$tid"] = true;
                     if (!isset($nodes["cat$tid"]))
+                    {
                         $nodes["cat$tid"] = true;
+                    }
                 }
                 elseif (isset($nodes["pg$tid"]))
                 {
@@ -240,7 +233,9 @@ class IntraACLSpecial extends SpecialPage
                         }
                     }
                     else
+                    {
                         $edges["cat$catid"]["pg$tid"] = true;
+                    }
                 }
             }
         }
@@ -248,68 +243,104 @@ class IntraACLSpecial extends SpecialPage
         foreach ($nodes as $n => &$attr)
         {
             if (substr($n, 0, 2) == 'pg' && !isset($cluster[$n]))
+            {
                 $cluster[$n] = 'clusterns'.$titles[substr($n, 2)]->getNamespace();
+            }
             elseif (substr($n, 0, 3) == 'cat')
             {
                 $cluster[$n] = 'clusterns'.NS_CATEGORY;
                 if (!isset($ns_first[NS_CATEGORY]))
+                {
                     $ns_first[NS_CATEGORY] = $n;
+                }
             }
         }
-        unset($attr);
+        unset($attr); // prevent reference bugs
         // Group SDs in the same clusters as their PEs and draw namespace SD edges
         $sdbyid = array();
-        foreach ($sds as $r)
+        foreach ($defs as $def)
         {
-            if ($r->type == 'page')
+            if ($def['pe_type'] == IACL::PE_PAGE)
             {
-                $cluster['sd'.$r->sd_id] = $cluster['pg'.$r->pe_id];
-                $sdbyid[$r->sd_id] = $r;
+                $cluster['sd'.$def['key']] = $cluster['pg'.$def['pe_id']];
+                $sdbyid[$def['key']] = $def;
             }
-            elseif ($r->type == 'namespace')
+            elseif ($def['pe_type'] == IACL::PE_NAMESPACE)
             {
-                $cluster['sd'.$r->sd_id] = '';
-                if (isset($ns_first[$r->pe_id]))
-                    $k = $ns_first[$r->pe_id];
+                $cluster['sd'.$def['key']] = '';
+                if (isset($ns_first[$def['pe_id']]))
+                {
+                    $k = $ns_first[$def['pe_id']];
+                }
                 else
                 {
-                    $k = 'etc'.$r->pe_id;
+                    $k = 'etc'.$def['pe_id'];
                     $nodes[$k] = array(
                         'label'   => '...',
                         'shape'   => 'circle',
-                        'href'    => Title::newFromText('Special:Allpages')->getFullUrl(array('namespace' => $r->pe_id)),
-                        'tooltip' => "Click to see all pages in namespace ".$wgContLang->getNsText($r->pe_id),
+                        'href'    => Title::newFromText('Special:Allpages')->getFullUrl(array('namespace' => $def['pe_id'])),
+                        // FIXME i18n for tooltip here
+                        'tooltip' => "Click to see all pages in namespace ".$wgContLang->getNsText($def['pe_id']),
                     );
-                    $cluster[$k] = "clusterns".$r->pe_id;
-                    $ns_first[$r->pe_id] = $k;
+                    $cluster[$k] = "clusterns".$def['pe_id'];
+                    $ns_first[$def['pe_id']] = $k;
                 }
-                $edges['sd'.$r->sd_id][$k] = "lhead=clusterns".$r->pe_id;
+                $edges['sd'.$def['key']][$k] = "lhead=clusterns".$def['pe_id'];
             }
-            elseif ($r->type == 'right')
-                $cluster['sd'.$r->sd_id] = '';
+            elseif ($def['pe_type'] == IACL::PE_RIGHT)
+            {
+                $cluster['sd'.$def['key']] = '';
+            }
         }
         // Draw right hierarchy
-        $hier = IACLStorage::get('SD')->getFullSDHierarchy();
-        foreach ($hier as $row)
+        $hier = array();
+        foreach ($defs as $def)
         {
-            if (isset($sdbyid[$row->child_id]) && $sdbyid[$row->child_id]->type == 'page')
-                $nodes['sd'.$row->child_id] = $sdbyid[$row->child_id];
-            if (isset($sdbyid[$row->parent_right_id]) && $sdbyid[$row->parent_right_id]->type == 'page')
-                $nodes['sd'.$row->parent_right_id] = $sdbyid[$row->parent_right_id];
-            if (isset($nodes['sd'.$row->child_id]) &&
-                isset($nodes['sd'.$row->parent_right_id]))
-                $edges['sd'.$row->child_id]['sd'.$row->parent_right_id] = true;
+            foreach ($def['rules'] as $rules)
+            {
+                foreach ($rules as $rule)
+                {
+                    if ($rule['child_type'] != IACL::PE_USER &&
+                        $rule['child_type'] != IACL::PE_GROUP &&
+                        $rule['child_type'] != IACL::PE_ALL_USERS &&
+                        $rule['child_type'] != IACL::PE_REG_USERS &&
+                        ($rule['actions'] & IACL::ACTION_INCLUDE_SD))
+                    {
+                        $parent = $rule['pe_type'].'-'.$rule['pe_id']; // get_key
+                        $child = $rule['child_type'].'-'.$rule['child_id']; // get_key
+                        if (isset($sdbyid[$child]) && $sdbyid[$child]['pe_type'] == IACL::PE_PAGE)
+                        {
+                            $nodes['sd'.$child] = $sdbyid[$child];
+                        }
+                        if (isset($sdbyid[$parent]) && $sdbyid[$parent]['pe_type'] == IACL::PE_PAGE)
+                        {
+                            $nodes['sd'.$parent] = $sdbyid[$parent];
+                        }
+                        if (isset($nodes['sd'.$child]) &&
+                            isset($nodes['sd'.$parent]))
+                        {
+                            $edges['sd'.$child]['sd'.$parent] = true;
+                        }
+                    }
+                }
+            }
         }
         foreach ($cluster as $k => $cl)
         {
             if (isset($nodes[$k]))
             {
                 if (preg_match('/clustercat(\d+)_(\d+)/', $cl, $m))
+                {
                     $cat_cluster[$m[1]][$m[2]][] = $k;
+                }
                 elseif (preg_match('/clusterns(\d+)/', $cl, $m))
+                {
                     $cat_cluster[$m[1]][''][] = $k;
+                }
                 elseif ($cl === '')
+                {
                     $cat_cluster[''][''][] = $k;
+                }
             }
         }
         // Set node attributes
@@ -319,17 +350,19 @@ class IntraACLSpecial extends SpecialPage
             'cat' => 'folder',
         );
         $colors = array(
-            'sd_page'      => '#ffd0d0',
-            'sd_category'  => '#ffff80',
-            'sd_right'     => '#90ff90',
-            'sd_namespace' => '#c0c0ff',
-            'cat'          => '#ffe0c0',
+            'sd'.IACL::PE_PAGE      => '#ffd0d0',
+            'sd'.IACL::PE_CATEGORY  => '#ffff80',
+            'sd'.IACL::PE_RIGHT     => '#90ff90',
+            'sd'.IACL::PE_NAMESPACE => '#c0c0ff',
+            'cat'                   => '#ffe0c0',
         );
         foreach ($nodes as $n => $r)
         {
             if (is_array($r))
+            {
                 continue;
-            preg_match('/([a-z]+)(\d+)/', $n, $m);
+            }
+            preg_match('/([a-z]+)(\d+(?:-\d+)?)/', $n, $m);
             $type = $m[1];
             $id = $m[2];
             $nodes[$n] = array(
@@ -341,9 +374,13 @@ class IntraACLSpecial extends SpecialPage
             {
                 $type2 = $type;
                 if ($type2 == 'sd')
-                    $type2 .= '_'.$r->type;
+                {
+                    $type2 .= $r['pe_type'];
+                }
                 if (isset($colors[$type2]))
+                {
                     $nodes[$n]['fillcolor'] = $colors[$type2];
+                }
                 $nodes[$n]['style'] = 'filled';
             }
         }
@@ -367,12 +404,18 @@ class IntraACLSpecial extends SpecialPage
                     $graph .= 'graph [label="'.$titles[$cat]->getPrefixedText().'", href="'.$titles[$cat]->getFullUrl().'"];'."\n";
                 }
                 foreach ($ks as $nodename)
+                {
                     $graph .= "$nodename [".self::attrstring($nodes[$nodename])."];\n";
+                }
                 if ($cat !== '')
+                {
                     $graph .= "}\n";
+                }
             }
             if ($ns !== '')
+            {
                 $graph .= "}\n";
+            }
         }
         // Draw edges
         foreach ($edges as $from => $to)
@@ -382,9 +425,13 @@ class IntraACLSpecial extends SpecialPage
                 foreach ($to as $id => $attr)
                 {
                     if ($attr !== true)
+                    {
                         $attr .= ', ';
+                    }
                     else
+                    {
                         $attr = '';
+                    }
                     $attr .= self::attrstring(array(
                         'href' => $nodes[$from]['href'],
                         'tooltip' => $nodes[$from]['label'],
@@ -394,7 +441,8 @@ class IntraACLSpecial extends SpecialPage
             }
         }
         // Render the graph
-        $graph = "<graphviz>\ndigraph G {\nedge [penwidth=2 color=blue];\nnode [fontname=courier];\nsplines=polyline;\noverlap=false;\nranksep=2;\nrankdir=LR;\ncompound=true;\n$graph\n}\n</graphviz>\n";
+        $graph = "<graphviz>\ndigraph G {\nedge [penwidth=2 color=blue];\nsplines=polyline;\n".
+            "overlap=false;\nranksep=2;\nrankdir=LR;\ncompound=true;\n$graph\n}\n</graphviz>\n";
         $wgOut->addWikiText($graph);
         $wgOut->addHTML("<pre>$graph</pre>");
         haclfRestoreTitlePatch($patch);

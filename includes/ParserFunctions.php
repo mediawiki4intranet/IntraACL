@@ -488,6 +488,7 @@ class IACLParserFunctions
             // Disable parser cache
             $pcache = false;
             // Warn for non-canonical titles
+            // FIXME We need to canonicalize special page names!
             $self = self::instance($article->getTitle());
             $editor = true;
             $peName = false;
