@@ -179,6 +179,7 @@ class IntraACLSpecial extends SpecialPage
         $catlinks = IACLStorage::get('Util')->getCategoryLinks(array_keys($catkeys));
         // Draw security descriptors
         $nodes = array();
+        $edges = array();
         $ns_first = array();
         foreach ($defs as $def)
         {
@@ -498,7 +499,7 @@ class IntraACLSpecial extends SpecialPage
         global $wgOut, $wgUser, $wgScript, $haclgHaloScriptPath, $haclgContLang, $wgContLang, $wgScriptPath;
         $aclTitle = $aclArticle = NULL;
         $aclContent = '{{#manage rights: assigned to = User:'.$wgUser->getName().'}}';
-        $aclPEName = $aclPEType = '';
+        $aclPEName = $aclPEType = false;
         if (!empty($q['sd']))
         {
             $aclTitle = Title::newFromText($q['sd'], HACL_NS_ACL);

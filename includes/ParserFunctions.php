@@ -346,7 +346,8 @@ class IACLParserFunctions
             $res = wfGetDB(DB_SLAVE)->select('page', '*', array('page_namespace' => HACL_NS_ACL, 'page_title' => array_keys($groups)));
             foreach ($res as $gr)
             {
-                $groups[$gr->page_title] = $gr->page_id;
+                unset($groups[$gr->page_title]);
+                $groups[str_replace('_', ' ', $gr->page_title)] = $gr->page_id;
                 unset($check[$gr->page_title]);
             }
             foreach ($check as $invalid => $true)
@@ -494,7 +495,7 @@ class IACLParserFunctions
             $peName = false;
             $self->makeDef();
             $html = '';
-            if ($self->def['pe_id'])
+            if ($self->def)
             {
                 $peName = IACLDefinition::peNameForID($self->peType, $self->def['pe_id']);
             }
@@ -522,7 +523,7 @@ class IACLParserFunctions
             if ($editor)
             {
                 // TODO do not display it when the user has no rights to change ACL
-                $html .= wfMsgForContent($self->def->clean() ? 'hacl_edit_with_special' : 'hacl_create_with_special',
+                $html .= wfMsgForContent($self->def && $self->def->clean() ? 'hacl_edit_with_special' : 'hacl_create_with_special',
                     Title::newFromText('Special:IntraACL')->getLocalUrl(array(
                         'action' => ($self->peType == IACL::PE_GROUP ? 'group' : 'acl'),
                         ($self->peType == IACL::PE_GROUP ? 'group' : 'sd') => $self->title->getPrefixedText(),
@@ -753,14 +754,13 @@ class IACLParserFunctions
         }
 
         // Check if the old title has an SD
-        $sd = IACLDefinition::getSDForPE(IACL::PE_PAGE, $pageid);
-        if ($sd !== false)
+        $oldSDTitle = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_PAGE, $oldTitle));
+        if ($oldSDTitle->exists())
         {
-            // move SD for page
-            wfDebug("Move SD for page: ID=$sd, pageid=$pageid\n");
-            $oldSD = Title::newFromID($sd);
-            $newSD = IACLDefinition::nameOfSD(IACL::PE_PAGE, $newTitle);
-            self::move($oldSD, $newSD);
+            // Move SD for page
+            $newSDTitle = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_PAGE, $newTitle));
+            wfDebug("Move SD for page: $oldSDTitle -> $newSDTitle\n");
+            self::move($oldSDTitle, $newSDTitle);
         }
 
         return true;
@@ -771,38 +771,22 @@ class IACLParserFunctions
      * the source article with single PR inclusion of target to protect
      * old revisions of source article (needed if there's a redirect left).
      *
-     * We must use Title::moveTo() here to preserve the ID of old SD...
-     *
-     * @param string $from
-     *        Original name of the SD article.
-     * @param string $to
-     *        New name of the SD article.
+     * @param Title $from  Original name of the SD article.
+     * @param Title $to    New name of the SD article.
      */
     static function move($from, $to)
     {
-        // TODO incorrect
-        wfDebug(__METHOD__.": move SD requested from $from to $to\n");
-        $etc = haclfDisableTitlePatch();
-        if (!is_object($from))
-        {
-            $from = Title::newFromText($from);
-        }
-        if (!is_object($to))
-        {
-            $to = Title::newFromText($to);
-        }
-        haclfRestoreTitlePatch($etc);
         if ($to->exists() && $to->userCan('delete'))
         {
             // FIXME report about "permission denied to overwrite $to"
             $page = new Article($to);
             $page->doDeleteArticle(wfMsg('hacl_move_acl'));
         }
-        $from->moveTo($to, false, wfMsg('hacl_move_acl'), false);
-        // FIXME if there's no redirect there's also no need for PR inclusion
-        // FIXME also we should revive the SD for a non-existing PE when that PE is created again
+        $from->moveTo($to, false, wfMsg('hacl_move_acl'), true);
         $fromA = new Article($from);
         $fromA->doEdit('{{#predefined right:rights='.$to->getPrefixedText().'}}', wfMsg('hacl_move_acl_include'));
+        // FIXME if there's no redirect there's also no need for PR inclusion
+        // FIXME also we should revive the SD for a non-existing PE when that PE is created again
     }
 
     /**

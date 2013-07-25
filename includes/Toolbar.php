@@ -601,7 +601,8 @@ class IACLToolbar
         $isACL = $article->getTitle()->getNamespace() == HACL_NS_ACL;
         if ($isACL)
         {
-            $articleSD = reset(IACLDefinition::newFromTitles(array($article->getTitle())));
+            $articleSD = IACLDefinition::newFromTitles(array($article->getTitle()));
+            $articleSD = reset($articleSD);
             if (!$articleSD || $articleSD['pe_type'] != IACL::PE_PAGE)
             {
                 // This is not a page SD, do nothing.
@@ -852,12 +853,12 @@ class IACLToolbar
         {
             // Display the link to article or category
             list($peType, $peName) = IACLDefinition::nameOfPE($wgTitle->getText());
-            if ($peType == 'page' || $peType == 'category')
+            if ($peType == IACL::PE_PAGE || $peType == IACL::PE_CATEGORY)
             {
                 $title = Title::newFromText($peName);
                 return array(
                     'class' => false,
-                    'text'  => wfMsg("hacl_tab_$peType"),
+                    'text'  => wfMsg("hacl_tab_".IACL::$typeToName[$peType]),
                     'href'  => $title->getLocalUrl(),
                 );
             }

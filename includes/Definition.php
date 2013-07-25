@@ -633,7 +633,7 @@ class IACLDefinition implements ArrayAccess
             // Always use canonical namespace names
             return ($t->getNamespace() ? iaclfCanonicalNsText($t->getNamespace()).':' : '') . $t->getText();
         }
-        return false;
+        return NULL;
     }
 
     /**
@@ -743,8 +743,15 @@ class IACLDefinition implements ArrayAccess
      */
     public static function getSDTitle($pe)
     {
+        // FIXME Do we need to disable title patch?
+        // $etc = haclfDisableTitlePatch();
         $peName = IACLDefinition::peNameForID($pe[0], $pe[1]);
-        return Title::newFromText(IACLDefinition::nameOfSD($pe[0], $peName));
+        if ($peName !== NULL)
+        {
+            return Title::newFromText(IACLDefinition::nameOfSD($pe[0], $peName));
+        }
+        return NULL;
+        // haclfRestoreTitlePatch($etc);
     }
 
     /**

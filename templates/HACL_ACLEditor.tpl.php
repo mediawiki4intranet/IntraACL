@@ -90,7 +90,7 @@ mw.loader.using('ext.intraacl.acleditor', function()
         petPrefixes: petPrefixes,
         isSysop: <?= $this->isAdmin ? 1 : 0 ?>,
         initialTitle: "<?= $aclTitle ? addslashes($aclTitle->getText()) : '' ?>",
-        initialType: '<?= $aclPEType ?>',
+        initialType: '<?= $aclPEType ? IACL::$typeToName[$aclPEType] : NULL ?>',
         initialExists: <?= $aclArticle ? 1 : 0 ?>
     });
 });
