@@ -17,7 +17,7 @@
  <?php } ?>
 <?php } elseif (!$canModify) { ?>
  <?= wfMsg('hacl_toolbar_cannot_modify') ?>
-<?php } elseif ($title->exists()) { ?>
+<?php } else { ?>
  <?= wfMsg('hacl_toolbar_no_right_templates', $quick_acl_link) ?>
 <?php } if ($globalACL) { ?>
  <div class="haclt_tip">

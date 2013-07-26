@@ -40,6 +40,11 @@ class IACLQuickacl
         return new self($userid, $pe_ids, $default_pe_id);
     }
 
+    static function deleteForSD($peType, $peID)
+    {
+        return IACLStorage::get('QuickACL')->deleteQuickaclForSD($peType, $peID);
+    }
+
     function __construct($userid, $pe_ids, $default_pe_id = NULL)
     {
         $this->userid = $userid;

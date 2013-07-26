@@ -128,12 +128,16 @@ class IACLToolbar
         foreach ($quickacl->getPEIds() as $def)
         {
             $hasQuickACL = true;
-            $title = IACLDefinition::getSDTitle($def);
+            $sdTitle = IACLDefinition::getSDTitle($def);
+            if (!$sdTitle)
+            {
+                continue;
+            }
             $option = array(
                 'value' => implode('-', $def),
                 'current' => ($def == $pageSDId),
-                'name' => $title->getPrefixedText(),
-                'title' => $title->getPrefixedText(),
+                'name' => $sdTitle->getPrefixedText(),
+                'title' => $sdTitle->getPrefixedText(),
             );
             $found = $found || $option['current'];
             if ($default == $def)
@@ -155,12 +159,12 @@ class IACLToolbar
         // If page SD is not yet in the list, insert it as the second option
         if ($pageSDId && !$found)
         {
-            $title = IACLDefinition::getSDTitle($pageSDId);
+            $sdTitle = IACLDefinition::getSDTitle($pageSDId);
             array_splice($options, 1, 0, array(array(
-                'name'    => $title->getPrefixedText(),
+                'name'    => $sdTitle->getPrefixedText(),
                 'value'   => implode('-', $pageSDId),
                 'current' => true,
-                'title'   => $title->getPrefixedText(),
+                'title'   => $sdTitle->getPrefixedText(),
             )));
         }
 
@@ -186,10 +190,10 @@ class IACLToolbar
         // Check if page namespace has an ACL (for hint)
         if (!$pageSDId && !$globalACL)
         {
-            $title = IACLDefinition::getSDTitle(array(IACL::PE_NAMESPACE, $title->getNamespace()));
-            if ($title->exists())
+            $sdTitle = IACLDefinition::getSDTitle(array(IACL::PE_NAMESPACE, $title->getNamespace()));
+            if ($sdTitle->exists())
             {
-                $globalACL[] = $title;
+                $globalACL[] = $sdTitle;
             }
         }
 

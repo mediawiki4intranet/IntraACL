@@ -687,6 +687,7 @@ class IACLParserFunctions
     public static function removeDef($title)
     {
         $def = IACLDefinition::newFromTitles($title);
+        IACLQuickacl::deleteForSD($def['pe_type'], $def['pe_id']);
         $def = reset($def);
         if ($def)
         {
