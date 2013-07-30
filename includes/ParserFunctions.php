@@ -686,11 +686,10 @@ class IACLParserFunctions
      */
     public static function removeDef($title)
     {
-        $def = IACLDefinition::newFromTitles($title);
-        IACLQuickacl::deleteForSD($def['pe_type'], $def['pe_id']);
-        $def = reset($def);
+        $def = IACLDefinition::newFromTitle($title, false);
         if ($def)
         {
+            IACLQuickacl::deleteForSD($def['pe_type'], $def['pe_id']);
             $def['rules'] = array();
             $def->save();
         }
@@ -751,6 +750,16 @@ class IACLParserFunctions
     {
         if ($oldTitle->getNamespace() == HACL_NS_ACL)
         {
+            // Move definition data!
+            $old = IACLDefinition::newFromTitle($oldTitle, false);
+            if ($old)
+            {
+                $old['rules'] = array();
+                $old->save();
+                $new = IACLDefinition::newFromTitle($oldTitle, true);
+                $new['rules'] = $old['rules'];
+                $new->save();
+            }
             return true;
         }
 

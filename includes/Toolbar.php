@@ -605,8 +605,7 @@ class IACLToolbar
         $isACL = $article->getTitle()->getNamespace() == HACL_NS_ACL;
         if ($isACL)
         {
-            $articleSD = IACLDefinition::newFromTitles(array($article->getTitle()));
-            $articleSD = reset($articleSD);
+            $articleSD = IACLDefinition::newFromTitle($article->getTitle(), false);
             if (!$articleSD || $articleSD['pe_type'] != IACL::PE_PAGE)
             {
                 // This is not a page SD, do nothing.

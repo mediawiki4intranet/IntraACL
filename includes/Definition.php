@@ -95,7 +95,20 @@ class IACLDefinition implements ArrayAccess
         return $r;
     }
 
-    static function newFromName($peType, $peName)
+    static function newFromTitle(Title $title, $allowEmpty = true)
+    {
+        $pe = self::nameOfPE($k);
+        if ($pe)
+        {
+            return self::newFromName($pe[0], $pe[1], $allowEmpty);
+        }
+        return NULL;
+    }
+
+    /**
+     * Returns an existing or a non-existing definition for $peType, $peName
+     */
+    static function newFromName($peType, $peName, $allowEmpty = true)
     {
         $id = self::peIDforName($peType, $peName);
         if ($id)
@@ -105,7 +118,7 @@ class IACLDefinition implements ArrayAccess
             {
                 $def = reset($def);
             }
-            else
+            elseif ($allowEmpty)
             {
                 $def = self::newEmpty();
                 $def['pe_type'] = $peType;
