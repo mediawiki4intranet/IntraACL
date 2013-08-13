@@ -330,6 +330,26 @@ Possible reasons for this may be:
 * Invalid protection requested: Most probably, the form was submitted incorrectly.
 
 Please review these elements, return to [[$2]] and protect them again.',
+
+    'hacl_selftest_title'               => 'Simple automatic tests for IntraACL',
+    'hacl_selftest_info'                =>
+'You can create and run simple automatic tests to check IntraACL for correct operation.
+Tests are ran by HTTP request emulation without using IntraACL APIs which guarantees
+their independence of other IntraACL code. It may be useful for you if you strongly rely
+on IntraACL right system and want to be assured that neither your right definitions nor
+IntraACL itself has grave errors which can lead to information leaks.
+
+Only very simple tests in form of "user, page, can/cannot read" are supported.
+However a considerable amount of right tests can be made using such simple checks.
+Test users, pages, rights and tests themselves must be created by {{SITENAME}} administrator.
+You can specify them on [[MediaWiki:IntraACL right tests]] in a following form:
+<pre>
+* User | Page | <ACCESS> | <TEST> | Test comment
+
+Where <ACCESS> is either "yes" or "no" (user has access / user has no access),
+and <TEST> is either an empty string or "search" (which corresponds to direct access check or page search).
+</pre>
+',
 );
 
 /**
@@ -626,6 +646,28 @@ $messages['ru'] = array(
 * Запрошена неверная защита: Скорее всего, была некорректно отправлена форма редактирования.
 
 Пожалуйста, рассмотрите ситуацию внимательнее, вернитесь к [[$2]] и пересохраните права.',
+
+    'hacl_selftest_title'               => 'Простое автотестирование прав IntraACL',
+    'hacl_selftest_info'                =>
+'Вы можете создать и запускать автоматические тесты для проверки корректной работы прав IntraACL.
+Тесты запускаются не через программные интерфейсы, а через эмуляцию реальных HTTP-запросов
+пользователей, что гарантирует независимость самих тестов от кода IntraACL.
+Это полезно в случае, если вы серьёзно полагаетесь на работу системы прав и хотите
+быть уверены, что ни в определениях прав, ни в коде IntraACL нет серьёзных ошибок.
+
+Поддерживаются очень простые тесты в форме "пользователь, страница, может / не может читать"
+(к такому виду можно свести многие проверки применения прав). Однако,
+тестовых пользователей, страницы, права к ним и сами тесты должен создать
+администратор {{SITENAME}}. Тесты задаются на странице
+[[MediaWiki:IntraACL right tests]] в виде списка следующего вида:
+<pre>
+* Пользователь | Страница | <ДОСТУП> | <ТЕСТ> | Комментарий к тесту
+
+Где <ДОСТУП> - слово "yes" или "no" (пользователь имеет/не имеет доступ к статье),
+а <ТЕСТ> - пустая строка либо "search" (проверка прямого доступа к статье либо поиска).
+</pre>
+',
+
 );
 
 /**

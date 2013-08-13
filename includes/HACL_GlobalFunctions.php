@@ -54,6 +54,9 @@ function enableIntraACL()
     $wgSpecialPages['IntraACL'] = array('IntraACLSpecial');
     $wgSpecialPageGroups['IntraACL'] = 'hacl_group';
 
+    $wgSpecialPages['IntraACLSelftest'] = array('IntraACLSelftestSpecial');
+    $wgSpecialPageGroups['IntraACLSelftest'] = 'hacl_group';
+
     // Set up autoloading; essentially all classes should be autoloaded!
     global $wgAutoloadClasses;
     $wgAutoloadClasses += array(
@@ -68,6 +71,7 @@ function enableIntraACL()
 
         // Special page
         'IntraACLSpecial'           => "$haclgIP/includes/HACL_ACLSpecial.php",
+        'IntraACLSelftestSpecial'   => "$haclgIP/includes/SpecialSelftest.php",
 
         // Exception classes
         'HACLException'             => "$haclgIP/includes/HACL_Exception.php",
