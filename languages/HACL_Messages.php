@@ -331,6 +331,7 @@ Possible reasons for this may be:
 
 Please review these elements, return to [[$2]] and protect them again.',
 
+    'intraaclselftest'                  => 'IntraACL autotesting',
     'hacl_selftest_title'               => 'Simple automatic tests for IntraACL',
     'hacl_selftest_info'                =>
 'You can create and run simple automatic tests to check IntraACL for correct operation.
@@ -349,6 +350,8 @@ You can specify them on [[MediaWiki:IntraACL right tests]] in a following form:
 Where <ACCESS> is either "yes" or "no" (user has access / user has no access),
 and <TEST> is either an empty string or "search" (which corresponds to direct access check or page search).
 </pre>
+
+[$1 URL for automatic testing]. Prints only test errors or empty output in case of no error.
 ',
 );
 
@@ -647,6 +650,7 @@ $messages['ru'] = array(
 
 Пожалуйста, рассмотрите ситуацию внимательнее, вернитесь к [[$2]] и пересохраните права.',
 
+    'intraaclselftest'                  => 'Автотестирование IntraACL',
     'hacl_selftest_title'               => 'Простое автотестирование прав IntraACL',
     'hacl_selftest_info'                =>
 'Вы можете создать и запускать автоматические тесты для проверки корректной работы прав IntraACL.
@@ -666,6 +670,9 @@ $messages['ru'] = array(
 Где <ДОСТУП> - слово "yes" или "no" (пользователь имеет/не имеет доступ к статье),
 а <ТЕСТ> - пустая строка либо "search" (проверка прямого доступа к статье либо поиска).
 </pre>
+
+[$1 URL для автоматического тестирования] (выводит только ошибки тестирования или пустоту,
+если всё в порядке).
 ',
 
 );

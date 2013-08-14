@@ -56,12 +56,12 @@ class IntraACLSelftestSpecial extends SpecialPage
         if (!empty($q['do']))
         {
             $wgOut->disable();
-            $this->doChecks();
+            $this->doChecks(!empty($q['quiet']));
         }
         else
         {
             $wgOut->setPageTitle(wfMsg('hacl_selftest_title'));
-            $wgOut->addWikiText(wfMsgNoTrans('hacl_selftest_info'));
+            $wgOut->addWikiText(wfMsgNoTrans('hacl_selftest_info', $wgTitle->getFullUrl(array('do' => 1, 'quiet' => 1))));
             $wgOut->addHTML('<iframe style="border-width: 0; width: 100%; height: 500px" src="'.$wgTitle->getLocalUrl(array('do' => 1)).'"></iframe>');
         }
     }
@@ -85,11 +85,23 @@ class IntraACLSelftestSpecial extends SpecialPage
         return $pages;
     }
 
-    function doChecks()
+    /**
+     * Do automatic tests and print results without WebOutput
+     *
+     * @param boolean $quiet If true, only errors and only in plaintext will be printed
+     */
+    function doChecks($quiet = false)
     {
         // Fill Firefox buffer so incremental rendering kicks in
-        print str_repeat(" ", 1024);
-        print "<html><body><ul>";
+        if (!$quiet)
+        {
+            print str_repeat(" ", 1024);
+            print "<html><body><ul>";
+        }
+        else
+        {
+            header("Content-Type: text/plain");
+        }
         $pages = self::loadConfig();
         foreach ($pages as $p)
         {
@@ -112,14 +124,27 @@ class IntraACLSelftestSpecial extends SpecialPage
                 $status = $e->getMessage();
                 $error = true;
             }
-            $status = $status ? ' - <span style="color: '.($error ? 'red' : 'green').'">'.$status.'</span>' : '';
-            $error = '<span style="color: '.($error ? 'red' : 'green').'">'.($error ? '[ NOT OK ]' : '[ OK ]').'</span> ';
+            $errmsg = ($error ? '[ NOT OK ]' : '[ OK ]');
             $msg = @$p[4] ? $p[4] : implode(' | ', $p);
-            print '<li>'.$error.htmlspecialchars($msg).$status."</li>\n";
+            if (!$quiet)
+            {
+                $status = $status ? ' - <span style="color: '.($error ? 'red' : 'green').'">'.$status.'</span>' : '';
+                $errmsg = '<span style="color: '.($error ? 'red' : 'green').'">'.$errmsg.'</span> ';
+                print '<li>'.$errmsg.htmlspecialchars($msg).$status."</li>\n";
+            }
+            elseif ($error)
+            {
+                // When $quiet is true, print only errors and only in plain text
+                $status = $status ? " - $status" : '';
+                print $errmsg.$msg.$status."\n";
+            }
             flush();
             ob_flush();
         }
-        print "</ul></body></html>";
+        if (!$quiet)
+        {
+            print "</ul></body></html>";
+        }
     }
 
     function authCookie($username)
