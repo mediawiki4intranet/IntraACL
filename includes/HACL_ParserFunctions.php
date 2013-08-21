@@ -612,9 +612,12 @@ class HACLParserFunctions
                 }
                 else
                 {
-                    // Article is already deleted somehow, but SD remains (DB inconsistency), delete it
+                    // SD article is already deleted somehow, but SD remains (DB inconsistency), delete it
                     if ($sd = HACLSecurityDescriptor::newFromID($sd, false))
+                    {
                         $sd->delete();
+                        wfDebug("DB INCONSISTENCY: $t already deleted, but corresponding SD remained, removing.\n");
+                    }
                 }
             }
         }

@@ -332,7 +332,6 @@ class HACLGroup
         }
 
         // Sysops and bureaucrats can modify the SD
-        $user = User::newFromId($userID);
         $groups = $user->getGroups();
         if (in_array('sysop', $groups) || in_array('bureaucrat', $groups)) {
             return true;

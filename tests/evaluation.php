@@ -45,6 +45,7 @@ class IntraACLEvaluationTester extends Maintenance
         $this->addOption('evaluation-log', 'Enable very verbose IntraACL evaluation logs for all tests', false, false);
         $this->addOption('stop', 'Stop on first failed test', false, false);
         $this->addOption('only-failures', 'Only print test failure results', false, false);
+        $this->addOption('admin-user', 'Administrator username (WikiSysop by default)', false, false);
     }
 
     function execute()
@@ -53,6 +54,15 @@ class IntraACLEvaluationTester extends Maintenance
         {
             global $wgRequest;
             $wgRequest->setVal('hacllog', 'true');
+        }
+        // Override user (we should run under admin)
+        global $wgUser;
+        $username = $this->getOption('admin-user', 'WikiSysop');
+        $wgUser = User::newFromName($username);
+        if (!$wgUser->getId())
+        {
+            print "User $username does not exist, please specify administrator username using --admin-user option.\n";
+            exit;
         }
         $this->onlyFailures = $this->getOption('only-failures', false);
         $this->stopOnFailure = $this->getOption('stop', false);
@@ -115,7 +125,18 @@ class IntraACLEvaluationTester extends Maintenance
         $this->test();
         $nt = Title::makeTitle(NS_PROJECT, $this->title->getText());
         $ot = $this->title;
-        $ot->moveTo($nt);
+        if ($nt->exists())
+        {
+            $a = new Article($nt);
+            $a->doDeleteArticle('-');
+        }
+        $err = $ot->moveTo($nt);
+        if ($err !== true)
+        {
+            print "Error moving $ot to $nt: \n";
+            var_dump($err);
+            exit;
+        }
         $this->title = $nt;
         $acl = Title::newFromText("ACL:Namespace/".$wgCanonicalNamespaceNames[NS_PROJECT]);
         $this->testACLs($acl, 'ns');
@@ -126,7 +147,7 @@ class IntraACLEvaluationTester extends Maintenance
     /**
      * 1) Run tests without category ACL
      * 2) Add Category:C1 to page
-     * 3) Run tests with Category:C1 ACL, with category2ACL() added in loop queue
+     * 3) Run tests with Category:C1 ACL
      * 4) Create Category:SubC1 in Category:C1
      * 5) Run tests with Category:C1 ACL
      * 6) Remove Category:C1 and Category:SubC1
@@ -141,7 +162,6 @@ class IntraACLEvaluationTester extends Maintenance
         $cat1->doEdit("Test category 1", '-', EDIT_FORCE_BOT);
         $acl1 = Title::newFromText("ACL:Category/C1");
         $this->testACLs($acl1, 'cat.1');
-        array_pop($this->queue);
         $art = new WikiPage($this->title);
         $art->doEdit(preg_replace('/\[\[Category:[^\]]*\]\]/is', '', $art->getText())." [[Category:SubC1]]", '-', EDIT_FORCE_BOT);
         $subc1 = new WikiPage(Title::makeTitle(NS_CATEGORY, "SubC1"));
@@ -151,6 +171,7 @@ class IntraACLEvaluationTester extends Maintenance
         $art->doEdit(preg_replace('/\[\[Category:[^\]]*\]\]/is', '', $art->getText()), '-', EDIT_FORCE_BOT);
         $cat1->doDeleteArticle('-');
         $subc1->doDeleteArticle('-');
+        array_pop($this->queue);
     }
 
     /**
@@ -342,7 +363,7 @@ class IntraACLEvaluationTester extends Maintenance
                 print "  No applied ACLs\n";
             }
             wfGetDB(DB_MASTER)->commit();
-            if (--$this->stopOnFailure <= 0)
+            if ($this->stopOnFailure)
             {
                 exit;
             }
