@@ -52,6 +52,9 @@ class IntraACLEvaluationTester
         print "Ran ".($this->numOk + $this->numFailed)." tests, {$this->numOk} OK, {$this->numFailed} failed\n";
     }
 
+    /**
+     * Continue to the next loop of tests, or just to checkAccess when no more loops is available
+     */
     protected function test()
     {
         if ($this->queue)
@@ -66,6 +69,10 @@ class IntraACLEvaluationTester
         }
     }
 
+    /**
+     * 1) Run tests without page ACL
+     * 2) Run tests with page ACL
+     */
     protected function pageACL()
     {
         $this->title = Title::newFromText("ACLTestPage");
@@ -80,6 +87,12 @@ class IntraACLEvaluationTester
         $art->doDeleteArticle('-');
     }
 
+    /**
+     * 1) Run tests without namespace ACL
+     * 2) Move page into Project namespace
+     * 3) Run tests with Project namespace ACL
+     * 4) Move page back
+     */
     protected function namespaceACL()
     {
         global $wgCanonicalNamespaceNames;
@@ -94,6 +107,14 @@ class IntraACLEvaluationTester
         $this->title = $ot;
     }
 
+    /**
+     * 1) Run tests without category ACL
+     * 2) Add Category:C1 to page
+     * 3) Run tests with Category:C1 ACL, with category2ACL() added in loop queue
+     * 4) Create Category:SubC1 in Category:C1
+     * 5) Run tests with Category:C1 ACL
+     * 6) Remove Category:C1 and Category:SubC1
+     */
     protected function categoryACL()
     {
         $this->test();
@@ -113,12 +134,18 @@ class IntraACLEvaluationTester
         $art = new WikiPage($this->title);
         $art->doEdit(preg_replace('/\[\[Category:[^\]]*\]\]/is', '', $art->getText()), '-', EDIT_FORCE_BOT);
         $cat1->doDeleteArticle('-');
-        (new WikiPage($acl1))->doDeleteArticle('-');
         $subc1->doDeleteArticle('-');
     }
 
+    /**
+     * 1) Run tests without second category ACL
+     * 2) Add Category:C2 to page
+     * 3) Run tests with Category:C2 ACL
+     * 4) Remove Category:C2 from page and remove category C2
+     */
     protected function category2ACL()
     {
+        $this->test();
         $art = new WikiPage($this->title);
         $art->doEdit($art->getText()." [[Category:C2]]", '-', EDIT_FORCE_BOT);
         $cat2 = new WikiPage(Title::makeTitle(NS_CATEGORY, "C2"));
@@ -127,58 +154,49 @@ class IntraACLEvaluationTester
         $this->testACLs($acl2, 'cat.2');
         $art = new WikiPage($this->title);
         $art->doEdit(str_replace(" [[Category:C2]]", '', $art->getText()), '-', EDIT_FORCE_BOT);
-        $this->test();
         $cat2->doDeleteArticle('-');
-        (new WikiPage($acl2))->doDeleteArticle('-');
     }
 
-    protected function assertReadable($user, $readable)
+    /**
+     * 1) Run tests with $acl granted to a unique user
+     * 2) Run tests with $acl granted to the same user through a group
+     * 3) Run tests with $acl granted to the same user through an indirect group inclusion
+     * 4) Delete $acl and run tests without it
+     */
+    protected function testACLs($acl, $priority)
     {
-        $result = false;
-        if (class_exists('IACLEvaluator'))
+        $user = $this->makeUser($acl->getPrefixedText());
+        $username = $user->getName();
+        $g = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/G_$username"));
+        $g->doEdit("{{#member: members = User:$username}}", '-', EDIT_FORCE_BOT);
+        $gg = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/GG_$username"));
+        $gg->doEdit("{{#member: members = Group/G_$username}}", '-', EDIT_FORCE_BOT);
+        $this->acls[$priority] = array(
+            'title' => $acl,
+            'users' => array($username => $user),
+        );
+        $options = array(
+            "{{#access: assigned to = User:$username | actions = *}}",
+            "{{#access: assigned to = Group/G_$username | actions = *}}",
+            "{{#access: assigned to = Group/GG_$username | actions = *}}",
+        );
+        foreach ($options as $opt)
         {
-            IACLEvaluator::userCan($this->title, $user, 'read', $result);
+            (new Article($acl))->doEdit($opt, '-', EDIT_FORCE_BOT);
+            $this->test();
         }
-        else
-        {
-            HACLEvaluator::userCan($this->title, $user, 'read', $result);
-        }
-        $ok = ($readable == $result);
-        if ($ok)
-        {
-            print "[OK] ";
-            $this->numOk++;
-        }
-        else
-        {
-            print "[FAILED] ";
-            $this->numFailed++;
-        }
-        print $user->getName().($readable ? " can read " : " cannot read ").$this->title."\n";
-        if (!$ok)
-        {
-            global $haclgCombineMode, $haclgOpenWikiAccess;
-            $art = new WikiPage($this->title);
-            print "  Details:\n    Open Wiki Access = ".($haclgOpenWikiAccess ? 'true' : 'false')."\n";
-            print "    Combine Mode = $haclgCombineMode\n";
-            print "    Article content = ".trim($art->getText())."\n";
-            if ($this->acls)
-            {
-                print "  Applied ACLs:\n";
-                foreach ($this->acls as $key => $info)
-                {
-                    print '    '.$info['title'].' '.trim((new WikiPage($info['title']))->getText())."\n";
-                }
-            }
-            else
-            {
-                print "  No applied ACLs\n";
-            }
-            wfGetDB(DB_MASTER)->commit();
-            exit;
-        }
+        $gg->doDeleteArticle('-');
+        $g->doDeleteArticle('-');
+        (new Article($acl))->doDeleteArticle('-');
+        unset($this->acls[$priority]);
+        $this->test();
     }
 
+    /**
+     * Last loop in the testsuite - determines which users should and which users
+     * shouldn't have access to $this->title with current applied ACLs in different
+     * override modes and calls assertReadable().
+     */
     protected function checkAccess()
     {
         global $haclgCombineMode, $haclgOpenWikiAccess;
@@ -251,6 +269,64 @@ class IntraACLEvaluationTester
         }
     }
 
+    /**
+     * Run a single test - assert $this->title is/isn't readable (depending on $readable)
+     * by $user, report status and failure details, if any.
+     */
+    protected function assertReadable($user, $readable)
+    {
+        global $haclgCombineMode, $haclgOpenWikiAccess;
+        $info = array_merge(array(
+            ($haclgOpenWikiAccess ? 'OPEN' : 'CLOSED'), $haclgCombineMode,
+        ), array_keys($this->acls));
+        $result = false;
+        if (class_exists('IACLEvaluator'))
+        {
+            IACLEvaluator::userCan($this->title, $user, 'read', $result);
+        }
+        else
+        {
+            HACLEvaluator::userCan($this->title, $user, 'read', $result);
+        }
+        $ok = ($readable == $result);
+        if ($ok)
+        {
+            print "[OK] ";
+            $this->numOk++;
+        }
+        else
+        {
+            print "[FAILED] ";
+            $this->numFailed++;
+        }
+        print '['.implode(' ', $info).'] '.$user->getName().($readable ? " can read " : " cannot read ").$this->title."\n";
+        if (!$ok)
+        {
+            global $haclgCombineMode, $haclgOpenWikiAccess;
+            $art = new WikiPage($this->title);
+            print "  Details:\n    Open Wiki Access = ".($haclgOpenWikiAccess ? 'true' : 'false')."\n";
+            print "    Combine Mode = $haclgCombineMode\n";
+            print "    Article content = ".trim($art->getText())."\n";
+            if ($this->acls)
+            {
+                print "  Applied ACLs:\n";
+                foreach ($this->acls as $key => $info)
+                {
+                    print '    '.$info['title'].' '.trim((new WikiPage($info['title']))->getText())."\n";
+                }
+            }
+            else
+            {
+                print "  No applied ACLs\n";
+            }
+            wfGetDB(DB_MASTER)->commit();
+            exit;
+        }
+    }
+
+    /**
+     * Make a user for testing ACL $key - the same user is returned for the same $key
+     */
     protected function makeUser($key)
     {
         if (!isset($this->aclUsers[$key]))
@@ -270,34 +346,9 @@ class IntraACLEvaluationTester
         return $this->aclUsers[$key];
     }
 
-    protected function testACLs($acl, $priority)
-    {
-        $user = $this->makeUser($acl->getPrefixedText());
-        $username = $user->getName();
-        $g = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/G_$username"));
-        $g->doEdit("{{#member: members = User:$username}}", '-', EDIT_FORCE_BOT);
-        $gg = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/GG_$username"));
-        $gg->doEdit("{{#member: members = Group/G_$username}}", '-', EDIT_FORCE_BOT);
-        $this->acls[$priority] = array(
-            'title' => $acl,
-            'users' => array($username => $user),
-        );
-        $options = array(
-            "{{#access: assigned to = User:$username | actions = *}}",
-            "{{#access: assigned to = Group/G_$username | actions = *}}",
-            "{{#access: assigned to = Group/GG_$username | actions = *}}",
-        );
-        foreach ($options as $opt)
-        {
-            (new Article($acl))->doEdit($opt, '-', EDIT_FORCE_BOT);
-            $this->test();
-        }
-        $gg->doDeleteArticle('-');
-        $g->doDeleteArticle('-');
-        unset($this->acls[$priority]);
-        $this->test();
-    }
-
+    /**
+     * Delete all users created during test run
+     */
     protected function cleanupUsers()
     {
         foreach ($this->aclUsers as $u)
@@ -306,6 +357,9 @@ class IntraACLEvaluationTester
         }
     }
 
+    /**
+     * Delete user $objOldUser
+     */
     protected function deleteUser($objOldUser)
     {
         $dbw = wfGetDB(DB_MASTER);
