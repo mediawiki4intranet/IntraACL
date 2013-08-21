@@ -27,14 +27,9 @@
  */
 
 $dir = dirname($_SERVER['PHP_SELF']);
-require_once "$dir/../../../maintenance/commandLine.inc";
+require_once "$dir/../../../maintenance/Maintenance.php";
 
-//$wgRequest->setVal('hacllog', 'true');
-
-$tester = new IntraACLEvaluationTester();
-$tester->runTests();
-
-class IntraACLEvaluationTester
+class IntraACLEvaluationTester extends Maintenance
 {
     var $title;
     var $acls = array();
@@ -42,8 +37,25 @@ class IntraACLEvaluationTester
     var $queue = array('categoryACL', 'namespaceACL', 'pageACL');
     var $numOk, $numFailed;
 
-    function runTests()
+    var $stopOnFailure = false;
+
+    function __construct()
     {
+        parent::__construct();
+        $this->addOption('evaluation-log', 'Enable very verbose IntraACL evaluation logs for all tests', false, false);
+        $this->addOption('stop', 'Stop on first failed test', false, false);
+        $this->addOption('only-failures', 'Only print test failure results', false, false);
+    }
+
+    function execute()
+    {
+        if ($this->getOption('evaluation-log', false))
+        {
+            global $wgRequest;
+            $wgRequest->setVal('hacllog', 'true');
+        }
+        $this->onlyFailures = $this->getOption('only-failures', false);
+        $this->stopOnFailure = $this->getOption('stop', false);
         $this->numOk = $this->numFailed = 0;
         print "Starting test suite\n";
         $this->makeUser("-");
@@ -79,10 +91,14 @@ class IntraACLEvaluationTester
         $this->acls = array();
         $art = new WikiPage($this->title);
         $art->doEdit('Test page', '-', EDIT_FORCE_BOT);
-        $this->test();
         $acl = Title::newFromText("ACL:Page/".$this->title);
+        if ($acl->exists())
+        {
+            (new WikiPage($acl))->doDeleteArticle('-');
+            $acl = Title::newFromText("ACL:Page/".$this->title);
+        }
+        $this->test();
         $this->testACLs($acl, 'page');
-        (new WikiPage($acl))->doDeleteArticle('-');
         $art = new WikiPage($this->title);
         $art->doDeleteArticle('-');
     }
@@ -185,7 +201,9 @@ class IntraACLEvaluationTester
             (new Article($acl))->doEdit($opt, '-', EDIT_FORCE_BOT);
             $this->test();
         }
+        $gg = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/GG_$username"));
         $gg->doDeleteArticle('-');
+        $g = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/G_$username"));
         $g->doDeleteArticle('-');
         (new Article($acl))->doDeleteArticle('-');
         unset($this->acls[$priority]);
@@ -291,15 +309,19 @@ class IntraACLEvaluationTester
         $ok = ($readable == $result);
         if ($ok)
         {
-            print "[OK] ";
+            $str = "[OK] ";
             $this->numOk++;
         }
         else
         {
-            print "[FAILED] ";
+            $str = "[FAILED] ";
             $this->numFailed++;
         }
-        print '['.implode(' ', $info).'] '.$user->getName().($readable ? " can read " : " cannot read ").$this->title."\n";
+        $str .= '['.implode(' ', $info).'] '.$user->getName().($readable ? " can read " : " cannot read ").$this->title."\n";
+        if (!$ok || !$this->onlyFailures)
+        {
+            print $str;
+        }
         if (!$ok)
         {
             global $haclgCombineMode, $haclgOpenWikiAccess;
@@ -320,7 +342,10 @@ class IntraACLEvaluationTester
                 print "  No applied ACLs\n";
             }
             wfGetDB(DB_MASTER)->commit();
-            exit;
+            if (--$this->stopOnFailure <= 0)
+            {
+                exit;
+            }
         }
     }
 
@@ -372,3 +397,6 @@ class IntraACLEvaluationTester
         return true;
     }
 }
+
+$maintClass = "IntraACLEvaluationTester";
+require_once(RUN_MAINTENANCE_IF_MAIN);
