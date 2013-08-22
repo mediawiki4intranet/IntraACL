@@ -23,6 +23,12 @@
 /**
  * Right evaluation tests.
  *
+ * TODO:
+ * 1) test * and # grants
+ * 2) test different actions (read, edit, delete, move, )
+ * 3) fix shrink mode tests - now there's a single unique user in
+ *    each SD so there's no intersection to test
+ *
  * @author Vitaliy Filippov
  */
 
@@ -130,7 +136,7 @@ class IntraACLEvaluationTester extends Maintenance
             $a = new Article($nt);
             $a->doDeleteArticle('-');
         }
-        $err = $ot->moveTo($nt);
+        $err = $ot->moveTo($nt, true, '-', false);
         if ($err !== true)
         {
             print "Error moving $ot to $nt: \n";
@@ -140,7 +146,13 @@ class IntraACLEvaluationTester extends Maintenance
         $this->title = $nt;
         $acl = Title::newFromText("ACL:Namespace/".$wgCanonicalNamespaceNames[NS_PROJECT]);
         $this->testACLs($acl, 'ns');
-        $nt->moveTo($ot);
+        $err = $nt->moveTo($ot, true, '-', false);
+        if ($err !== true)
+        {
+            print "Error moving $ot to $nt: \n";
+            var_dump($err);
+            exit;
+        }
         $this->title = $ot;
     }
 

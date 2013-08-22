@@ -1341,7 +1341,8 @@ class HACLParserFunctions
     /**
      * Moves the SD content from $from to $to, and overwrites
      * the source article with single PR inclusion of target to protect
-     * old revisions of source article.
+     * old revisions of source article (needed if there's a redirect left).
+     *
      * We must use Title::moveTo() here to preserve the ID of old SD...
      *
      * @param string $from
@@ -1358,8 +1359,14 @@ class HACLParserFunctions
         if (!is_object($to))
             $to = Title::newFromText($to);
         haclfRestoreTitlePatch($etc);
-
-        $from->moveTo($to, false, wfMsg('hacl_move_acl'), true);
+        if ($to->exists() && $to->userCan('delete'))
+        {
+            // FIXME report about "permission denied to overwrite $to"
+            (new Article($to))->doDeleteArticle(wfMsg('hacl_move_acl'));
+        }
+        $from->moveTo($to, false, wfMsg('hacl_move_acl'), false);
+        // FIXME if there's no redirect there's also no need for PR inclusion
+        // FIXME also we should revive the SD for a non-existing PE when that PE is created again
         $fromA = new Article($from);
         $fromA->doEdit('{{#predefined right:rights='.$to->getPrefixedText().'}}', wfMsg('hacl_move_acl_include'));
     }
