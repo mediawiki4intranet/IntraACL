@@ -1362,7 +1362,8 @@ class HACLParserFunctions
         if ($to->exists() && $to->userCan('delete'))
         {
             // FIXME report about "permission denied to overwrite $to"
-            (new Article($to))->doDeleteArticle(wfMsg('hacl_move_acl'));
+            $page = new Article($to);
+            $page->doDeleteArticle(wfMsg('hacl_move_acl'));
         }
         $from->moveTo($to, false, wfMsg('hacl_move_acl'), false);
         // FIXME if there's no redirect there's also no need for PR inclusion
