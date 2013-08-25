@@ -793,7 +793,7 @@ index 6c40148..6d2c270 100644
  		}
  		$out .= "</ul>\n";
 diff --git a/includes/specials/SpecialUserlogin.php b/includes/specials/SpecialUserlogin.php
-index eef6691..f9982c6 100644
+index eef6691..edcc790 100644
 --- a/includes/specials/SpecialUserlogin.php
 +++ b/includes/specials/SpecialUserlogin.php
 @@ -1000,7 +1000,9 @@ class LoginForm extends SpecialPage {
@@ -801,9 +801,9 @@ index eef6691..f9982c6 100644
  
  		$returnToTitle = Title::newFromText( $returnTo );
 -		if ( !$returnToTitle ) {
-+		/*patch|2011-04-05|IntraACL|start*/
-+		if ( !$titleObj instanceof Title || method_exists( $titleObj, 'userCanReadEx' ) && !$titleObj->userCanReadEx() ) {
-+		/*patch|2011-04-05|IntraACL|end*/
++		// <IntraACL>
++		if ( !$returnToTitle || !$returnToTitle->userCanRead() ) {
++		// </IntraACL>
  			$returnToTitle = Title::newMainPage();
  		}
  
