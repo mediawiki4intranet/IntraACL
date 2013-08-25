@@ -168,7 +168,7 @@ index e1f24fa..563bf3e 100644
  				if ( $line ) {
  					$attr = ( isset( $row->usepatrol ) && $row->usepatrol && $row->patrolled == 0 )
 diff --git a/includes/Title.php b/includes/Title.php
-index ca66aae..40cc845 100644
+index ca66aae..c21ed2f 100644
 --- a/includes/Title.php
 +++ b/includes/Title.php
 @@ -105,7 +105,9 @@ class Title {
@@ -204,18 +204,17 @@ index ca66aae..40cc845 100644
  		} else {
  			return null;
  		}
-@@ -333,7 +339,9 @@ class Title {
+@@ -333,6 +339,9 @@ class Title {
  		$t->mUrlform = wfUrlencode( $t->mDbkeyform );
  		$t->mTextform = str_replace( '_', ' ', $title );
  		$t->mContentModel = false; # initialized lazily in getContentModel()
--		return $t;
 +		// <IntraACL>
-+		return $t->checkAccessControl();
++		$t = $t->checkAccessControl();
 +		// </IntraACL>
+ 		return $t;
  	}
  
- 	/**
-@@ -355,7 +363,9 @@ class Title {
+@@ -355,7 +364,9 @@ class Title {
  		$t = new Title();
  		$t->mDbkeyform = Title::makeName( $ns, $title, $fragment, $interwiki );
  		if ( $t->secureAndSplit() ) {
@@ -226,7 +225,7 @@ index ca66aae..40cc845 100644
  		} else {
  			return null;
  		}
-@@ -4822,4 +4832,102 @@ class Title {
+@@ -4822,4 +4833,102 @@ class Title {
  		}
  		return $notices;
  	}
@@ -721,7 +720,7 @@ index ebb3021..4ae90d4 100644
  			$lang->userTimeAndDate( $result->rc_timestamp, $this->getUser() )
  		);
 diff --git a/includes/specials/SpecialPrefixindex.php b/includes/specials/SpecialPrefixindex.php
-index 6affa73..5bc177a 100644
+index 6affa73..db3515b 100644
 --- a/includes/specials/SpecialPrefixindex.php
 +++ b/includes/specials/SpecialPrefixindex.php
 @@ -192,6 +192,11 @@ class SpecialPrefixindex extends SpecialAllpages {
@@ -773,7 +772,7 @@ index 008678f..ce5bf38 100644
  			# Check if the page has been updated since the last visit
  			if( $wgShowUpdatedMarker && !empty( $obj->wl_notificationtimestamp ) ) {
 diff --git a/includes/specials/SpecialSearch.php b/includes/specials/SpecialSearch.php
-index 6c40148..6d2c270 100644
+index 6c40148..6995cf7 100644
 --- a/includes/specials/SpecialSearch.php
 +++ b/includes/specials/SpecialSearch.php
 @@ -521,7 +521,14 @@ class SpecialSearch extends SpecialPage {
@@ -824,7 +823,7 @@ index c7f122b..208a983 100644
  
  			if ( $wgShowUpdatedMarker ) {
 diff --git a/includes/specials/SpecialWhatlinkshere.php b/includes/specials/SpecialWhatlinkshere.php
-index cb3e985..d46d3bd 100644
+index cb3e985..3b2829e 100644
 --- a/includes/specials/SpecialWhatlinkshere.php
 +++ b/includes/specials/SpecialWhatlinkshere.php
 @@ -257,7 +257,11 @@ class SpecialWhatLinksHere extends SpecialPage {
