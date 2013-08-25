@@ -75,7 +75,6 @@ class IntraACLSpecial extends SpecialPage
         $q = $wgRequest->getValues();
         if ($wgUser->isLoggedIn())
         {
-            wfLoadExtensionMessages('IntraACL');
             $wgOut->setPageTitle(wfMsg('hacl_special_page'));
             $groups = $wgUser->getGroups();
             $this->isAdmin = in_array('bureaucrat', $groups) || in_array('sysop', $groups);

@@ -175,8 +175,6 @@ function haclfSetupExtension()
             $haclgUnprotectableNamespaceIds[$ns] = true;
     }
 
-    wfLoadExtensionMessages('IntraACL');
-
     $wgHooks['GetPreferences'][] = 'HACLToolbar::GetPreferences';
 
     //-- includes for Ajax calls --
