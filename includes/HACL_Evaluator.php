@@ -415,14 +415,14 @@ class HACLEvaluator
         {
             // Group
             $group = IACLStorage::get('Groups')->getGroupByID($t->getArticleID());
-            return $group ? $group->userCanModify($userID) : true;
+            return $group ? $group->userCanModify($user) : true;
         }
         else
         {
             // SD / right template
             $sd = IACLStorage::get('SD')->getSDByID($t->getArticleID());
             if ($sd)
-                return $sd->userCanModify($userID);
+                return $sd->userCanModify($user);
             else
             {
                 list($name, $type) = HACLSecurityDescriptor::nameOfPE($t->getText());
