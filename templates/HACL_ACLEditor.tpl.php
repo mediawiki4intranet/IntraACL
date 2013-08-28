@@ -68,32 +68,10 @@
 </table>
 </form>
 
-<script language="JavaScript" src="<?= $haclgHaloScriptPath ?>/scripts/exAttach.js"></script>
-<script language="JavaScript" src="<?= $haclgHaloScriptPath ?>/scripts/offsetRect.js"></script>
-<script language="JavaScript" src="<?= $haclgHaloScriptPath ?>/scripts/SHint.js"></script>
-<script language="JavaScript" src="<?= $haclgHaloScriptPath ?>/scripts/HACL_ACLEditor.js"></script>
-<script language="JavaScript" src="<?= $haclgHaloScriptPath ?>/scripts/HACL_Toolbar.js"></script>
-
-<?/* TODO: Use ResourceLoader instead of manually passing messages to JS code */?>
-
 <script language="JavaScript">
 var AE;
-exAttach(window, 'load', function()
+$(document).ready(function()
 {
-    var msg = {
-<?php foreach (explode(' ',
-        'edit_save edit_create regexp_user regexp_group'.
-        ' start_typing_user start_typing_group start_typing_page start_typing_category'.
-        ' edit_users_affected edit_groups_affected edit_no_users_affected edit_no_groups_affected'.
-        ' indirect_grant indirect_grant_all indirect_grant_reg edit_sd_exists edit_define_rights'.
-        ' edit_define_manager edit_define_tmanager edit_define_manager_np edit_ahint_all edit_ahint_manage'.
-        ' edit_ahint_template edit_ahint_read edit_ahint_edit edit_ahint_create edit_ahint_delete'.
-        ' edit_ahint_move edit_goto_group edit_lose'
-    ) as $msg)
-        print "        '$msg': '".addslashes(wfMsgNoTrans("hacl_$msg"))."',\n"; ?>
-        'NS_ACL': '<?= $wgContLang->getNsText(HACL_NS_ACL) ?>',
-        'group_prefix' : '<?= $haclgContLang->getGroupPrefix() ?>'
-    };
     var petPrefixes = {
     <?php
     $i = 0;
@@ -106,7 +84,8 @@ exAttach(window, 'load', function()
     ?>
     };
     AE = new HACLACLEditor({
-        msg: msg,
+        NS_ACL: '<?= $wgContLang->getNsText(HACL_NS_ACL) ?>',
+        group_prefix: '<?= $haclgContLang->getGroupPrefix() ?>',
         petPrefixes: petPrefixes,
         isSysop: <?= $this->isAdmin ? 1 : 0 ?>,
         initialTitle: "<?= $aclTitle ? addslashes($aclTitle->getText()) : '' ?>",

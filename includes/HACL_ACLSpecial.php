@@ -454,6 +454,7 @@ class IntraACLSpecial extends SpecialPage
             $msg = 'hacl_acl_create_title';
         else
             $msg = 'hacl_acl_create';
+        $wgOut->addModules('ext.intraacl.acleditor');
         $wgOut->setPageTitle(wfMsg($msg, $aclTitle ? $aclTitle->getText() : ''));
         $wgOut->addHTML($html);
     }
@@ -556,6 +557,7 @@ class IntraACLSpecial extends SpecialPage
         require(dirname(__FILE__).'/../templates/HACL_GroupEditor.tpl.php');
         $html = ob_get_contents();
         ob_end_clean();
+        $wgOut->addModules('ext.intraacl.groupeditor');
         $wgOut->setPageTitle($grpTitle ? wfMsg('hacl_grp_editing', $grpTitle->getText()) : wfMsg('hacl_grp_creating'));
         $wgOut->addHTML($html);
     }

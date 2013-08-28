@@ -53,26 +53,14 @@
 <p id="grp_define_member" class="acl_error" style="display: none"><?= wfMsg('hacl_grp_define_members') ?></p>
 <p id="grp_define_manager" class="acl_error" style="display: none"><?= wfMsg('hacl_grp_define_managers') ?></p>
 
-<script language="JavaScript" src="<?= $haclgHaloScriptPath ?>/scripts/exAttach.js"></script>
-<script language="JavaScript" src="<?= $haclgHaloScriptPath ?>/scripts/offsetRect.js"></script>
-<script language="JavaScript" src="<?= $haclgHaloScriptPath ?>/scripts/SHint.js"></script>
-<script language="JavaScript" src="<?= $haclgHaloScriptPath ?>/scripts/HACL_GroupEditor.js"></script>
-
 <script language="JavaScript">
 var GE;
-exAttach(window, 'load', function()
+$(document).ready(function()
 {
-    var msg = {
-    <?php foreach (explode(' ',
-        'grp_save grp_create no_member_user no_member_group no_manager_user no_manager_group'.
-        ' current_member_user current_member_group current_manager_user current_manager_group'.
-        ' regexp_user regexp_group start_typing_user start_typing_group indirect_through'.
-        ' edit_all edit_reg'
-    ) as $msg)
-        print "'$msg': '".addslashes(wfMsgNoTrans("hacl_$msg"))."',\n"; ?>
-'group_prefix' : '<?= $grpTitle ? $grpPrefix : $haclgContLang->getGroupPrefix() ?>',
-'NS_ACL' : '<?= $wgContLang->getNsText(HACL_NS_ACL) ?>'
-    };
-    GE = new HACLGroupEditor(msg, "<?= addslashes($grpName) ?>");
+    GE = new HACLGroupEditor(
+        '<?= $wgContLang->getNsText(HACL_NS_ACL) ?>',
+        '<?= $haclgContLang->getGroupPrefix() ?>',
+        "<?= addslashes($grpName) ?>"
+    );
 });
 </script>

@@ -1,5 +1,5 @@
 /* Change "go to selected ACL &rarr;" link */
-var haclt_change_goto = function(e, msg)
+window.haclt_change_goto = function(e, msg)
 {
   var l = document.getElementById('hacl_toolbar_goto');
   var t = e.options[e.selectedIndex].title;
@@ -8,7 +8,7 @@ var haclt_change_goto = function(e, msg)
   l.title = msg.replace('$1', t);
 };
 /* Show/hide embedded content toolbar */
-var haclt_show = function(n, s)
+window.haclt_show = function(n, s)
 {
   var emb = document.getElementById('haclt_emb');
   var t = document.getElementById('haclt_'+n+'_text');
@@ -31,7 +31,7 @@ var haclt_show = function(n, s)
     t.style.display = s ? '' : 'none';
 };
 /* Append category 'cat' text into wpTextbox1 if upl==false, or wpUploadDescription if upl==true */
-var haclt_addcat = function(cat, upl)
+window.haclt_addcat = function(cat, upl)
 {
   if (cat)
   {
@@ -44,7 +44,7 @@ var haclt_addcat = function(cat, upl)
 };
 /* Check all embedded content checkboxes
    Also shared with ACLEditor */
-var hacle_checkall = function(c, ids)
+window.hacle_checkall = function(c, ids)
 {
   c = c.checked;
   for (var id in ids)
@@ -57,7 +57,7 @@ var hacle_checkall = function(c, ids)
 };
 /* Uncheck all embedded content checkboxes
    Also shared with ACLEditor */
-var hacle_noall = function(c)
+window.hacle_noall = function(c)
 {
   c = c.checked;
   if (!c)

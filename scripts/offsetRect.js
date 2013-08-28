@@ -1,4 +1,4 @@
-function getOffset(elem) {
+window.getOffset = function(elem) {
     if (elem.getBoundingClientRect) {
         return getOffsetRect(elem)
     } else {

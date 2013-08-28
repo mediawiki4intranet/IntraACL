@@ -10,18 +10,20 @@ var htmlspecialchars = function(s)
     return s;
 };
 
-/* msg:             Localisation messages (TODO: use ResourceLoader)
+/* NS_ACL:          ACL namespace name
+   group_prefix:    Prefix for group articles
    petPrefixes:     PET_XX => prefix from haclgContLang
    isSysop:         Is current user a sysop or bureaucrat?
    initialTitle:    SD Title -> getText()
    initialType:     SD -> getPEType()
    initialExists:   Does the SD exist?
 */
-var HACLACLEditor = function(params)
+window.HACLACLEditor = function(params)
 {
-    this.msg = params.msg;
     this.pet_prefixes = params.petPrefixes;
     this.is_sysop = params.isSysop;
+    this.NS_ACL = params.NS_ACL;
+    this.group_prefix = params.group_prefix;
 
     this.group_cache = {};
     this.predef_cache = {};
@@ -36,8 +38,10 @@ var HACLACLEditor = function(params)
     this.target_hint = null;
     this.inc_hint = null;
 
-    this.regexp_user = this.msg.regexp_user ? new RegExp(this.msg.regexp_user, 'gi') : '';
-    this.regexp_group = this.msg.regexp_group ? new RegExp(this.msg.regexp_group, 'gi') : '';
+    this.regexp_user = mw.msg('hacl_regexp_user');
+    this.regexp_user = this.regexp_user ? new RegExp(this.regexp_user, 'gi') : '';
+    this.regexp_group = mw.msg('hacl_regexp_group');
+    this.regexp_group = this.regexp_group ? new RegExp(this.regexp_group, 'gi') : '';
     this.action_alias = {};
     this.all_actions = [];
 
@@ -90,7 +94,7 @@ HACLACLEditor.prototype.target_change = function(total_change)
     if (name.length)
     {
         var pn = document.getElementById('acl_pn');
-        t = this.msg.NS_ACL+':'+this.pet_prefixes[what]+'/'+name;
+        t = this.NS_ACL+':'+this.pet_prefixes[what]+'/'+name;
         pn.innerHTML = t;
         pn.href = wgScript+'/'+encodeURI(t);
         document.getElementById('wpTitle').value = t;
@@ -128,7 +132,7 @@ HACLACLEditor.prototype.ajax_sd_exists = function(request)
     var emb = document.getElementById('acl_embed');
     emb.innerHTML = data.exists && data.embedded ? data.embedded : '';
     emb.style.display = data.exists && data.embedded ? '' : 'none';
-    document.getElementById('wpSave').value = data.exists ? this.msg.edit_save : this.msg.edit_create;
+    document.getElementById('wpSave').value = data.exists ? mw.msg('hacl_edit_save') : mw.msg('hacl_edit_create');
 };
 
 // add predefined ACL inclusion
@@ -260,10 +264,10 @@ HACLACLEditor.prototype.check_errors = function()
         'namespace': 'edit_define_manager_np',
         'right': 'edit_define_tmanager'
     };
-    var msg = this.msg[managerErrorMessages[this.last_target_type]];
+    var msg = mw.msg('hacl_'+managerErrorMessages[this.last_target_type]);
     if (!dontlose)
     {
-        msg = this.msg['edit_lose'] + '<br />' + msg;
+        msg = mw.msg('hacl_edit_lose') + '<br />' + msg;
     }
     m.innerHTML = msg;
 };
@@ -476,8 +480,8 @@ HACLACLEditor.prototype.to_name_change = function()
     var goto_link = document.getElementById('hacl_to_goto');
     if (g_to && g_to.substr(0, 6) == 'Group/')
     {
-        goto_link.href = wgScript+'/'+this.msg.NS_ACL+':'+this.msg.group_prefix+'/'+encodeURI(g_to.substr(6));
-        goto_link.title = this.msg.edit_goto_group.replace('$1', g_to.substr(6));
+        goto_link.href = wgScript+'/'+this.NS_ACL+':'+this.group_prefix+'/'+encodeURI(g_to.substr(6));
+        goto_link.title = mw.msg('hacl_edit_goto_group', g_to.substr(6));
         goto_link.style.display = '';
     }
     else
@@ -499,9 +503,9 @@ HACLACLEditor.prototype.to_name_change = function()
             if (!grp && g_to.substr(0, 5) == 'User:')
             {
                 if (this.rights_direct['#'] && this.rights_direct['#'][a])
-                    grp = this.msg.indirect_grant_reg;
+                    grp = mw.msg('hacl_indirect_grant_reg');
                 else if (!grp && this.rights_direct['*'] && this.rights_direct['*'][a])
-                    grp = this.msg.indirect_grant_all;
+                    grp = mw.msg('hacl_indirect_grant_all');
             }
         }
         if (a == 'all')
@@ -522,7 +526,7 @@ HACLACLEditor.prototype.to_name_change = function()
         // - or if no grant target selected
         c.disabled = !g_to || grp;
         l.className = c.disabled ? 'act_disabled' : '';
-        c.title = l.title = (grp ? this.msg.indirect_grant.replace('$1', grp) : this.msg['edit_ahint_'+a]);
+        c.title = l.title = (grp ? mw.msg('hacl_indirect_grant', grp) : mw.msg('hacl_edit_ahint_'+a));
     }
 };
 
@@ -612,8 +616,8 @@ HACLACLEditor.prototype.get_empty_hint = function()
         }
     }
     if (!involved.length)
-        return '<div class="hacl_tt">'+this.msg['edit_no_'+tt+'s_affected']+' '+this.msg['start_typing_'+tt]+'</div>';
-    return '<div class="hacl_tt">'+this.msg['edit_'+tt+'s_affected']+'</div>'+involved.join('');
+        return '<div class="hacl_tt">'+mw.msg('hacl_edit_no_'+tt+'s_affected')+' '+mw.msg('hacl_start_typing_'+tt)+'</div>';
+    return '<div class="hacl_tt">'+mw.msg('hacl_edit_'+tt+'s_affected')+'</div>'+involved.join('');
 };
 
 HACLACLEditor.prototype.user_hint_fill = function(h, v)
@@ -645,7 +649,7 @@ HACLACLEditor.prototype.target_hint_fill = function (h, v)
         return;
     // Always show autocomplete for namespaces
     if (wv != 'namespace' && !v.length)
-        h.tip_div.innerHTML = '<div class="hacl_tt">'+this.msg['start_typing_'+wv]+'</div>';
+        h.tip_div.innerHTML = '<div class="hacl_tt">'+mw.msg('hacl_start_typing_'+wv)+'</div>';
     else
         sajax_do_call('haclAutocomplete', [ wv, v ],
             function (request) { if (request.status == 200) h.change_ajax(request.responseText) })

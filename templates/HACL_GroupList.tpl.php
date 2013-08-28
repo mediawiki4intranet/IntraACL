@@ -7,7 +7,6 @@
 
 <div style="clear: both"></div>
 
-<script language="JavaScript" src="<?= $haclgHaloScriptPath ?>/scripts/exAttach.js"></script>
 <script language="JavaScript">
 function change_filter(chk)
 {
@@ -15,5 +14,5 @@ function change_filter(chk)
         function(request) { document.getElementById('acl_list').innerHTML = request.responseText; }
     );
 }
-exAttach(window, 'load', function() { change_filter() });
+$(document).ready(function() { change_filter() });
 </script>

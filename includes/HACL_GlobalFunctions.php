@@ -57,6 +57,82 @@ function enableIntraACL()
     $wgSpecialPages['IntraACLSelftest'] = array('IntraACLSelftestSpecial');
     $wgSpecialPageGroups['IntraACLSelftest'] = 'hacl_group';
 
+    // Register resource modules
+    global $wgResourceModules;
+    $mod = array(
+        'localBasePath' => dirname(__DIR__) . '/scripts',
+        'remoteExtPath' => 'IntraACL/scripts',
+        'group' => 'ext.intraacl',
+    );
+    $wgResourceModules['ext.intraacl.acleditor'] = $mod + array(
+        'scripts' => array(
+            'exAttach.js',
+            'offsetRect.js',
+            'SHint.js',
+            'HACL_ACLEditor.js',
+            'HACL_Toolbar.js',
+        ),
+        'messages' => array(
+            'hacl_edit_save',
+            'hacl_edit_create',
+            'hacl_regexp_user',
+            'hacl_regexp_group',
+            'hacl_start_typing_user',
+            'hacl_start_typing_group',
+            'hacl_start_typing_page',
+            'hacl_start_typing_category',
+            'hacl_edit_users_affected',
+            'hacl_edit_groups_affected',
+            'hacl_edit_no_users_affected',
+            'hacl_edit_no_groups_affected',
+            'hacl_indirect_grant',
+            'hacl_indirect_grant_all',
+            'hacl_indirect_grant_reg',
+            'hacl_edit_sd_exists',
+            'hacl_edit_define_rights',
+            'hacl_edit_define_manager',
+            'hacl_edit_define_tmanager',
+            'hacl_edit_define_manager_np',
+            'hacl_edit_ahint_all',
+            'hacl_edit_ahint_manage',
+            'hacl_edit_ahint_template',
+            'hacl_edit_ahint_read',
+            'hacl_edit_ahint_edit',
+            'hacl_edit_ahint_create',
+            'hacl_edit_ahint_delete',
+            'hacl_edit_ahint_move',
+            'hacl_edit_goto_group',
+            'hacl_edit_lose',
+        ),
+    );
+    $wgResourceModules['ext.intraacl.groupeditor'] = $mod + array(
+        'scripts' => array(
+            'exAttach.js',
+            'offsetRect.js',
+            'SHint.js',
+            'HACL_GroupEditor.js',
+        ),
+        'messages' => array(
+            'hacl_grp_save',
+            'hacl_grp_create',
+            'hacl_no_member_user',
+            'hacl_no_member_group',
+            'hacl_no_manager_user',
+            'hacl_no_manager_group',
+            'hacl_current_member_user',
+            'hacl_current_member_group',
+            'hacl_current_manager_user',
+            'hacl_current_manager_group',
+            'hacl_regexp_user',
+            'hacl_regexp_group',
+            'hacl_start_typing_user',
+            'hacl_start_typing_group',
+            'hacl_indirect_through',
+            'hacl_edit_all',
+            'hacl_edit_reg',
+        ),
+    );
+
     // Set up autoloading; essentially all classes should be autoloaded!
     global $wgAutoloadClasses;
     $wgAutoloadClasses += array(

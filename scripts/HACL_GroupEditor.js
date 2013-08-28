@@ -12,18 +12,14 @@ var htmlspecialchars = function(s)
 
 // Constructor
 // Parameters:
-// msg: hash of localisation messages in form { KEY : wfMsgNoTrans('hacl_KEY') }
-//  Needs following keys:
-//   grp_save grp_create no_member_user no_member_group no_manager_user no_manager_group
-//   current_member_user current_member_group current_manager_user current_manager_group
-//   regexp_user regexp_group start_typing_user start_typing_group
-//  Plus group_prefix = $haclgContLang->mGroupPrefix
-//  Plus NS_ACL = getNsText(HACL_NS_ACL)
-// initial_group: name of group we are currently editing
-var HACLGroupEditor = function(msg, initial_group)
+//   NS_ACL:        ACL namespace name
+//   group_prefix:  Prefix for group articles
+//   initial_group: name of group we are currently editing
+window.HACLGroupEditor = function(NS_ACL, group_prefix, initial_group)
 {
     // properties
-    this.msg = msg;
+    this.NS_ACL = NS_ACL;
+    this.group_prefix = group_prefix;
     this.group_name = '';
     this.members = {};
     this.managers = {};
@@ -31,8 +27,10 @@ var HACLGroupEditor = function(msg, initial_group)
     this.ind_managers = {};
     this.group_cache = {};
     this.limit = 11;
-    this.regexp_user = msg.regexp_user ? new RegExp(msg.regexp_user, 'gi') : '';
-    this.regexp_group = msg.regexp_group ? new RegExp(msg.regexp_group, 'gi') : '';
+    this.regexp_user = mw.msg('hacl_regexp_user');
+    this.regexp_user = this.regexp_user ? new RegExp(this.regexp_user, 'gi') : '';
+    this.regexp_group = mw.msg('hacl_regexp_group');
+    this.regexp_group = this.regexp_group ? new RegExp(this.regexp_group, 'gi') : '';
 
     // initialize
     this.init(initial_group);
@@ -49,7 +47,7 @@ HACLGroupEditor.prototype.name_change = function(total_change)
     if (name.length)
     {
         var pn = document.getElementById('grp_pn');
-        var t = this.msg.NS_ACL+':'+this.msg.group_prefix+'/'+name;
+        var t = this.NS_ACL+':'+this.group_prefix+'/'+name;
         pn.innerHTML = t;
         pn.href = wgScript+'/'+t;
         document.getElementById('wpTitle').value = t;
@@ -77,7 +75,7 @@ HACLGroupEditor.prototype.exists_ajax = function(request)
         document.getElementById('grp_exists_hint').style.display = '';
     else
         document.getElementById('grp_delete_link').style.display = 'none';
-    document.getElementById('wpSave').value = exists ? this.msg.grp_save : this.msg.grp_create;
+    document.getElementById('wpSave').value = mw.msg(exists ? 'hacl_grp_save' : 'hacl_grp_create');
 };
 
 // parse PF parameter text into array of comma separated values
@@ -327,9 +325,9 @@ HACLGroupEditor.prototype.get_empty_hint = function(who, what)
         {
             var n = i, rn;
             if (i == '*')
-                rn = '*: '+this.msg.edit_all;
+                rn = '*: '+mw.msg('hacl_edit_all');
             else if (i == '#')
-                rn = '#: '+this.msg.edit_reg;
+                rn = '#: '+mw.msg('hacl_edit_reg');
             else
                 rn = n = htmlspecialchars(i.replace(/^User:|^Group\//, ''));
             current.push(
@@ -337,13 +335,13 @@ HACLGroupEditor.prototype.get_empty_hint = function(who, what)
                 '"><input style="cursor: pointer" type="checkbox" id="c'+pref+'_'+j+
                 '"'+(current_hash[i] ? ' disabled="disabled"' : '')+
                 (current_hash[i] !== undefined ? ' checked="checked"' : '')+' /> '+
-                rn+' <span id="t'+pref+'_'+j+'">'+(current_hash[i] ? this.msg.indirect_through.replace('$1', current_hash[i]) : '')+'</span></div>');
+                rn+' <span id="t'+pref+'_'+j+'">'+(current_hash[i] ? mw.msg('hacl_indirect_through', current_hash[i]) : '')+'</span></div>');
             j++;
         }
     }
     var ht = '<div class="hacl_tt">'+(current.length == 0
-        ? this.msg['no_'+who+'_'+what]+' '+this.msg['start_typing_'+what]
-        : this.msg['current_'+who+'_'+what])+'</div>'+current.join('');
+        ? mw.msg('hacl_no_'+who+'_'+what)+' '+mw.msg('hacl_start_typing_'+what)
+        : mw.msg('hacl_current_'+who+'_'+what))+'</div>'+current.join('');
     return ht;
 };
 
@@ -384,7 +382,7 @@ HACLGroupEditor.prototype.find_set = function(who, prefix, h, e)
                 chk.disabled = true;
                 c.className = 'hacl_ti hacl_dis';
                 document.getElementById('t'+c.id).innerHTML =
-                    this.msg.indirect_through.replace('$1', g);
+                    mw.msg('hacl_indirect_through', g);
             }
             else if (this[who+'s'][prefix+c.title])
             {

@@ -1,5 +1,5 @@
 var exAttachCount = 0;
-var addListener = function() {
+window.addListener = function() {
   if (window.addEventListener) {
     return function(el, type, fn) { el.addEventListener(type, fn, false); };
   } else if (window.attachEvent) {
@@ -11,7 +11,7 @@ var addListener = function() {
     return function(el, type, fn) { element['on'+type] = fn; }
   }
 }();
-var exAttachHandler = function(ev, k, i, func)
+window.exAttachHandler = function(ev, k, i, func)
 {
   if (!ev) var ev = window.event;
   var t = ev.target;
@@ -36,7 +36,7 @@ var exAttachHandler = function(ev, k, i, func)
   }
   return !st;
 };
-var exAttach = function(element, evname, func)
+window.exAttach = function(element, evname, func)
 {
   var i = ++exAttachCount;
   var k = '_exAt'+evname;

@@ -28,7 +28,6 @@
 
 <div style="clear: both"></div>
 
-<script language="JavaScript" src="<?= $haclgHaloScriptPath ?>/scripts/exAttach.js"></script>
 <script language="JavaScript">
 <?php
 $all = array();
@@ -105,5 +104,5 @@ function change_page(n)
     document.getElementById('acl_page').value = n;
     reload_acl();
 }
-exAttach(window, 'load', function() { reload_acl() });
+$(document).ready(function() { reload_acl() });
 </script>

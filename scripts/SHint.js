@@ -33,7 +33,7 @@
      offsetRect.js
    Страница: http://yourcmc.ru/wiki/SHint_JS
 */
-var SHint = function(input, style_prefix, fill_handler)
+window.SHint = function(input, style_prefix, fill_handler)
 {
     var sl = this;
     sl.style_prefix = style_prefix;
