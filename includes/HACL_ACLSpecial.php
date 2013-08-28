@@ -70,18 +70,20 @@ class IntraACLSpecial extends SpecialPage
     /* Entry point */
     public function execute($par)
     {
-        global $wgOut, $wgRequest, $wgUser, $wgTitle, $haclgHaloScriptPath;
+        global $wgOut, $wgRequest, $wgUser, $wgTitle, $haclgHaloScriptPath, $haclgSuperGroups;
         haclCheckScriptPath();
         $q = $wgRequest->getValues();
         if ($wgUser->isLoggedIn())
         {
             $wgOut->setPageTitle(wfMsg('hacl_special_page'));
             $groups = $wgUser->getGroups();
-            $this->isAdmin = in_array('bureaucrat', $groups) || in_array('sysop', $groups);
+            $this->isAdmin = true && array_intersect($groups, $haclgSuperGroups);
             if (!isset($q['action']) ||
                 !isset(self::$actions[$q['action']]) ||
                 $q['action'] == 'rightgraph' && !$this->isAdmin)
+            {
                 $q['action'] = 'acllist';
+            }
             $f = 'html_'.$q['action'];
             $wgOut->addLink(array(
                 'rel' => 'stylesheet',

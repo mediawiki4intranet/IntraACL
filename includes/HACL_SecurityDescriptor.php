@@ -669,7 +669,7 @@ class HACLSecurityDescriptor
      */
     public function userCanModify($user = false, $throwException = false)
     {
-        global $wgUser;
+        global $wgUser, $haclgSuperGroups;
         if (!$user)
             $user = $wgUser;
 
@@ -690,9 +690,9 @@ class HACLSecurityDescriptor
             if (IACLStorage::get('Groups')->hasGroupMember($groupID, $userID, HACLGroup::USER, true))
                 return true;
 
-        // Sysops and bureaucrats can modify anything
+        // Superusers can modify anything
         $groups = $user->getGroups();
-        if (in_array('sysop', $groups) || in_array('bureaucrat', $groups))
+        if (array_intersect($groups, $haclgSuperGroups))
             return true;
 
         // Check for RIGHT_MANAGE inherited from included SDs/PRs, for all except PRs

@@ -31,8 +31,6 @@ if (!defined('MEDIAWIKI'))
  * It implements the function "userCan" that is called from MW for granting or
  * denying access to articles.
  *
- * WARNING: Now, members of "bureaucrat" and "sysop" Wiki groups (not IntraACL group) can always do anything.
- *
  * @author Thomas Schweitzer
  */
 class HACLEvaluator
@@ -78,7 +76,7 @@ class HACLEvaluator
         $grant = self::userCan_Switches($title, $user, $action);
 
         // Articles with no SD are not protected if $haclgOpenWikiAccess is
-        // true. Otherwise access is denied for non-bureaucrats/sysops.
+        // true. Otherwise access is denied for non-superusers.
         if (!$grant[2])
         {
             $grant[2] = $grant[1] = $haclgOpenWikiAccess;
@@ -109,7 +107,7 @@ class HACLEvaluator
     // Returns array(final log message, access granted?, continue hook processing?)
     public static function userCan_Switches($title, $user, $action)
     {
-        global $haclgContLang;
+        global $haclgContLang, $haclgSuperGroups;
         if (!$title)
             return array("Title is <null>.", true, true);
 
@@ -118,8 +116,8 @@ class HACLEvaluator
             return array('Interwiki title', true, true);
 
         $groups = $user->getGroups();
-        if ($groups && (in_array('bureaucrat', $groups) || in_array('sysop', $groups)))
-            return array('User is a bureaucrat/sysop and can do anything.', true, true);
+        if ($groups && array_intersect($groups, $haclgSuperGroups))
+            return array('User is a superuser and can do anything.', true, true);
 
         // no access to the page "Permission denied" is allowed.
         // together with the TitlePatch which returns this page, this leads
@@ -396,6 +394,7 @@ class HACLEvaluator
      */
     public static function checkACLManager(Title $t, $user, $actionID)
     {
+        global $haclgSuperGroups;
         $userID = $user->getId();
         // No access for anonymous users to ACL pages
         if (!$userID)
@@ -406,9 +405,9 @@ class HACLEvaluator
         if ($actionID == HACLLanguage::RIGHT_READ)
             return true;
 
-        // Sysops and bureaucrats can modify all ACL definitions
+        // Superusers can modify all ACL definitions
         $groups = $user->getGroups();
-        if (in_array('sysop', $groups) || in_array('bureaucrat', $groups))
+        if (array_intersect($groups, $haclgSuperGroups))
             return true;
 
         if (self::hacl_type($t) == 'group')

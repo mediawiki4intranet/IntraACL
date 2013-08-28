@@ -100,6 +100,13 @@ $haclgNamespaceIndex = 102;
 #   I.e. page rights override category rights, which override namespace rights.
 $haclgCombineMode = HACL_COMBINE_EXTEND;
 
+# Names of MediaWiki groups members of which are IntraACL super-users
+# and can view and edit all articles, ACLs and etc. It is needed to
+# have someone who can repair incorrect right definitions created by users
+# (which is a very common scenario in the case of IntraACL because of a
+# relatively complex right model).
+$haclgSuperGroups = array('bureaucrat', 'sysop');
+
 # See also $wgWhitelistRead - IntraACL opens whitelisted pages for reading
 
 // load global functions

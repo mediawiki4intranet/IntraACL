@@ -313,6 +313,7 @@ class HACLGroup
      */
     public function userCanModify($user, $throwException = false)
     {
+        global $haclgSuperGroups;
         // Get the ID of the user who wants to add/modify the group
         list($userID, $userName) = haclfGetUserID($user);
         // Check if the user can modify the group
@@ -331,9 +332,9 @@ class HACLGroup
             }
         }
 
-        // Sysops and bureaucrats can modify the SD
+        // Superusers can modify the group
         $groups = $user->getGroups();
-        if (in_array('sysop', $groups) || in_array('bureaucrat', $groups)) {
+        if (array_intersect($groups, $haclgSuperGroups)) {
             return true;
         }
 

@@ -13,7 +13,7 @@ var htmlspecialchars = function(s)
 /* NS_ACL:          ACL namespace name
    group_prefix:    Prefix for group articles
    petPrefixes:     PET_XX => prefix from haclgContLang
-   isSysop:         Is current user a sysop or bureaucrat?
+   isSysop:         Is current user a superuser?
    initialTitle:    SD Title -> getText()
    initialType:     SD -> getPEType()
    initialExists:   Does the SD exist?

@@ -247,11 +247,11 @@ class HACLToolbar
     // Warn him about it.
     public static function warnNonReadableCreate($editpage)
     {
-        global $haclgOpenWikiAccess, $wgUser, $wgOut;
+        global $haclgOpenWikiAccess, $wgUser, $wgOut, $haclgSuperGroups;
         $g = $wgUser->getGroups();
         if (!isset($editpage->eNonReadable) &&
             !$editpage->mTitle->getArticleId() &&
-            (!$g || !in_array('bureaucrat', $g) && !in_array('sysop', $g)))
+            (!$g || !array_intersect($g, $haclgSuperGroups)))
         {
             list($r, $sd) = HACLEvaluator::checkNamespaceRight(
                 $editpage->mTitle->getNamespace(),
@@ -312,9 +312,9 @@ class HACLToolbar
     // Similar to warnNonReadableCreate, but warns about non-readable file uploads
     public static function warnNonReadableUpload($upload)
     {
-        global $haclgOpenWikiAccess, $wgUser, $wgOut;
+        global $haclgOpenWikiAccess, $wgUser, $wgOut, $haclgSuperGroups;
         $g = $wgUser->getGroups();
-        if (!$g || !in_array('bureaucrat', $g) && !in_array('sysop', $g))
+        if (!$g || !array_intersect($g, $haclgSuperGroups))
         {
             $dest = NULL;
             if ($upload->mDesiredDestName)
@@ -367,9 +367,9 @@ class HACLToolbar
     // a non-readable page without checking the "force" checkbox
     public static function attemptNonReadableCreate($editpage)
     {
-        global $haclgOpenWikiAccess, $wgUser, $wgParser, $wgRequest, $wgOut;
+        global $haclgOpenWikiAccess, $wgUser, $wgParser, $wgRequest, $wgOut, $haclgSuperGroups;
         $g = $wgUser->getGroups();
-        if (!$editpage->mTitle->getArticleId() && (!$g || !in_array('bureaucrat', $g) && !in_array('sysop', $g)))
+        if (!$editpage->mTitle->getArticleId() && (!$g || !array_intersect($g, $haclgSuperGroups)))
         {
             list($r, $sd) = HACLEvaluator::checkNamespaceRight(
                 $editpage->mTitle->getNamespace(),
