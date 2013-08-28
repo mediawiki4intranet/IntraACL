@@ -1,3 +1,5 @@
+NEEDS UPDATE FROM 1.18.6 PATCH
+
 diff --git a/includes/CategoryViewer.php b/includes/CategoryViewer.php
 index 970adb5..dc505dc 100644
 --- a/includes/CategoryViewer.php

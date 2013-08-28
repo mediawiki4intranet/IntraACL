@@ -7,6 +7,8 @@ in various parts of MediaWiki.
 
 2013-03-25 - Do not cloak page and category links in article content.
 2013-03-29 - Still register dependencies for unreadable images and templates.
+2013-07-31 - Check permissions for email notifications
+2013-08-27 - Check permissions in API
 
 diff --git a/includes/CategoryPage.php b/includes/CategoryPage.php
 index 6a0f613..53821d8 100644
@@ -485,23 +487,736 @@ index b256d84..563c3fc 100644
  	}
  
 diff --git a/includes/UserMailer.php b/includes/UserMailer.php
-index 63f5bf2..a4c2d35 100644
+index 63f5bf2..205bf34 100644
 --- a/includes/UserMailer.php
 +++ b/includes/UserMailer.php
-@@ -472,7 +472,12 @@ class EmailNotification {
+@@ -461,7 +461,10 @@ class EmailNotification {
+ 					if ( $watchingUser->getOption( 'enotifwatchlistpages' ) &&
+ 						( !$minorEdit || $watchingUser->getOption( 'enotifminoredits' ) ) &&
+ 						$watchingUser->isEmailConfirmed() &&
+-						$watchingUser->getID() != $userTalkId )
++						$watchingUser->getID() != $userTalkId &&
++// <IntraACL>
++						!$title->getUserPermissionsErrors( 'read', $watchingUser ) ) // Check IntraACL read access
++// </IntraACL>
+ 					{
+ 						$this->compose( $watchingUser );
+ 					}
+@@ -472,7 +475,12 @@ class EmailNotification {
  		global $wgUsersNotifiedOnAllChanges;
  		foreach ( $wgUsersNotifiedOnAllChanges as $name ) {
  			$user = User::newFromName( $name );
 -			$this->compose( $user );
-+/*op-patch|TS|2011-02-09|IntraACL|start*/
-+			if ( !method_exists( $title, 'userCanReadEx' ) || $title->userCanReadEx( $user ) ) {
++// <IntraACL>
++			if ( !$title->getUserPermissionsErrors( 'read', $user ) ) {
 +				// Check IntraACL read access
 +				$this->compose( $user );
 +			}
-+/*op-patch|TS|2011-02-09|end*/
++// </IntraACL>
  		}
  
  		$this->sendMails();
+diff --git a/includes/api/ApiExpandTemplates.php b/includes/api/ApiExpandTemplates.php
+index dfa520a..e9c44c8 100644
+--- a/includes/api/ApiExpandTemplates.php
++++ b/includes/api/ApiExpandTemplates.php
+@@ -51,7 +51,9 @@ class ApiExpandTemplates extends ApiBase {
+ 
+ 		// Create title for parser
+ 		$title_obj = Title::newFromText( $params['title'] );
+-		if ( !$title_obj ) {
++		// <IntraACL>
++		if ( !$title_obj || !$title_obj->userCanRead() ) {
++		// </IntraACL>
+ 			$title_obj = Title::newFromText( 'API' ); // default
+ 		}
+ 
+diff --git a/includes/api/ApiMove.php b/includes/api/ApiMove.php
+index a0b7bcb..9df7fe4 100644
+--- a/includes/api/ApiMove.php
++++ b/includes/api/ApiMove.php
+@@ -60,13 +60,17 @@ class ApiMove extends ApiBase {
+ 			}
+ 		}
+ 
+-		if ( !$fromTitle->exists() ) {
++		// <IntraACL>
++		if ( !$fromTitle->exists() || !$fromTitle->userCanRead() ) {
++		// </IntraACL>
+ 			$this->dieUsageMsg( 'notanarticle' );
+ 		}
+ 		$fromTalk = $fromTitle->getTalkPage();
+ 
+ 		$toTitle = Title::newFromText( $params['to'] );
+-		if ( !$toTitle ) {
++		// <IntraACL>
++		if ( !$toTitle || !$toTitle->userCanRead() ) {
++		// </IntraACL>
+ 			$this->dieUsageMsg( array( 'invalidtitle', $params['to'] ) );
+ 		}
+ 		$toTalk = $toTitle->getTalkPage();
+diff --git a/includes/api/ApiPageSet.php b/includes/api/ApiPageSet.php
+index 4718221..118ba3c 100644
+--- a/includes/api/ApiPageSet.php
++++ b/includes/api/ApiPageSet.php
+@@ -373,6 +373,11 @@ class ApiPageSet extends ApiQueryBase {
+ 	public function processDbRow( $row ) {
+ 		// Store Title object in various data structures
+ 		$title = Title::makeTitle( $row->page_namespace, $row->page_title );
++		// <IntraACL>
++		if ( !$title->userCanRead() ) {
++			return;
++		}
++		// </IntraACL>
+ 
+ 		$pageId = intval( $row->page_id );
+ 		$this->mAllPages[$row->page_namespace][$row->page_title] = $pageId;
+@@ -635,6 +640,11 @@ class ApiPageSet extends ApiQueryBase {
+ 			$from = $this->mPendingRedirectIDs[$rdfrom]->getPrefixedText();
+ 			$to = Title::makeTitle( $row->rd_namespace, $row->rd_title, $row->rd_fragment, $row->rd_interwiki );
+ 			unset( $this->mPendingRedirectIDs[$rdfrom] );
++			// <IntraACL>
++			if ( !$to->userCanRead() ) {
++				continue;
++			}
++			// </IntraACL>
+ 			if ( !isset( $this->mAllPages[$row->rd_namespace][$row->rd_title] ) ) {
+ 				$lb->add( $row->rd_namespace, $row->rd_title );
+ 			}
+@@ -673,7 +683,9 @@ class ApiPageSet extends ApiQueryBase {
+ 
+ 		foreach ( $titles as $title ) {
+ 			$titleObj = is_string( $title ) ? Title::newFromText( $title ) : $title;
+-			if ( !$titleObj ) {
++			// <IntraACL>
++			if ( !$titleObj || !$titleObj->userCanRead() ) {
++			// </IntraACL>
+ 				// Handle invalid titles gracefully
+ 				$this->mAllpages[0][$title] = $this->mFakePageId;
+ 				$this->mInvalidTitles[$this->mFakePageId] = $title;
+diff --git a/includes/api/ApiParse.php b/includes/api/ApiParse.php
+index a315918..941a7dd 100644
+--- a/includes/api/ApiParse.php
++++ b/includes/api/ApiParse.php
+@@ -93,6 +93,11 @@ class ApiParse extends ApiBase {
+ 				}
+ 
+ 				$titleObj = $rev->getTitle();
++				// <IntraACL>
++				if ( !$titleObj->userCanRead() ) {
++					$this->dieUsage( "You are not allowed to read this article", 'permissiondenied' );
++				}
++				// </IntraACL>
+ 
+ 				$wgTitle = $titleObj;
+ 
+@@ -153,6 +158,11 @@ class ApiParse extends ApiBase {
+ 				} elseif ( !$titleObj || !$titleObj->exists() ) {
+ 					$this->dieUsage( "The page you specified doesn't exist", 'missingtitle' );
+ 				}
++				// <IntraACL>
++				if ( !$titleObj->userCanRead() ) {
++					$this->dieUsage( "You are not allowed to read this article", 'permissiondenied' );
++				}
++				// </IntraACL>
+ 				$wgTitle = $titleObj;
+ 
+ 				$articleObj = new Article( $titleObj, 0 );
+@@ -170,7 +180,9 @@ class ApiParse extends ApiBase {
+ 			}
+ 			$this->text = $text;
+ 			$titleObj = Title::newFromText( $title );
+-			if ( !$titleObj ) {
++			// <IntraACL>
++			if ( !$titleObj || !$titleObj->userCanRead() ) {
++			// </IntraACL>
+ 				$this->dieUsageMsg( array( 'invalidtitle', $title ) );
+ 			}
+ 			$wgTitle = $titleObj;
+diff --git a/includes/api/ApiPurge.php b/includes/api/ApiPurge.php
+index ac5f020..72dc458 100644
+--- a/includes/api/ApiPurge.php
++++ b/includes/api/ApiPurge.php
+@@ -56,7 +56,9 @@ class ApiPurge extends ApiBase {
+ 		foreach ( $params['titles'] as $t ) {
+ 			$r = array();
+ 			$title = Title::newFromText( $t );
+-			if ( !$title instanceof Title ) {
++			// <IntraACL>
++			if ( !$title instanceof Title || !$title->userCanRead() ) {
++			// </IntraACL>
+ 				$r['title'] = $t;
+ 				$r['invalid'] = '';
+ 				$result[] = $r;
+diff --git a/includes/api/ApiQueryAllCategories.php b/includes/api/ApiQueryAllCategories.php
+index fc56965..f90a857 100644
+--- a/includes/api/ApiQueryAllCategories.php
++++ b/includes/api/ApiQueryAllCategories.php
+@@ -111,6 +111,11 @@ class ApiQueryAllCategories extends ApiQueryGeneratorBase {
+ 
+ 			// Normalize titles
+ 			$titleObj = Title::makeTitle( NS_CATEGORY, $row->cat_title );
++			// <IntraACL>
++			if ( !$titleObj->userCanRead() ) {
++				continue;
++			}
++			// </IntraACL>
+ 			if ( !is_null( $resultPageSet ) ) {
+ 				$pages[] = $titleObj->getPrefixedText();
+ 			} else {
+diff --git a/includes/api/ApiQueryAllLinks.php b/includes/api/ApiQueryAllLinks.php
+index 822d013..36dbf5c 100644
+--- a/includes/api/ApiQueryAllLinks.php
++++ b/includes/api/ApiQueryAllLinks.php
+@@ -135,8 +135,13 @@ class ApiQueryAllLinks extends ApiQueryGeneratorBase {
+ 				if ( $fld_ids ) {
+ 					$vals['fromid'] = intval( $row->pl_from );
+ 				}
++				$title = Title::makeTitle( $params['namespace'], $row->pl_title );
++				// <IntraACL>
++				if ( !$title->userCanRead() ) {
++					continue;
++				}
++				// </IntraACL>
+ 				if ( $fld_title ) {
+-					$title = Title::makeTitle( $params['namespace'], $row->pl_title );
+ 					ApiQueryBase::addTitleInfo( $vals, $title );
+ 				}
+ 				$fit = $result->addValue( array( 'query', $this->getModuleName() ), null, $vals );
+diff --git a/includes/api/ApiQueryAllimages.php b/includes/api/ApiQueryAllimages.php
+index f0fc39e..97cc0f0 100644
+--- a/includes/api/ApiQueryAllimages.php
++++ b/includes/api/ApiQueryAllimages.php
+@@ -160,6 +160,11 @@ class ApiQueryAllimages extends ApiQueryGeneratorBase {
+ 
+ 			if ( is_null( $resultPageSet ) ) {
+ 				$file = $repo->newFileFromRow( $row );
++				// <IntraACL>
++				if ( !$file->getTitle()->userCanRead() ) {
++					continue;
++				}
++				// </IntraACL>
+ 				$info = array_merge( array( 'name' => $row->img_name ),
+ 					ApiQueryImageInfo::getInfo( $file, $prop, $result ) );
+ 				self::addTitleInfo( $info, $file->getTitle() );
+diff --git a/includes/api/ApiQueryAllmessages.php b/includes/api/ApiQueryAllmessages.php
+index d636c61..b1af161 100644
+--- a/includes/api/ApiQueryAllmessages.php
++++ b/includes/api/ApiQueryAllmessages.php
+@@ -53,7 +53,9 @@ class ApiQueryAllmessages extends ApiQueryBase {
+ 		if ( $params['enableparser'] ) {
+ 			if ( !is_null( $params['title'] ) ) {
+ 				$title = Title::newFromText( $params['title'] );
+-				if ( !$title ) {
++				// <IntraACL>
++				if ( !$title || !$title->userCanRead() ) {
++				// </IntraACL>
+ 					$this->dieUsageMsg( array( 'invalidtitle', $params['title'] ) );
+ 				}
+ 			} else {
+diff --git a/includes/api/ApiQueryAllpages.php b/includes/api/ApiQueryAllpages.php
+index 4a21667..ef601e2 100644
+--- a/includes/api/ApiQueryAllpages.php
++++ b/includes/api/ApiQueryAllpages.php
+@@ -182,6 +182,11 @@ class ApiQueryAllpages extends ApiQueryGeneratorBase {
+ 
+ 			if ( is_null( $resultPageSet ) ) {
+ 				$title = Title::makeTitle( $row->page_namespace, $row->page_title );
++				// <IntraACL>
++				if ( !$title->userCanRead() ) {
++					continue;
++				}
++				// </IntraACL>
+ 				$vals = array(
+ 					'pageid' => intval( $row->page_id ),
+ 					'ns' => intval( $title->getNamespace() ),
+diff --git a/includes/api/ApiQueryBacklinks.php b/includes/api/ApiQueryBacklinks.php
+index 8e2639f..4193937 100644
+--- a/includes/api/ApiQueryBacklinks.php
++++ b/includes/api/ApiQueryBacklinks.php
+@@ -263,7 +263,12 @@ class ApiQueryBacklinks extends ApiQueryGeneratorBase {
+ 			} else {
+ 				$this->pageMap[$row->page_namespace][$row->page_title] = $row->page_id;
+ 				if ( $row->page_is_redirect ) {
+-					$this->redirTitles[] = Title::makeTitle( $row->page_namespace, $row->page_title );
++					$redir = Title::makeTitle( $row->page_namespace, $row->page_title );
++					// <IntraACL>
++					if ( $redir->userCanRead() ) {
++						$this->redirTitles[] = $redir;
++					}
++					// </IntraACL>
+ 				}
+ 
+ 				$resultPageSet->processDbRow( $row );
+@@ -347,6 +352,11 @@ class ApiQueryBacklinks extends ApiQueryGeneratorBase {
+ 	private function extractRowInfo( $row ) {
+ 		$this->pageMap[$row->page_namespace][$row->page_title] = $row->page_id;
+ 		$t = Title::makeTitle( $row->page_namespace, $row->page_title );
++		// <IntraACL>
++		if ( !$t->userCanRead() ) {
++			continue;
++		}
++		// </IntraACL>
+ 		$a = array( 'pageid' => intval( $row->page_id ) );
+ 		ApiQueryBase::addTitleInfo( $a, $t );
+ 		if ( $row->page_is_redirect ) {
+@@ -359,7 +369,13 @@ class ApiQueryBacklinks extends ApiQueryGeneratorBase {
+ 
+ 	private function extractRedirRowInfo( $row ) {
+ 		$a['pageid'] = intval( $row->page_id );
+-		ApiQueryBase::addTitleInfo( $a, Title::makeTitle( $row->page_namespace, $row->page_title ) );
++		$t = Title::makeTitle( $row->page_namespace, $row->page_title );
++		// <IntraACL>
++		if ( !$t->userCanRead() ) {
++			continue;
++		}
++		// </IntraACL>
++		ApiQueryBase::addTitleInfo( $a, $t );
+ 		if ( $row->page_is_redirect ) {
+ 			$a['redirect'] = '';
+ 		}
+diff --git a/includes/api/ApiQueryCategories.php b/includes/api/ApiQueryCategories.php
+index a6bca69..dd66d74 100644
+--- a/includes/api/ApiQueryCategories.php
++++ b/includes/api/ApiQueryCategories.php
+@@ -79,7 +79,7 @@ class ApiQueryCategories extends ApiQueryGeneratorBase {
+ 			$cats = array();
+ 			foreach ( $params['categories'] as $cat ) {
+ 				$title = Title::newFromText( $cat );
+-				if ( !$title || $title->getNamespace() != NS_CATEGORY ) {
++				if ( !$title || $title->getNamespace() != NS_CATEGORY || !$title->userCanRead() ) {
+ 					$this->setWarning( "``$cat'' is not a category" );
+ 				} else {
+ 					$cats[] = $title->getDBkey();
+@@ -148,6 +148,11 @@ class ApiQueryCategories extends ApiQueryGeneratorBase {
+ 				}
+ 
+ 				$title = Title::makeTitle( NS_CATEGORY, $row->cl_to );
++				// <IntraACL>
++				if ( !$title->userCanRead() ) {
++					continue;
++				}
++				// </IntraACL>
+ 				$vals = array();
+ 				ApiQueryBase::addTitleInfo( $vals, $title );
+ 				if ( isset( $prop['sortkey'] ) ) {
+diff --git a/includes/api/ApiQueryCategoryMembers.php b/includes/api/ApiQueryCategoryMembers.php
+index c916f5c..666e571 100644
+--- a/includes/api/ApiQueryCategoryMembers.php
++++ b/includes/api/ApiQueryCategoryMembers.php
+@@ -229,8 +229,13 @@ class ApiQueryCategoryMembers extends ApiQueryGeneratorBase {
+ 				if ( $fld_ids ) {
+ 					$vals['pageid'] = intval( $row->page_id );
+ 				}
++				$title = Title::makeTitle( $row->page_namespace, $row->page_title );
++				// <IntraACL>
++				if ( !$title->userCanRead() ) {
++					continue;
++				}
++				// </IntraACL>
+ 				if ( $fld_title ) {
+-					$title = Title::makeTitle( $row->page_namespace, $row->page_title );
+ 					ApiQueryBase::addTitleInfo( $vals, $title );
+ 				}
+ 				if ( $fld_sortkey ) {
+diff --git a/includes/api/ApiQueryDeletedrevs.php b/includes/api/ApiQueryDeletedrevs.php
+index e226070..e72011e 100644
+--- a/includes/api/ApiQueryDeletedrevs.php
++++ b/includes/api/ApiQueryDeletedrevs.php
+@@ -228,6 +228,11 @@ class ApiQueryDeletedrevs extends ApiQueryBase {
+ 			}
+ 
+ 			$title = Title::makeTitle( $row->ar_namespace, $row->ar_title );
++			// <IntraACL>
++			if ( !$title->userCanRead() ) {
++				continue;
++			}
++			// </IntraACL>
+ 
+ 			if ( $fld_parsedcomment ) {
+ 				$rev['parsedcomment'] = $wgUser->getSkin()->formatComment( $row->ar_comment, $title );
+diff --git a/includes/api/ApiQueryExtLinksUsage.php b/includes/api/ApiQueryExtLinksUsage.php
+index a2b2e31..8e7329f 100644
+--- a/includes/api/ApiQueryExtLinksUsage.php
++++ b/includes/api/ApiQueryExtLinksUsage.php
+@@ -121,8 +121,13 @@ class ApiQueryExtLinksUsage extends ApiQueryGeneratorBase {
+ 				if ( $fld_ids ) {
+ 					$vals['pageid'] = intval( $row->page_id );
+ 				}
++				$title = Title::makeTitle( $row->page_namespace, $row->page_title );
++				// <IntraACL>
++				if ( !$title->userCanRead() ) {
++					continue;
++				}
++				// </IntraACL>
+ 				if ( $fld_title ) {
+-					$title = Title::makeTitle( $row->page_namespace, $row->page_title );
+ 					ApiQueryBase::addTitleInfo( $vals, $title );
+ 				}
+ 				if ( $fld_url ) {
+diff --git a/includes/api/ApiQueryFilearchive.php b/includes/api/ApiQueryFilearchive.php
+index e746a6c..5fc38ed 100644
+--- a/includes/api/ApiQueryFilearchive.php
++++ b/includes/api/ApiQueryFilearchive.php
+@@ -140,6 +140,11 @@ class ApiQueryFilearchive extends ApiQueryBase {
+ 			$file = array();
+ 			$file['name'] = $row->fa_name;
+ 			$title = Title::makeTitle( NS_FILE, $row->fa_name );
++			// <IntraACL>
++			if ( !$title->userCanRead() ) {
++				continue;
++			}
++			// </IntraACL>
+ 			self::addTitleInfo( $file, $title );
+ 
+ 			if ( $fld_sha1 ) {
+diff --git a/includes/api/ApiQueryIWBacklinks.php b/includes/api/ApiQueryIWBacklinks.php
+index 8b3c8af..a746b35 100644
+--- a/includes/api/ApiQueryIWBacklinks.php
++++ b/includes/api/ApiQueryIWBacklinks.php
+@@ -122,6 +122,11 @@ class ApiQueryIWBacklinks extends ApiQueryGeneratorBase {
+ 				$entry = array( 'pageid' => $row->page_id );
+ 
+ 				$title = Title::makeTitle( $row->page_namespace, $row->page_title );
++				// <IntraACL>
++				if ( !$title->userCanRead() ) {
++					continue;
++				}
++				// </IntraACL>
+ 				ApiQueryBase::addTitleInfo( $entry, $title );
+ 
+ 				if ( $row->page_is_redirect ) {
+diff --git a/includes/api/ApiQueryImages.php b/includes/api/ApiQueryImages.php
+index 5fbdc89..923ac49 100644
+--- a/includes/api/ApiQueryImages.php
++++ b/includes/api/ApiQueryImages.php
+@@ -91,7 +91,7 @@ class ApiQueryImages extends ApiQueryGeneratorBase {
+ 			$images = array();
+ 			foreach ( $params['images'] as $img ) {
+ 				$title = Title::newFromText( $img );
+-				if ( !$title || $title->getNamespace() != NS_FILE ) {
++				if ( !$title || $title->getNamespace() != NS_FILE || !$title->userCanRead() ) {
+ 					$this->setWarning( "``$img'' is not a file" );
+ 				} else {
+ 					$images[] = $title->getDBkey();
+@@ -113,7 +113,13 @@ class ApiQueryImages extends ApiQueryGeneratorBase {
+ 					break;
+ 				}
+ 				$vals = array();
+-				ApiQueryBase::addTitleInfo( $vals, Title::makeTitle( NS_FILE, $row->il_to ) );
++				$title = Title::makeTitle( NS_FILE, $row->il_to );
++				// <IntraACL>
++				if ( !$title->userCanRead() ) {
++					continue;
++				}
++				// </IntraACL>
++				ApiQueryBase::addTitleInfo( $vals, $title );
+ 				$fit = $this->addPageSubItem( $row->il_from, $vals );
+ 				if ( !$fit ) {
+ 					$this->setContinueEnumParameter( 'continue', $row->il_from .
+diff --git a/includes/api/ApiQueryInfo.php b/includes/api/ApiQueryInfo.php
+index c2f4dc9..e9a7fbf 100644
+--- a/includes/api/ApiQueryInfo.php
++++ b/includes/api/ApiQueryInfo.php
+@@ -263,14 +263,20 @@ class ApiQueryInfo extends ApiQueryBase {
+ 						'value returned by the previous query', '_badcontinue' );
+ 			}
+ 			$conttitle = Title::makeTitleSafe( $cont[0], $cont[1] );
+-			foreach ( $this->everything as $pageid => $title ) {
+-				if ( Title::compare( $title, $conttitle ) >= 0 ) {
+-					break;
++			// <IntraACL>
++			if ( $conttitle && $conttitle->userCanRead() ) {
++			// </IntraACL>
++				foreach ( $this->everything as $pageid => $title ) {
++					if ( Title::compare( $title, $conttitle ) >= 0 ) {
++						break;
++					}
++					unset( $this->titles[$pageid] );
++					unset( $this->missing[$pageid] );
++					unset( $this->everything[$pageid] );
+ 				}
+-				unset( $this->titles[$pageid] );
+-				unset( $this->missing[$pageid] );
+-				unset( $this->everything[$pageid] );
++			// <IntraACL>
+ 			}
++			// </IntraACL>
+ 		}
+ 
+ 		$this->pageRestrictions = $pageSet->getCustomField( 'page_restrictions' );
+diff --git a/includes/api/ApiQueryLangBacklinks.php b/includes/api/ApiQueryLangBacklinks.php
+index 959ee78..53d025e 100644
+--- a/includes/api/ApiQueryLangBacklinks.php
++++ b/includes/api/ApiQueryLangBacklinks.php
+@@ -122,6 +122,11 @@ class ApiQueryLangBacklinks extends ApiQueryGeneratorBase {
+ 				$entry = array( 'pageid' => $row->page_id );
+ 
+ 				$title = Title::makeTitle( $row->page_namespace, $row->page_title );
++				// <IntraACL>
++				if ( !$title->userCanRead() ) {
++					continue;
++				}
++				// </IntraACL>
+ 				ApiQueryBase::addTitleInfo( $entry, $title );
+ 
+ 				if ( $row->page_is_redirect ) {
+diff --git a/includes/api/ApiQueryLinks.php b/includes/api/ApiQueryLinks.php
+index 55217e2..e5838f0 100644
+--- a/includes/api/ApiQueryLinks.php
++++ b/includes/api/ApiQueryLinks.php
+@@ -101,7 +101,7 @@ class ApiQueryLinks extends ApiQueryGeneratorBase {
+ 			$lb = new LinkBatch;
+ 			foreach ( $params[$this->titlesParam] as $t ) {
+ 				$title = Title::newFromText( $t );
+-				if ( !$title ) {
++				if ( !$title || !$title->userCanRead() ) {
+ 					$this->setWarning( "``$t'' is not a valid title" );
+ 				} else {
+ 					$lb->addObj( $title );
+@@ -163,7 +163,13 @@ class ApiQueryLinks extends ApiQueryGeneratorBase {
+ 					break;
+ 				}
+ 				$vals = array();
+-				ApiQueryBase::addTitleInfo( $vals, Title::makeTitle( $row->pl_namespace, $row->pl_title ) );
++				$title = Title::makeTitle( $row->pl_namespace, $row->pl_title );
++				// <IntraACL>
++				if ( !$title->userCanRead() ) {
++					continue;
++				}
++				// </IntraACL>
++				ApiQueryBase::addTitleInfo( $vals, $title );
+ 				$fit = $this->addPageSubItem( $row->pl_from, $vals );
+ 				if ( !$fit ) {
+ 					$this->setContinueEnumParameter( 'continue',
+diff --git a/includes/api/ApiQueryLogEvents.php b/includes/api/ApiQueryLogEvents.php
+index 669ab71..cb8905d 100644
+--- a/includes/api/ApiQueryLogEvents.php
++++ b/includes/api/ApiQueryLogEvents.php
+@@ -134,7 +134,9 @@ class ApiQueryLogEvents extends ApiQueryBase {
+ 		$title = $params['title'];
+ 		if ( !is_null( $title ) ) {
+ 			$titleObj = Title::newFromText( $title );
+-			if ( is_null( $titleObj ) ) {
++			// <IntraACL>
++			if ( is_null( $titleObj ) || !$titleObj->userCanRead() ) {
++			// </IntraACL>
+ 				$this->dieUsage( "Bad title value '$title'", 'param_title' );
+ 			}
+ 			$this->addWhereFld( 'log_namespace', $titleObj->getNamespace() );
+@@ -262,9 +264,12 @@ class ApiQueryLogEvents extends ApiQueryBase {
+ 			$vals['pageid'] = intval( $row->page_id );
+ 		}
+ 
+-		if ( $this->fld_title || $this->fld_parsedcomment ) {
+-			$title = Title::makeTitle( $row->log_namespace, $row->log_title );
++		$title = Title::makeTitle( $row->log_namespace, $row->log_title );
++		// <IntraACL>
++		if ( !$title->userCanRead() ) {
++			return false;
+ 		}
++		// </IntraACL>
+ 
+ 		if ( $this->fld_title ) {
+ 			if ( LogEventsList::isDeleted( $row, LogPage::DELETED_ACTION ) ) {
+diff --git a/includes/api/ApiQueryProtectedTitles.php b/includes/api/ApiQueryProtectedTitles.php
+index ff703cd..afeeac5 100644
+--- a/includes/api/ApiQueryProtectedTitles.php
++++ b/includes/api/ApiQueryProtectedTitles.php
+@@ -93,6 +93,11 @@ class ApiQueryProtectedTitles extends ApiQueryGeneratorBase {
+ 
+ 			$title = Title::makeTitle( $row->pt_namespace, $row->pt_title );
+ 			if ( is_null( $resultPageSet ) ) {
++				// <IntraACL>
++				if ( !$title->userCanRead() ) {
++					continue;
++				}
++				// </IntraACL>
+ 				$vals = array();
+ 				ApiQueryBase::addTitleInfo( $vals, $title );
+ 				if ( isset( $prop['timestamp'] ) ) {
+diff --git a/includes/api/ApiQueryQueryPage.php b/includes/api/ApiQueryQueryPage.php
+index b38df6b..68f42b6 100644
+--- a/includes/api/ApiQueryQueryPage.php
++++ b/includes/api/ApiQueryQueryPage.php
+@@ -116,6 +116,11 @@ class ApiQueryQueryPage extends ApiQueryGeneratorBase {
+ 
+ 			$title = Title::makeTitle( $row->namespace, $row->title );
+ 			if ( is_null( $resultPageSet ) ) {
++				// <IntraACL>
++				if ( !$title->userCanRead() ) {
++					continue;
++				}
++				// </IntraACL>
+ 				$data = array( 'value' => $row->value );
+ 				if ( $qp->usesTimestamps() ) {
+ 					$data['timestamp'] = wfTimestamp( TS_ISO_8601, $row->value );
+diff --git a/includes/api/ApiQueryRandom.php b/includes/api/ApiQueryRandom.php
+index dea0b0f..061ede4 100644
+--- a/includes/api/ApiQueryRandom.php
++++ b/includes/api/ApiQueryRandom.php
+@@ -85,9 +85,13 @@ class ApiQueryRandom extends ApiQueryGeneratorBase {
+ 			if ( is_null( $resultPageSet ) ) {
+ 				// Prevent duplicates
+ 				if ( !in_array( $row->page_id, $this->pageIDs ) ) {
++					$info = $this->extractRowInfo( $row )
++					if ( !$info ) {
++						continue;
++					}
+ 					$fit = $this->getResult()->addValue(
+ 							array( 'query', $this->getModuleName() ),
+-							null, $this->extractRowInfo( $row ) );
++							null, $info );
+ 					if ( !$fit ) {
+ 						// We can't really query-continue a random list.
+ 						// Return an insanely high value so
+@@ -131,6 +135,11 @@ class ApiQueryRandom extends ApiQueryGeneratorBase {
+ 
+ 	private function extractRowInfo( $row ) {
+ 		$title = Title::makeTitle( $row->page_namespace, $row->page_title );
++		// <IntraACL>
++		if ( !$title->userCanRead() ) {
++			return false;
++		}
++		// </IntraACL>
+ 		$vals = array();
+ 		$vals['id'] = intval( $row->page_id );
+ 		ApiQueryBase::addTitleInfo( $vals, $title );
+diff --git a/includes/api/ApiQueryRecentChanges.php b/includes/api/ApiQueryRecentChanges.php
+index 9ce6688..451788a 100644
+--- a/includes/api/ApiQueryRecentChanges.php
++++ b/includes/api/ApiQueryRecentChanges.php
+@@ -321,6 +321,11 @@ class ApiQueryRecentChanges extends ApiQueryGeneratorBase {
+ 
+ 		/* Determine the title of the page that has been changed. */
+ 		$title = Title::makeTitle( $row->rc_namespace, $row->rc_title );
++		// <IntraACL>
++		if ( !$title->userCanRead() ) {
++			continue;
++		}
++		// </IntraACL>
+ 
+ 		/* Our output data. */
+ 		$vals = array();
+diff --git a/includes/api/ApiQuerySearch.php b/includes/api/ApiQuerySearch.php
+index 5c133b7..948164f 100644
+--- a/includes/api/ApiQuerySearch.php
++++ b/includes/api/ApiQuerySearch.php
+@@ -132,6 +132,12 @@ class ApiQuerySearch extends ApiQueryGeneratorBase {
+ 
+ 			$title = $result->getTitle();
+ 			if ( is_null( $resultPageSet ) ) {
++				// <IntraACL>
++				if ( !$title->userCanRead() ) {
++					$result = $matches->next();
++					continue;
++				}
++				// </IntraACL>
+ 				$vals = array();
+ 				ApiQueryBase::addTitleInfo( $vals, $title );
+ 
+diff --git a/includes/api/ApiQueryUserContributions.php b/includes/api/ApiQueryUserContributions.php
+index f6a9fe4..5657349 100644
+--- a/includes/api/ApiQueryUserContributions.php
++++ b/includes/api/ApiQueryUserContributions.php
+@@ -104,6 +104,9 @@ class ApiQueryContributions extends ApiQueryBase {
+ 			}
+ 
+ 			$vals = $this->extractRowInfo( $row );
++			if ( !$vals ) {
++				continue;
++			}
+ 			$fit = $this->getResult()->addValue( array( 'query', $this->getModuleName() ), null, $vals );
+ 			if ( !$fit ) {
+ 				if ( $this->multiUserMode ) {
+@@ -291,6 +294,11 @@ class ApiQueryContributions extends ApiQueryBase {
+ 		}
+ 
+ 		$title = Title::makeTitle( $row->page_namespace, $row->page_title );
++		// <IntraACL>
++		if ( !$title || !$title->userCanRead() ) {
++			return false;
++		}
++		// </IntraACL>
+ 
+ 		if ( $this->fld_title ) {
+ 			ApiQueryBase::addTitleInfo( $vals, $title );
+diff --git a/includes/api/ApiQueryWatchlist.php b/includes/api/ApiQueryWatchlist.php
+index 77ecb90..bcb1e65 100644
+--- a/includes/api/ApiQueryWatchlist.php
++++ b/includes/api/ApiQueryWatchlist.php
+@@ -204,6 +204,11 @@ class ApiQueryWatchlist extends ApiQueryGeneratorBase {
+ 
+ 			if ( is_null( $resultPageSet ) ) {
+ 				$vals = $this->extractRowInfo( $row );
++				// <IntraACL>
++				if ( !$vals ) {
++					continue;
++				}
++				// </IntraACL>
+ 				$fit = $this->getResult()->addValue( array( 'query', $this->getModuleName() ), null, $vals );
+ 				if ( !$fit ) {
+ 					$this->setContinueEnumParameter( 'start',
+@@ -238,6 +243,11 @@ class ApiQueryWatchlist extends ApiQueryGeneratorBase {
+ 		}
+ 
+ 		$title = Title::makeTitle( $row->rc_namespace, $row->rc_title );
++		// <IntraACL>
++		if ( !$title || !$title->userCanRead() ) {
++			return false;
++		}
++		// </IntraACL>
+ 
+ 		if ( $this->fld_title ) {
+ 			ApiQueryBase::addTitleInfo( $vals, $title );
+diff --git a/includes/api/ApiQueryWatchlistRaw.php b/includes/api/ApiQueryWatchlistRaw.php
+index 126f6d8..b398222 100644
+--- a/includes/api/ApiQueryWatchlistRaw.php
++++ b/includes/api/ApiQueryWatchlistRaw.php
+@@ -110,6 +110,11 @@ class ApiQueryWatchlistRaw extends ApiQueryGeneratorBase {
+ 			$t = Title::makeTitle( $row->wl_namespace, $row->wl_title );
+ 
+ 			if ( is_null( $resultPageSet ) ) {
++				// <IntraACL>
++				if ( !$t || !$t->userCanRead() ) {
++					return false;
++				}
++				// </IntraACL>
+ 				$vals = array();
+ 				ApiQueryBase::addTitleInfo( $vals, $t );
+ 				if ( isset( $prop['changed'] ) && !is_null( $row->wl_notificationtimestamp ) )
+diff --git a/includes/diff/DifferenceEngine.php b/includes/diff/DifferenceEngine.php
+index 5902461..0319176 100644
+--- a/includes/diff/DifferenceEngine.php
++++ b/includes/diff/DifferenceEngine.php
+@@ -1010,6 +1010,13 @@ CONTROL;
+ 			return false;
+ 		}
+ 
++		// <IntraACL>
++		if ( !$this->mNewRev->getTitle()->userCanRead() ) {
++			$this->mNewRev = false;
++			return false;
++		}
++		// </IntraACL>
++
+ 		// Update the new revision ID in case it was 0 (makes life easier doing UI stuff)
+ 		$this->mNewid = $this->mNewRev->getId();
+ 
+@@ -1083,6 +1090,13 @@ CONTROL;
+ 
+ 		if ( $this->mOldRev ) {
+ 			$this->mOldPage = $this->mOldRev->getTitle();
++			// <IntraACL>
++			if ( !$this->mOldRev->getTitle()->userCanRead() ) {
++				$this->mOldid = false;
++				$this->mOldRev = false;
++				return false;
++			}
++			// </IntraACL>
+ 
+ 			$t = $wgLang->timeanddate( $this->mOldRev->getTimestamp(), true );
+ 			$dateofrev = $wgLang->date( $this->mOldRev->getTimestamp(), true );
 diff --git a/includes/parser/LinkHolderArray.php b/includes/parser/LinkHolderArray.php
 index 5418b6e..53fab05 100644
 --- a/includes/parser/LinkHolderArray.php
