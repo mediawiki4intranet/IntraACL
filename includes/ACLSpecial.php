@@ -693,15 +693,6 @@ class IntraACLSpecial extends SpecialPage
         $spec = SpecialPage::getTitleFor('IntraACL');
         $titles = IACLStorage::get('SD')->getSDPages($t, $n, NULL, $offset, $limit, $total);
         $defs = IACLDefinition::newFromTitles($titles);
-        foreach ($defs as $k => $def)
-        {
-            if ($def['single_child'])
-            {
-                $t->single_child = $defs[$k]['single_child'];
-                $name = IACLDefinition::peNameForID($t->single_child[0], $t->single_child[1]);
-                $t->single_child[2] = IACLDefinition::nameOfSD($t->single_child[0], $name);
-            }
-        }
         // Build SD data for template
         $lists = array();
         foreach ($titles as $k => $sd)

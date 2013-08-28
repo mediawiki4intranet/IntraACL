@@ -67,7 +67,7 @@ class IACLEvaluator
             self::log($msg);
         }
         // Articles with no SD are not protected if $haclgOpenWikiAccess is
-        // true. Otherwise access is denied for non-bureaucrats/sysops.
+        // true. Otherwise access is denied for non-superusers.
         if ($result < 0)
         {
             $result = $haclgOpenWikiAccess;
