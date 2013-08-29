@@ -1059,7 +1059,7 @@ index dea0b0f..061ede4 100644
  			if ( is_null( $resultPageSet ) ) {
  				// Prevent duplicates
  				if ( !in_array( $row->page_id, $this->pageIDs ) ) {
-+					$info = $this->extractRowInfo( $row )
++					$info = $this->extractRowInfo( $row );
 +					if ( !$info ) {
 +						continue;
 +					}
