@@ -170,7 +170,7 @@ class IACLEvaluator
      * Check sequence: page rights -> category rights -> namespace rights
      * Global $haclgCombineMode specifies override mode.
      */
-    public static function hasSD($title, $articleID, $userID, $actionID)
+    protected static function hasSD($title, $articleID, $userID, $actionID)
     {
         global $haclgCombineMode;
 

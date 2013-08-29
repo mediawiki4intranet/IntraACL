@@ -26,10 +26,10 @@
 
 class IntraACL_SQL_SD
 {
-    function getRules($where)
+    function getRules($where, $options = array())
     {
         $dbr = wfGetDB(DB_SLAVE);
-        $res = $dbr->select('intraacl_rules', '*', $where, __METHOD__);
+        $res = $dbr->select('intraacl_rules', '*', $where, __METHOD__, $options);
         $rows = array();
         while ($r = $res->fetchObject())
         {

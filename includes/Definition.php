@@ -48,6 +48,23 @@ class IACLDefinition implements ArrayAccess
     static $clean = array();        // Clean object cache
     static $dirty = array();        // Dirty object cache
 
+    /**
+     * Per-user cache of allowed actions
+     * array($userID => array($peType => array($peID => <actions bitmask>)))
+     */
+    static $userCache = array();
+
+    /**
+     * Loading state of the per-user cache
+     * array($userID => <bitmask>)
+     *
+     * 0x01 => SDs preloaded
+     * 0x02 => Groups preloaded
+     * 0x04 => SDs incomplete
+     * 0x08 => Groups incomplete
+     */
+    static $userCacheLoaded = array();
+
     static function newEmpty($type, $id)
     {
         $self = new self();
@@ -97,7 +114,7 @@ class IACLDefinition implements ArrayAccess
 
     static function newFromTitle(Title $title, $allowEmpty = true)
     {
-        $pe = self::nameOfPE($k);
+        $pe = self::nameOfPE($title);
         if ($pe)
         {
             return self::newFromName($pe[0], $pe[1], $allowEmpty);
@@ -443,36 +460,45 @@ class IACLDefinition implements ArrayAccess
     }
 
     /**
-     * Check (with clever caching) if given user is granted some action
-     * in the definition identified by $peType/$peID.
+     * Check (with clever caching) if a given user is granted some action
+     * in any of the definition(s) identified by $peType/$peID.
      *
      * @param int $userID       User ID or 0 for anonymous user
      * @param int $peType       Parent right type, one of IACL::PE_*
-     * @param int/array $peID   Parent right ID(s)
+     * @param int/array $peID   Parent right ID(s).
      * @param int $actionID     Action ID, one of IACL::ACTION_*
      * @return int              1 = allow, 0 = deny, -1 = don't care
      */
     static function userCan($userID, $peType, $peID, $actionID)
     {
-        static $userCache = array();
-        // $loaded[$userID] is a bitmask:
-        // 0x01 => SDs loaded
-        // 0x02 => Groups preloaded
-        // 0x04 => SDs incomplete
-        // 0x08 => Groups incomplete
-        static $loaded = array();
         if ($userID < 0)
         {
             $userID = 0;
         }
         $actionID |= ($actionID << IACL::INDIRECT_OFFSET);
+        // Check cache
+        $found = -1;
         foreach ((array)$peID as $id)
         {
-            if (isset($userCache[$userID][$peType][$id]))
+            if (isset(self::$userCache[$userID][$peType][$id]))
             {
-                return ($userCache[$userID][$peType][$id] & $actionID) ? 1 : 0;
+                $found = (self::$userCache[$userID][$peType][$id] & $actionID) ? 1 : 0;
+                if ($found > 0)
+                {
+                    return $found;
+                }
             }
         }
+        // Return if access is denied or if everything is already loaded
+        $isGroup = ($peType == IACL::PE_GROUP) ? 1 : 0;
+        if ($found == 0 ||
+            isset(self::$userCacheLoaded[$userID]) &&
+            (self::$userCacheLoaded[$userID] & (1 << $isGroup)) &&
+            !(self::$userCacheLoaded[$userID] & (4 << $isGroup)))
+        {
+            return $found;
+        }
+        // Nothing in the cache and there is a chance to load something, try to do it
         if ($userID)
         {
             // Fallback chain: current user -> registered users (0) -> all users (-1)
@@ -494,12 +520,11 @@ class IACLDefinition implements ArrayAccess
         $options = array(
             'ORDER BY' => 'child_type ASC, pe_type ASC, pe_id DESC'
         );
-        $isGroup = ($peType == IACL::PE_GROUP);
-        if (!isset($loaded[$userID]) ||
-            !($loaded[$userID] & (1 << $isGroup)))
+        if (!isset(self::$userCacheLoaded[$userID]) ||
+            !(self::$userCacheLoaded[$userID] & (1 << $isGroup)))
         {
             global $iaclPreloadLimit;
-            $loaded[$userID] = @$loaded[$userID] | (1 << $isGroup);
+            self::$userCacheLoaded[$userID] = @self::$userCacheLoaded[$userID] | (1 << $isGroup);
             // Preload up to $iaclPreloadLimit rules, preferring more general (pe_type ASC)
             // and more recent (pe_id DESC) rules for better cache hit ratio.
             // Groups are unused in permission checks and thus have no effect on permission check speed,
@@ -518,38 +543,41 @@ class IACLDefinition implements ArrayAccess
             {
                 // There are exactly $iaclPreloadLimit rules
                 // => we assume there can be more
-                $loaded[$userID] |= (4 << $isGroup);
+                self::$userCacheLoaded[$userID] |= (4 << $isGroup);
             }
             foreach ($rules as $rule)
             {
-                if (!isset($userCache[$userID][$rule['pe_type']][$rule['pe_id']]))
-                {
-                    $userCache[$userID][$rule['pe_type']][$rule['pe_id']] = $rule['actions'];
-                }
+                self::$userCache[$userID][$rule['pe_type']][$rule['pe_id']] = $rule['actions'];
             }
         }
-        if (($loaded[$userID] & (4 << $isGroup)))
+        if ((self::$userCacheLoaded[$userID] & (4 << $isGroup)))
         {
-            // Not all rules were preloaded => database is very big, perform a query for single PE
+            // Not all rules were preloaded => database appears to be relatively big, perform a query for single PE
             $where['pe_type'] = $peType;
             $where['pe_id'] = $peID;
             $rules = IACLStorage::get('SD')->getRules($where, $options);
             foreach ($rules as $rule)
             {
-                if (!isset($userCache[$userID][$rule['pe_type']][$rule['pe_id']]))
+                if (!isset(self::$userCache[$userID][$rule['pe_type']][$rule['pe_id']]))
                 {
-                    $userCache[$userID][$rule['pe_type']][$rule['pe_id']] = $rule['actions'];
+                    self::$userCache[$userID][$rule['pe_type']][$rule['pe_id']] = $rule['actions'];
                 }
             }
         }
+        // Check cache again
+        $found = -1;
         foreach ((array)$peID as $id)
         {
-            if (isset($userCache[$userID][$peType][$id]))
+            if (isset(self::$userCache[$userID][$peType][$id]))
             {
-                return ($userCache[$userID][$peType][$id] & $actionID) ? 1 : 0;
+                $found = (self::$userCache[$userID][$peType][$id] & $actionID) ? 1 : 0;
+                if ($found > 0)
+                {
+                    return $found;
+                }
             }
         }
-        return -1;
+        return $found;
     }
 
     /**
@@ -781,7 +809,6 @@ class IACLDefinition implements ArrayAccess
         if (!$this->data['rules'])
         {
             // Delete definition
-            $this->data = array();
             $st->deleteRules(array(array('pe_type' => $peType, 'pe_id' => $peID)));
         }
         else
@@ -797,7 +824,17 @@ class IACLDefinition implements ArrayAccess
                 $st->addRules($addRules);
             }
         }
-        // Commit new state into cache
+        // Invalidate userCan() cache (FIXME - in fact our parents don't need to do it...)
+        $obj = $this->data['rules'] ? $this : $this->clean();
+        if (isset($obj['rules'][IACL::PE_USER]))
+        {
+            foreach ($obj['rules'][IACL::PE_USER] as $userID => $rule)
+            {
+                unset(self::$userCache[$userID]);
+                unset(self::$userCacheLoaded[$userID]);
+            }
+        }
+        // Commit new state into the object cache (FIXME - is the object cache needed at all?)
         self::$clean[$key] = $this;
         unset(self::$dirty[$key]);
         // Invalidate parents - they will do the same recursively for their parents and so on
@@ -809,7 +846,6 @@ class IACLDefinition implements ArrayAccess
                 $p->save($preventLoop);
             }
         }
-        // FIXME Invalidate cache (if any)
     }
 
     public function diffRules()
