@@ -23,9 +23,7 @@
 /**
  * Right evaluation tests.
  *
- * TODO:
- * 1) test * and # grants
- * 2) test different actions (read, edit, delete, move, manage, sd management)
+ * TODO: Test different actions (read, edit, delete, move, manage, sd management)
  *
  * @author Vitaliy Filippov
  */
@@ -38,8 +36,11 @@ class IntraACLEvaluationTester extends Maintenance
     var $title;
     var $acls = array();
     var $aclUsers = array();
+    var $anonUser;
     var $queue = array('categoryACL', 'namespaceACL', 'pageACL');
     var $numOk, $numFailed;
+
+    var $pfx = '', $newline = "\n";
 
     var $stopOnFailure = false;
 
@@ -50,6 +51,7 @@ class IntraACLEvaluationTester extends Maintenance
         $this->addOption('stop', 'Stop on first failed test', false, false);
         $this->addOption('only-failures', 'Only print test failure results', false, false);
         $this->addOption('admin-user', 'Administrator username (WikiSysop by default)', false, false);
+        $this->addOption('one-line', 'Print output in one line using escape seq', false, false);
     }
 
     function execute()
@@ -59,8 +61,14 @@ class IntraACLEvaluationTester extends Maintenance
             global $wgRequest;
             $wgRequest->setVal('hacllog', 'true');
         }
+        if ($this->getOption('one-line', false))
+        {
+            $this->pfx = "\r\x1B[K";
+            $this->newline = '';
+        }
         // Override user (we should run under admin)
         global $wgUser;
+        $this->anonUser = $wgUser;
         $username = $this->getOption('admin-user', 'WikiSysop');
         $wgUser = User::newFromName($username);
         if (!$wgUser->getId())
@@ -88,7 +96,7 @@ class IntraACLEvaluationTester extends Maintenance
         $gg = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/GG_$u1"));
         $gg->doDeleteArticle('-');
         $this->cleanupUsers();
-        print "Ran ".($this->numOk + $this->numFailed)." tests, {$this->numOk} OK, {$this->numFailed} failed\n";
+        print "\nRan ".($this->numOk + $this->numFailed)." tests, {$this->numOk} OK, {$this->numFailed} failed\n";
     }
 
     /**
@@ -219,8 +227,8 @@ class IntraACLEvaluationTester extends Maintenance
 
     /**
      * 1) Run tests with $acl granted to a unique user
-     * 2) Run tests with $acl granted to the same user through a group
-     * 3) Run tests with $acl granted to the same user through an indirect group inclusion
+     * 2) Run tests with $acl granted to the same user through an indirect group inclusion
+     * 3) Run tests for # and *
      * 4) Delete $acl and run tests without it
      */
     protected function testACLs($acl, $priority)
@@ -238,12 +246,21 @@ class IntraACLEvaluationTester extends Maintenance
             'users' => array($username => $user, $u1 => $user1),
         );
         $options = array(
-            "{{#access: assigned to = Group/G_$u1, User:$username | actions = *}}",
-            "{{#access: assigned to = Group/GG_$u1, Group/G_$username | actions = *}}",
+            "{{#access: assigned to = Group/GG_$u1, User:$username | actions = *}}",
             "{{#access: assigned to = User:$u1, Group/GG_$username | actions = *}}",
+            "{{#access: assigned to = # | actions = *}}",
+            "{{#access: assigned to = * | actions = *}}",
         );
-        foreach ($options as $opt)
+        foreach ($options as $i => $opt)
         {
+            if ($i == 2)
+            {
+                $this->acls[$priority]['users'] = array('#' => '#');
+            }
+            elseif ($i == 3)
+            {
+                $this->acls[$priority]['users'] = array('*' => '*');
+            }
             (new Article($acl))->doEdit($opt, '-', EDIT_FORCE_BOT);
             $this->test();
         }
@@ -299,9 +316,18 @@ class IntraACLEvaluationTester extends Maintenance
                     }
                     else
                     {
+                        if (isset($allUsers['*']) && isset($users['#']) && !isset($users['*']))
+                        {
+                            $allUsers['#'] = true;
+                        }
+                        elseif (isset($users['*']) && isset($allUsers['#']) && !isset($allUsers['*']))
+                        {
+                            $users['#'] = true;
+                        }
                         foreach ($allUsers as $un => $u)
                         {
-                            if (!isset($users[$un]))
+                            if (!isset($users[$un]) &&
+                                ($un == '*' || $un == '#' || !isset($users['*']) && !isset($users['#'])))
                             {
                                 unset($allUsers[$un]);
                             }
@@ -318,17 +344,31 @@ class IntraACLEvaluationTester extends Maintenance
                     }
                 }
             }
-            foreach ($allUsers as $un => $u)
+            if (isset($allUsers['*']))
             {
-                $this->assertReadable($u, true);
+                $this->assertReadable($this->anonUser, true);
+                $this->assertReadable(reset($this->aclUsers), true);
             }
-            foreach ($this->aclUsers as $u)
+            elseif (isset($allUsers['#']))
             {
-                if (!isset($allUsers[$u->getName()]))
+                $this->assertReadable($this->anonUser, false);
+                $this->assertReadable(reset($this->aclUsers), true);
+            }
+            else
+            {
+                foreach ($allUsers as $un => $u)
                 {
-                    $this->assertReadable($u, false);
-                    break;
+                    $this->assertReadable($u, true);
                 }
+                foreach ($this->aclUsers as $u)
+                {
+                    if (!isset($allUsers[$u->getName()]))
+                    {
+                        $this->assertReadable($u, false);
+                        break;
+                    }
+                }
+                $this->assertReadable($this->anonUser, false);
             }
         }
     }
@@ -363,7 +403,8 @@ class IntraACLEvaluationTester extends Maintenance
             $str = "[FAILED] ";
             $this->numFailed++;
         }
-        $str .= '['.implode(' ', $info).'] '.$user->getName().($readable ? " can read " : " cannot read ").$this->title."\n";
+        $str = $this->pfx.sprintf("%5d ", $this->numFailed+$this->numOk).$str.'['.implode(' ', $info).'] '.
+            $user->getName().($readable ? " can read " : " cannot read ").$this->title.($ok ? $this->newline : "\n");
         if (!$ok || !$this->onlyFailures)
         {
             print $str;
