@@ -618,7 +618,7 @@ class IACLParserFunctions
      * belongs to the namespace ACL (i.e. a right, SD, group)
      * its content is transferred to the database.
      *
-     * @param Article $article
+     * @param WikiPage $article
      */
     public static function updateDefinition($article)
     {
@@ -630,10 +630,15 @@ class IACLParserFunctions
             if (!$self)
             {
                 $self = self::instance($title);
-                self::parse($article->getContent(), $title);
+                self::parse($article->getText(), $title);
             }
             // TODO Remove incorrect definitions from the DB?
             $self->makeDef();
+            if (!$self->def)
+            {
+                print "$title\n";
+                var_dump($article->getText());
+            }
             $self->def->save();
             self::destroyInstance($self);
         }
@@ -660,6 +665,10 @@ class IACLParserFunctions
                 {
                     $this->def = IACLDefinition::newEmpty($this->peType, $id);
                 }
+            }
+            else
+            {
+                throw new Exception('[BUG] Are you trying to refresh definition for a non-existing article? type='.$this->peType.' name='.$this->peName.' id='.Title::newFromText($this->peName)->getArticleId());
             }
         }
         if ($this->def)
@@ -770,33 +779,29 @@ class IACLParserFunctions
             // Move SD for page
             $newSDTitle = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_PAGE, $newTitle));
             wfDebug("Move SD for page: $oldSDTitle -> $newSDTitle\n");
-            self::move($oldSDTitle, $newSDTitle);
+            if ($newSDTitle->exists() && $newSDTitle->userCan('delete'))
+            {
+                $page = new Article($newSDTitle);
+                $page->doDeleteArticle(wfMsg('hacl_move_acl'));
+            }
+            else
+            {
+                // FIXME report about "permission denied to overwrite $to"
+            }
+            $oldSDTitle->moveTo($oldSDTitle, false, wfMsg('hacl_move_acl'), true);
+            if ($oldTitle->exists())
+            {
+                $fromA = new Article($oldTitle);
+                $fromA->doEdit('{{#predefined right:rights='.$newSDTitle->getPrefixedText().'}}', wfMsg('hacl_move_acl_include'));
+            }
+            else
+            {
+                // There's no need for PR inclusion if there's no redirect left
+                // FIXME But think about reviving the SD for a non-existing PE when that PE is recreated
+            }
         }
 
         return true;
-    }
-
-    /**
-     * Moves the SD content from $from to $to, and overwrites
-     * the source article with single PR inclusion of target to protect
-     * old revisions of source article (needed if there's a redirect left).
-     *
-     * @param Title $from  Original name of the SD article.
-     * @param Title $to    New name of the SD article.
-     */
-    static function move($from, $to)
-    {
-        if ($to->exists() && $to->userCan('delete'))
-        {
-            // FIXME report about "permission denied to overwrite $to"
-            $page = new Article($to);
-            $page->doDeleteArticle(wfMsg('hacl_move_acl'));
-        }
-        $from->moveTo($to, false, wfMsg('hacl_move_acl'), true);
-        $fromA = new Article($from);
-        $fromA->doEdit('{{#predefined right:rights='.$to->getPrefixedText().'}}', wfMsg('hacl_move_acl_include'));
-        // FIXME if there's no redirect there's also no need for PR inclusion
-        // FIXME also we should revive the SD for a non-existing PE when that PE is created again
     }
 
     /**

@@ -809,34 +809,55 @@ class IACLDefinition implements ArrayAccess
         if (!$this->data['rules'])
         {
             // Delete definition
+            $delRules = $this->clean()['rules'];
+            $addRules = array();
             $st->deleteRules(array(array('pe_type' => $peType, 'pe_id' => $peID)));
         }
         else
         {
             // Update definition
-            list($delRules, $addRules) = $this->diffRules();
+            list($delRules, $addRules) = $this->diffRulesAssoc();
             if ($delRules)
             {
-                $st->deleteRules($delRules);
+                $st->deleteRules(self::expandRuleArray($delRules));
             }
             if ($addRules)
             {
-                $st->addRules($addRules);
+                $st->addRules(self::expandRuleArray($addRules));
             }
         }
         // Invalidate userCan() cache (FIXME - in fact our parents don't need to do it...)
-        $obj = $this->data['rules'] ? $this : $this->clean();
-        if (isset($obj['rules'][IACL::PE_USER]))
+        if (isset($delRules[IACL::PE_ALL_USERS]) ||
+            isset($delRules[IACL::PE_REG_USERS]) ||
+            isset($addRules[IACL::PE_ALL_USERS]) ||
+            isset($addRules[IACL::PE_REG_USERS]))
         {
-            foreach ($obj['rules'][IACL::PE_USER] as $userID => $rule)
+            self::$userCache = array();
+            self::$userCacheLoaded = array();
+        }
+        else
+        {
+            if (isset($delRules[IACL::PE_USER]))
             {
-                unset(self::$userCache[$userID]);
-                unset(self::$userCacheLoaded[$userID]);
+                foreach ($delRules[IACL::PE_USER] as $userID => $rule)
+                {
+                    unset(self::$userCache[$userID]);
+                    unset(self::$userCacheLoaded[$userID]);
+                }
+            }
+            if (isset($addRules[IACL::PE_USER]))
+            {
+                foreach ($addRules[IACL::PE_USER] as $userID => $rule)
+                {
+                    unset(self::$userCache[$userID]);
+                    unset(self::$userCacheLoaded[$userID]);
+                }
             }
         }
         // Commit new state into the object cache (FIXME - is the object cache needed at all?)
         self::$clean[$key] = $this;
         unset(self::$dirty[$key]);
+        $this->rw = false;
         // Invalidate parents - they will do the same recursively for their parents and so on
         $preventLoop[$key] = true;
         foreach ($parents as $p)
@@ -848,7 +869,7 @@ class IACLDefinition implements ArrayAccess
         }
     }
 
-    public function diffRules()
+    public function diffRulesAssoc()
     {
         $oldRules = $this->clean();
         $oldRules = $oldRules ? $oldRules['rules'] : array();
@@ -872,7 +893,46 @@ class IACLDefinition implements ArrayAccess
                 }
             }
         }
-        // Return linear rule arrays
+        return array($oldRules, $addRules);
+    }
+
+    // Convert array(type => child => rule) to linear array
+    public static function expandRuleArray($rules)
+    {
+        if ($rules)
+        {
+            $rules = call_user_func_array('array_merge', array_map('array_values', array_values($rules)));
+        }
+        return $rules;
+    }
+
+    public function diffRules()
+    {
+        $diff = $this->diffRulesAssoc();
+        $diff[0] = self::expandRuleArray($diff[0]);
+        $diff[1] = self::expandRuleArray($diff[1]);
+        $oldRules = $this->clean();
+        $oldRules = $oldRules ? $oldRules['rules'] : array();
+        $addRules = $this->data['rules'] = $this->buildRules();
+        foreach ($oldRules as $type => $children)
+        {
+            foreach ($children as $child => $rule)
+            {
+                if (isset($addRules[$type][$child]) && $addRules[$type][$child]['actions'] == $rule['actions'])
+                {
+                    unset($addRules[$type][$child]);
+                    if (empty($addRules[$type]))
+                    {
+                        unset($addRules[$type]);
+                    }
+                    unset($oldRules[$type][$child]);
+                    if (empty($oldRules[$type]))
+                    {
+                        unset($oldRules[$type]);
+                    }
+                }
+            }
+        }
         if ($oldRules)
         {
             $oldRules = call_user_func_array('array_merge', array_map('array_values', array_values($oldRules)));
@@ -886,6 +946,10 @@ class IACLDefinition implements ArrayAccess
 
     protected function buildRules()
     {
+        if (!$this->rw)
+        {
+            $this->makeDirty();
+        }
         $rules = array();
         $directMask = ((1 << IACL::INDIRECT_OFFSET)-1);
         $childIds = array();
