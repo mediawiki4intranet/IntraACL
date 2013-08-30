@@ -636,8 +636,7 @@ class IACLParserFunctions
             $self->makeDef();
             if (!$self->def)
             {
-                print "$title\n";
-                var_dump($article->getText());
+                throw new Exception('[BUG] Something strange: article ('.$title.') does not exist after saving!');
             }
             $self->def->save();
             self::destroyInstance($self);
@@ -665,10 +664,6 @@ class IACLParserFunctions
                 {
                     $this->def = IACLDefinition::newEmpty($this->peType, $id);
                 }
-            }
-            else
-            {
-                throw new Exception('[BUG] Are you trying to refresh definition for a non-existing article? type='.$this->peType.' name='.$this->peName.' id='.Title::newFromText($this->peName)->getArticleId());
             }
         }
         if ($this->def)
