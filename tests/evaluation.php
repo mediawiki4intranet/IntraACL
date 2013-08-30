@@ -25,9 +25,7 @@
  *
  * TODO:
  * 1) test * and # grants
- * 2) test different actions (read, edit, delete, move, )
- * 3) fix shrink mode tests - now there's a single unique user in
- *    each SD so there's no intersection to test
+ * 2) test different actions (read, edit, delete, move, manage, sd management)
  *
  * @author Vitaliy Filippov
  */
@@ -74,8 +72,21 @@ class IntraACLEvaluationTester extends Maintenance
         $this->stopOnFailure = $this->getOption('stop', false);
         $this->numOk = $this->numFailed = 0;
         print "Starting test suite\n";
-        $this->makeUser("-");
+        // AclTestUser0 is never specified in any ACL so we use it for testing access denial
+        $this->makeUser(":0");
+        // AclTestUser1 is specified in every ACL so we can test the shrink mode
+        $u1 = $this->makeUser(":shrink")->getName();
+        $g = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/G_$u1"));
+        $g->doEdit("{{#member: members = User:$u1}}", '-', EDIT_FORCE_BOT);
+        $gg = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/GG_$u1"));
+        $gg->doEdit("{{#member: members = Group/G_$u1}}", '-', EDIT_FORCE_BOT);
+        // Run tests
         $this->test();
+        // Remove users
+        $g = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/G_$u1"));
+        $g->doDeleteArticle('-');
+        $gg = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/GG_$u1"));
+        $gg->doDeleteArticle('-');
         $this->cleanupUsers();
         print "Ran ".($this->numOk + $this->numFailed)." tests, {$this->numOk} OK, {$this->numFailed} failed\n";
     }
@@ -214,6 +225,8 @@ class IntraACLEvaluationTester extends Maintenance
      */
     protected function testACLs($acl, $priority)
     {
+        $user1 = $this->makeUser(":shrink");
+        $u1 = $user1->getName();
         $user = $this->makeUser($acl->getPrefixedText());
         $username = $user->getName();
         $g = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/G_$username"));
@@ -222,12 +235,12 @@ class IntraACLEvaluationTester extends Maintenance
         $gg->doEdit("{{#member: members = Group/G_$username}}", '-', EDIT_FORCE_BOT);
         $this->acls[$priority] = array(
             'title' => $acl,
-            'users' => array($username => $user),
+            'users' => array($username => $user, $u1 => $user1),
         );
         $options = array(
-            "{{#access: assigned to = User:$username | actions = *}}",
-            "{{#access: assigned to = Group/G_$username | actions = *}}",
-            "{{#access: assigned to = Group/GG_$username | actions = *}}",
+            "{{#access: assigned to = Group/G_$u1, User:$username | actions = *}}",
+            "{{#access: assigned to = Group/GG_$u1, Group/G_$username | actions = *}}",
+            "{{#access: assigned to = User:$u1, Group/GG_$username | actions = *}}",
         );
         foreach ($options as $opt)
         {
