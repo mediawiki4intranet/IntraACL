@@ -102,6 +102,7 @@ class IntraACLSelftestSpecial extends SpecialPage
         {
             header("Content-Type: text/plain");
         }
+        $errors = 0;
         $pages = self::loadConfig();
         foreach ($pages as $p)
         {
@@ -124,6 +125,7 @@ class IntraACLSelftestSpecial extends SpecialPage
                 $status = $e->getMessage();
                 $error = true;
             }
+            $errors += $error;
             $errmsg = ($error ? '[ NOT OK ]' : '[ OK ]');
             $msg = @$p[4] ? $p[4] : implode(' | ', $p);
             if (!$quiet)
@@ -144,6 +146,10 @@ class IntraACLSelftestSpecial extends SpecialPage
         if (!$quiet)
         {
             print "</ul></body></html>";
+        }
+        elseif (!$errors)
+        {
+            print "OK";
         }
     }
 
