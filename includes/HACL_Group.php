@@ -158,7 +158,7 @@ class HACLGroup
      *
      */
     public static function idForGroup($group) {
-        if (is_int($group)) {
+        if (is_numeric($group)) {
             // group ID given
             return $group;
         } elseif (is_string($group)) {
