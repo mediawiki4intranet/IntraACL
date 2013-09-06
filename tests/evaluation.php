@@ -248,20 +248,32 @@ class IntraACLEvaluationTester extends Maintenance
         $options = array(
             "{{#access: assigned to = Group/GG_$u1, User:$username | actions = *}}",
             "{{#access: assigned to = User:$u1, Group/GG_$username | actions = *}}",
-            "{{#access: assigned to = # | actions = *}}",
             "{{#access: assigned to = * | actions = *}}",
+            "{{#access: assigned to = # | actions = *}}",
         );
+        static $testedRegGroup;
+        if (!$testedRegGroup)
+        {
+            // Test inclusion of # via groups
+            $options[] = "{{#access: assigned to = User:$u1, Group/GG_$username | actions = *}}";
+            $testedRegGroup = true;
+        }
         foreach ($options as $i => $opt)
         {
             if ($i == 2)
             {
-                $this->acls[$priority]['users'] = array('#' => '#');
+                $this->acls[$priority]['users'] = array('*' => '*');
             }
             elseif ($i == 3)
             {
-                $this->acls[$priority]['users'] = array('*' => '*');
+                $this->acls[$priority]['users'] = array('#' => '#');
             }
-            (new Article($acl))->doEdit($opt, '-', EDIT_FORCE_BOT);
+            elseif ($i == 4)
+            {
+                $g = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/G_$username"));
+                $g->doEdit("{{#member: members = #}}", '-', EDIT_FORCE_BOT);
+            }
+            (new WikiPage($acl))->doEdit($opt, '-', EDIT_FORCE_BOT);
             $this->test();
         }
         $gg = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/GG_$username"));
