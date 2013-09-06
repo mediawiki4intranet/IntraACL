@@ -369,7 +369,7 @@ class IntraACL_SQL_Groups
 
         // Ask for the immediate parents of $childID
         // Then check recursively, if one of the parent groups of $childID is $parentID
-        if ($memberType === 'user')
+        if ($memberType === 'user' && $childID > 0)
         {
             // Include 0 and -1 to check for "all users" (*) / "all registered users" (#) grants, respectively
             $childID = array($childID, -1, 0);
