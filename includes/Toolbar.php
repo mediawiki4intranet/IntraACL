@@ -201,7 +201,7 @@ class IACLToolbar
         {
             foreach ($globalACL as &$t)
             {
-                if ($haclgOpenWikiAccess || $t->userCanReadEx())
+                if ($haclgOpenWikiAccess || $t->userCanRead())
                 {
                     $t = Xml::element('a', array('href' => $t->getLocalUrl(), 'target' => '_blank'), $t->getText());
                 }
