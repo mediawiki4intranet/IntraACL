@@ -92,9 +92,12 @@ class IntraACLSelftestSpecial extends SpecialPage
      */
     function doChecks($quiet = false)
     {
-        // Fill Firefox buffer so incremental rendering kicks in
+        @ob_end_clean();
         if (!$quiet)
         {
+            // Fill Firefox buffer so incremental rendering kicks in
+            header("Content-Type: text/html; charset=utf-8");
+            header("Content-Encoding: none");
             print str_repeat(" ", 1024);
             print "<html><body><ul>";
         }
@@ -141,7 +144,6 @@ class IntraACLSelftestSpecial extends SpecialPage
                 print $errmsg.$msg.$status."\n";
             }
             flush();
-            ob_flush();
         }
         if (!$quiet)
         {
