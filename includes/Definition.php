@@ -581,7 +581,7 @@ class IACLDefinition implements ArrayAccess
     }
 
     /**
-     * Returns the ID of a protection object that is given by its name.
+     * Returns the ID of a protected object that is given by its name.
      * The ID depends on the type.
      *
      * @param  string $peName   Object name
@@ -591,43 +591,43 @@ class IACLDefinition implements ArrayAccess
     public static function peIDforName($peType, $peName)
     {
         $ns = NS_MAIN;
-        if ($peType == IACL::PE_NAMESPACE)
+        $force = true;
+        switch ($peType)
         {
-            // $peName is a namespace => get its ID
-            global $wgContLang;
-            $peName = str_replace(' ', '_', trim($peName, " _\t\n\r"));
-            $idx = $wgContLang->getNsIndex($peName);
-            if ($idx == false)
-            {
-                return (strtolower($peName) == 'main') ? 0 : false;
-            }
-            return $idx;
-        }
-        elseif ($peType == IACL::PE_RIGHT)
-        {
-            $ns = HACL_NS_ACL;
-        }
-        elseif ($peType == IACL::PE_CATEGORY)
-        {
-            $ns = NS_CATEGORY;
-        }
-        elseif ($peType == IACL::PE_USER)
-        {
-            $ns = NS_USER;
-        }
-        elseif ($peType == IACL::PE_GROUP)
-        {
-            global $haclgContLang;
-            $ns = HACL_NS_ACL;
-            $peName = $haclgContLang->getPetPrefix(IACL::PE_GROUP).'/'.$peName;
-        }
-        elseif ($peType == IACL::PE_SPECIAL)
-        {
-            $ns = NS_SPECIAL;
+            case IACL::PE_PAGE:
+                // Page ACLs allow any namespace except NS_SPECIAL
+                $force = false;
+                break;
+            case IACL::PE_NAMESPACE:
+                // $peName is a namespace => get its ID
+                global $wgContLang;
+                $peName = str_replace(' ', '_', trim($peName, " _\t\n\r"));
+                $idx = $wgContLang->getNsIndex($peName);
+                if ($idx == false)
+                {
+                    return (strtolower($peName) == 'main') ? 0 : false;
+                }
+                return $idx;
+            case IACL::PE_CATEGORY:
+                $ns = NS_CATEGORY;
+                break;
+            case IACL::PE_USER:
+                $user = User::newFromName($peName);
+                return $user->getId();
+            case IACL::PE_SPECIAL:
+                $ns = NS_SPECIAL;
+                break;
+            // Groups and rights are in ACL namespace
+            case IACL::PE_GROUP:
+                global $haclgContLang;
+                $peName = $haclgContLang->getPetPrefix(IACL::PE_GROUP).'/'.$peName;
+            case IACL::PE_RIGHT:
+                $ns = HACL_NS_ACL;
+                break;
         }
         // Return the page id
         // TODO add caching here
-        $id = haclfArticleID($peName, $ns);
+        $id = haclfArticleID($peName, $ns, $force);
         if ($id < 0)
         {
             if ($peType != IACL::PE_SPECIAL)

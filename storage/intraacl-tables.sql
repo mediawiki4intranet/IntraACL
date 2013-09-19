@@ -1,6 +1,6 @@
 --
 -- Highly optimised right/group rule storage table
--- See also GlobalFunctions.php (class IACL)
+-- See GlobalFunctions.php (class IACL) for type/id/bitmask descriptions
 --
 CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/intraacl_rules (
     -- parent protected element type and ID
@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/intraacl_rules (
     KEY (child_type, child_id)
 ) /*$wgDBTableOptions*/;
 
+--
+-- Quick ACL templates
+--
 CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/intraacl_quickacl (
     user_id INT UNSIGNED NOT NULL,
     pe_type TINYINT(1) NOT NULL,
@@ -26,6 +29,21 @@ CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/intraacl_quickacl (
     KEY (pe_type, pe_id)
 ) /*$wgDBTableOptions*/;
 
+--
+-- References from existing right definitions to non-existing ("bad") ones.
+-- Saved so we can do "forward declarations" of rights.
+--
+CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/intraacl_badlinks (
+    bl_from INT UNSIGNED NOT NULL,
+    bl_namespace INT NOT NULL,
+    bl_title VARCHAR(255) BINARY NOT NULL,
+    PRIMARY KEY (bl_from, bl_namespace, bl_title),
+    KEY (bl_namespace, bl_title)
+) /*$wgDBTableOptions*/;
+
+--
+-- Surrogate IDs for special pages
+--
 CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/halo_acl_special_pages (
     id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL

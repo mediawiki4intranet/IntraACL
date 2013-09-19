@@ -65,7 +65,7 @@ class IACLParserFunctions
     var $title, $peType, $peName;
 
     // Parsed right definitions and errors are saved here
-    var $rules = array(), $hasActions = 0, $errors = array();
+    var $rules = array(), $hasActions = 0, $errors = array(), $badLinks = array();
 
     // Right definiton object
     var $def;
@@ -337,6 +337,7 @@ class IACLParserFunctions
             foreach ($check as $invalid => $true)
             {
                 $errors[] = wfMsgForContent('hacl_unknown_user', $invalid);
+                $this->badLinks[] = Title::makeTitleSafe(NS_USER, $invalid);
             }
         }
         // Get group IDs in a single pass
@@ -353,6 +354,7 @@ class IACLParserFunctions
             foreach ($check as $invalid => $true)
             {
                 $errors[] = wfMsgForContent('hacl_unknown_group', $invalid);
+                $this->badLinks[] = Title::makeTitleSafe(HACL_NS_ACL, $invalid);
             }
         }
         if (!$users && !$groups && !$all_reg)
@@ -465,6 +467,10 @@ class IACLParserFunctions
                 // FIXME: resolve multiple IDs at once
                 $result[$r] = IACLDefinition::nameOfPE($r);
                 $result[$r][2] = IACLDefinition::peIDforName($result[$r][0], $result[$r][1]);
+                if (!$result[$r][2])
+                {
+                    $this->badLinks[] = IACLDefition::nameOfSD($result[$r][0], $result[$r][1]);
+                }
             }
         }
         if (!$result)
@@ -626,7 +632,9 @@ class IACLParserFunctions
         if ($title->getNamespace() == HACL_NS_ACL)
         {
             $self = self::instance($title, true);
-            // FIXME Actually, we can rely to the article being parsed, but only in ArticleEditUpdates hook
+            // Here we do not rely on the article being parsed during save.
+            // FIXME Actually, we can rely on it, as we're in ArticleEditUpdates hook.
+            //       But... earlier we relied on it and we had bugs...
             if (!$self)
             {
                 $self = self::instance($title);
@@ -634,13 +642,21 @@ class IACLParserFunctions
             }
             // TODO Remove incorrect definitions from the DB?
             $self->makeDef();
-            if (!$self->def)
+            if (!$self->def && ($self->peType == IACL::PE_GROUP || $self->peType == IACL::PE_RIGHT))
             {
-                throw new Exception('[BUG] Something strange: article ('.$title.') does not exist after saving!');
+                throw new Exception(
+                    '[BUG] Something strange: article "'.$title.'" does not exist just after saving!'.
+                    ' Maybe title contains an invalid UTF-8 sequence and should be deleted from the database?'
+                );
             }
-            $self->def->save();
+            if ($self->def)
+            {
+                $self->def->save();
+            }
+            $self->saveBadlinks($title);
             self::destroyInstance($self);
         }
+        self::refreshBadlinks($title);
         return true;
     }
 
@@ -652,7 +668,6 @@ class IACLParserFunctions
         if (!$this->def)
         {
             $id = IACLDefinition::peIDforName($this->peType, $this->peName);
-            // FIXME When $id is NULL => PE does not exist, but we should report this error
             if ($id)
             {
                 $this->def = IACLDefinition::select(array('pe' => array($this->peType, $id)));
@@ -665,6 +680,14 @@ class IACLParserFunctions
                     $this->def = IACLDefinition::newEmpty($this->peType, $id);
                 }
             }
+            elseif ($this->peType == IACL::PE_PAGE || $this->peType == IACL::PE_CATEGORY)
+            {
+                // Save PE itself into bad links
+                $title = $this->peType == IACL::PE_CATEGORY
+                    ? Title::makeTitleSafe(NS_CATEGORY, $this->peName)
+                    : Title::newFromText($this->peName);
+                $this->badLinks[] = $title;
+            }
         }
         if ($this->def)
         {
@@ -673,16 +696,50 @@ class IACLParserFunctions
     }
 
     /**
-     * Also do handle article undeletes
+     * Save $this->badLinks into the DB
      */
-    public static function articleUndelete(&$title, $isnew)
+    protected function saveBadlinks($title)
     {
-        if ($title->getNamespace() == HACL_NS_ACL)
+        $dbw = wfGetDB(DB_SLAVE);
+        $rows = array();
+        $id = $title->getArticleId();
+        foreach ($this->badLinks as $bl)
         {
-            $article = new Article($title);
-            self::updateDefinition($article);
+            $rows[] = array(
+                'bl_from' => $id,
+                'bl_namespace' => $bl->getNamespace(),
+                'bl_title' => $bl->getDBkey(),
+            );
         }
-        return true;
+        $dbw->delete('intraacl_badlinks', array('bl_from' => $id), __METHOD__);
+        if ($rows)
+        {
+            $dbw->insert('intraacl_badlinks', $rows, __METHOD__);
+        }
+    }
+
+    /**
+     * Reparse right definitions that tried to use $title while it did not exist
+     */
+    protected static function refreshBadlinks($title)
+    {
+        $etc = haclfDisableTitlePatch();
+        $dbw = wfGetDB(DB_SLAVE);
+        $bad = array(
+            'bl_namespace' => $title->getNamespace(),
+            'bl_title' => $title->getDBkey(),
+        );
+        $res = $dbw->select(array('page', 'intraacl_badlinks'), 'page.*', $bad + array(
+            'bl_from=page_id'
+        ), __METHOD__);
+        foreach ($res as $row)
+        {
+            $t = Title::newFromRow($row);
+            $page = new WikiPage($t);
+            $page->doEdit($page->getText(), 'Re-parse definition with bad links', EDIT_UPDATE);
+        }
+        $dbw->delete('intraacl_badlinks', $bad, __METHOD__);
+        haclfRestoreTitlePatch($etc);
     }
 
     /**
@@ -691,8 +748,23 @@ class IACLParserFunctions
     public static function removeDef($title)
     {
         $def = IACLDefinition::newFromTitle($title, false);
+        $dbw = wfGetDB(DB_MASTER);
+        $dbw->delete('intraacl_badlinks', array('bl_from' => $title->getArticleId()), __METHOD__);
         if ($def)
         {
+            $badLinks = array();
+            foreach ($def['parents'] as $p)
+            {
+                $badLinks[] = array(
+                    'bl_from' => $p['def_title']->getArticleId(),
+                    'bl_namespace' => $title->getNamespace(),
+                    'bl_title' => $title->getDBkey(),
+                );
+            }
+            if ($badLinks)
+            {
+                $dbw->insert('intraacl_badlinks', $badLinks, __METHOD__);
+            }
             IACLQuickacl::deleteForSD($def['pe_type'], $def['pe_id']);
             $def['rules'] = array();
             $def->save();
@@ -719,22 +791,26 @@ class IACLParserFunctions
         }
         else
         {
-            // If a protected article is deleted, its SD will be deleted as well
-            $sd = IACLDefinition::getSDForPE(IACL::PE_PAGE, $article->getTitle()->getArticleID());
-            if ($sd)
+            // Add the removed protected element into bad links
+            $id = $article->getTitle()->getArticleID();
+            $pagesd = IACLDefinition::getSDForPE(IACL::PE_PAGE, $id);
+            $catsd = IACLDefinition::getSDForPE(IACL::PE_CATEGORY, $id);
+            $badLinks = array();
+            foreach (array($pagesd, $catsd) as $sd)
             {
-                $t = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_PAGE, $article->getTitle()));
-                if ($t)
+                if ($sd)
                 {
-                    $a = new Article($t);
-                    $a->doDelete("");
+                    $badLinks[] = array(
+                        'bl_from' => $sd['def_title']->getArticleId(),
+                        'bl_namespace' => $title->getNamespace(),
+                        'bl_title' => $title->getDBkey(),
+                    );
                 }
-                else
-                {
-                    // FIXME Article is already deleted somehow, but SD remains (DB inconsistency), delete it
-                    $sd['rules'] = array();
-                    $sd->save();
-                }
+            }
+            if ($badLinks)
+            {
+                $dbw = wfGetDB(DB_MASTER);
+                $dbw->insert('intraacl_badlinks', $badLinks, __METHOD__);
             }
         }
         return true;

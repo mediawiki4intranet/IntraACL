@@ -173,7 +173,6 @@ function enableIntraACL()
     $wgHooks['ArticleViewFooter'][]     = 'IACLParserFunctions::ArticleViewFooter';
     $wgHooks['ArticleEditUpdates'][]    = 'IACLParserFunctions::ArticleEditUpdates';
     $wgHooks['ArticleDelete'][]         = 'IACLParserFunctions::articleDelete';
-    $wgHooks['ArticleUndelete'][]       = 'IACLParserFunctions::articleUndelete';
     $wgHooks['TitleMoveComplete'][]     = 'IACLParserFunctions::TitleMoveComplete';
     $wgHooks['LanguageGetMagic'][]      = 'haclfLanguageGetMagic';
     $wgHooks['LoadExtensionSchemaUpdates'][] = 'iaclfLoadExtensionSchemaUpdates';
@@ -464,10 +463,9 @@ function haclfRestoreTitlePatch($etc)
  * special IDs for these pages. Their IDs are always negative while the IDs of
  * normal pages are positive.
  *
- * @param string $articleName
- *         Name of the article
- * @param int $defaultNS
- *         The default namespace if no namespace is given in the name
+ * @param string $articleName   Name of the article
+ * @param int $defaultNS        The default namespace if no namespace is given in the name
+ * @param boolean $force        True to force the namespace to be $defaultNS
  *
  * @return int
  *         ID of the article:
@@ -476,13 +474,15 @@ function haclfRestoreTitlePatch($etc)
  *         <0: ID of a Special Page
  *
  */
-function haclfArticleID($articleName, $defaultNS = NS_MAIN)
+function haclfArticleID($articleName, $defaultNS = NS_MAIN, $force = false)
 {
     $t = $articleName;
     if (!is_object($t))
     {
         $etc = haclfDisableTitlePatch();
-        $t = Title::newFromText($articleName, $defaultNS);
+        $t = $force
+            ? Title::makeTitleSafe($defaultNS, $articleName)
+            : Title::newFromText($articleName, $defaultNS);
         haclfRestoreTitlePatch($etc);
     }
     if (!$t)
@@ -536,9 +536,8 @@ function iaclfLoadExtensionSchemaUpdates($updater = NULL)
     global $egDeferCreatePermissionDenied;
     $egDeferCreatePermissionDenied = new DeferCreatePermissionDenied();
     // Reparse right definitions if needed
-    // TODO Reparse ALL right definitions after updating from old-style storage
     global $egDeferReparseSpecialPageRights;
-    $egDeferReparseSpecialPageRights = new DeferReparseSpecialPageRights();
+    $egDeferReparseSpecialPageRights = new DeferReparsePageRights();
     return true;
 }
 
@@ -561,27 +560,27 @@ class DeferCreatePermissionDenied
     }
 }
 
-// Reparse right definitions if needed
-class DeferReparseSpecialPageRights
+// Reparse right definitions if HaloACL tables are present
+class DeferReparsePageRights
 {
     function __destruct()
     {
         global $wgContLang;
         $dbw = wfGetDB(DB_MASTER);
-        $badSpecial = 'name LIKE '.$dbw->addQuotes($wgContLang->getNsText(NS_SPECIAL).':%').' OR name LIKE \'Special:%\'';
-        if ($dbw->tableExists('halo_acl_special_pages') &&
-            $dbw->selectField('halo_acl_special_pages', '1', array($badSpecial), __METHOD__, array('LIMIT' => 1)))
+        if ($dbw->selectField('halo_acl_rights', '1', array('1=1'), __METHOD__, array('LIMIT' => 1)))
         {
-            print "Refreshing special page right definitions...\n";
-            $dbw->delete('halo_acl_special_pages', array($badSpecial), __METHOD__);
-            $sds = 'page_title LIKE '.$dbw->addQuotes('Page/'.$wgContLang->getNsText(NS_SPECIAL).':%').' OR page_title LIKE \'Page/Special:%\'';
-            $res = $dbw->select('page', '*', array('page_namespace' => HACL_NS_ACL, $sds), __METHOD__);
+            print "Old-style IntraACL/HaloACL storage detected, refreshing right definitions...\n";
+            $res = $dbw->select('page', '*', array('page_namespace' => HACL_NS_ACL), __METHOD__);
             foreach ($res as $row)
             {
                 $title = Title::newFromRow($row);
-                $article = new Article($title);
+                $article = new WikiPage($title);
                 $article->doEdit($article->getText(), 'Re-parse right definition', EDIT_UPDATE);
             }
+            $dbw->delete('halo_acl_pe_rights', array('1=1'), __METHOD__);
+            $dbw->delete('halo_acl_rights_hierarchy', array('1=1'), __METHOD__);
+            $dbw->delete('halo_acl_rights', array('1=1'), __METHOD__);
+            $dbw->delete('halo_acl_security_descriptors', array('1=1'), __METHOD__);
         }
     }
 }
