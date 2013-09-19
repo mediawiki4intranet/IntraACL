@@ -224,7 +224,7 @@ class IACLDefinition implements ArrayAccess
         foreach ($rules as $rule)
         {
             $key = $rule['pe_type'].'-'.$rule['pe_id'];
-            if (!isset($byid[$key]))
+            if (!isset(self::$clean[$key]))
             {
                 self::$clean[$key] = $coll[$key] = $byid[$key] = $obj = new self();
                 $obj->data['pe_type'] = $rule['pe_type'];
@@ -233,7 +233,7 @@ class IACLDefinition implements ArrayAccess
             }
             else
             {
-                $obj = $byid[$key];
+                $obj = self::$clean[$key];
             }
             $obj->data['rules'][$rule['child_type']][$rule['child_id']] = $rule;
         }
@@ -281,43 +281,6 @@ class IACLDefinition implements ArrayAccess
             }
         }
         return $this->data['parents'];
-    }
-
-    /**
-     * Get SDs directly included by this SD. Fetches them massively.
-     */
-    protected function get_children()
-    {
-        $sds = $this->collection ?: array($this['key'] => $this);
-        $ids = array();
-        foreach ($sds as $sd)
-        {
-            if (!isset($sd->data['children']))
-            {
-                $ids[] = '('.$sd->data['pe_type'].', '.$sd->data['pe_id'].')';
-                $sd->data['children'] = array();
-            }
-        }
-        $rules = IACLStorage::get('SD')->getRules(array(
-            "(pe_type, pe_id) IN ($ids)",
-            '(actions & '.IACL::ACTION_INCLUDE_SD.')',
-        ));
-        $ids = array();
-        $keys = array();
-        foreach ($rules as $r)
-        {
-            $ids[$r['child_type'].'-'.$r['child_id']] = array($r['child_type'], $r['child_id']);
-            $keys[$r['child_type'].'-'.$r['child_id']][] = $r['pe_type'].'-'.$r['pe_id'];
-        }
-        $children = self::select(array('pe' => array_values($ids)));
-        foreach ($children as $child)
-        {
-            foreach ($keys[$key = $child['pe_type'].'-'.$child['pe_id']] as $parent_key)
-            {
-                $sds[$parent_key]->data['children'][$key] = $child;
-            }
-        }
-        return $this->data['children'];
     }
 
     /**
@@ -424,8 +387,13 @@ class IACLDefinition implements ArrayAccess
     {
         if (!$this->rw)
         {
-            self::$dirty[$this->data['pe_type'].'-'.$this->data['pe_id']] = $this;
-            self::$clean[$this->data['pe_type'].'-'.$this->data['pe_id']] = clone $this;
+            $k = $this['key'];
+            if (isset(self::$dirty[$k]))
+            {
+                throw new Exception("BUG: Trying to create second writable object of same Definition!");
+            }
+            self::$dirty[$k] = $this;
+            self::$clean[$k] = clone $this;
             $this->collection = NULL;
             $this->rw = true;
         }
@@ -851,6 +819,27 @@ class IACLDefinition implements ArrayAccess
                 {
                     unset(self::$userCache[$userID]);
                     unset(self::$userCacheLoaded[$userID]);
+                }
+            }
+        }
+        // Invalidate 'parents' field for children
+        foreach ($delRules as $peType => $ids)
+        {
+            foreach ($ids as $peID => $rules)
+            {
+                if (isset(self::$clean["$peType-$peID"]))
+                {
+                    unset(self::$clean["$peType-$peID"]->data['parents']);
+                }
+            }
+        }
+        foreach ($addRules as $peType => $ids)
+        {
+            foreach ($ids as $peID => $rules)
+            {
+                if (isset(self::$clean["$peType-$peID"]))
+                {
+                    unset(self::$clean["$peType-$peID"]->data['parents']);
                 }
             }
         }
