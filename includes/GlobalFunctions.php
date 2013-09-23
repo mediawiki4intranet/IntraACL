@@ -571,9 +571,13 @@ class DeferReparsePageRights
         {
             print "Old-style IntraACL/HaloACL storage detected, refreshing right definitions...\n";
             $res = $dbw->select('page', '*', array('page_namespace' => HACL_NS_ACL), __METHOD__);
+            $titles = array();
             foreach ($res as $row)
             {
-                $title = Title::newFromRow($row);
+                $titles[] = Title::newFromRow($row);
+            }
+            foreach ($titles as $title)
+            {
                 $article = new WikiPage($title);
                 $article->doEdit($article->getText(), 'Re-parse right definition', EDIT_UPDATE);
             }

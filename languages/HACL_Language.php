@@ -62,7 +62,12 @@ abstract class HACLLanguage
     );
 
     // Lookup array: lowercased action name --> action ID
-    public $mActionAliases = array();
+    public $mActionAliases = array(
+        // HaloACL compatibility
+        'formedit'  => IACL::ACTION_EDIT,
+        'wysiwyg'   => IACL::ACTION_EDIT,
+        'annotate'  => IACL::ACTION_EDIT,
+    );
 
     ////////////////////////////////
     // LANGUAGE-DEPENDENT ALIASES //

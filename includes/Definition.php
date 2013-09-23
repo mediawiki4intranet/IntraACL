@@ -777,7 +777,7 @@ class IACLDefinition implements ArrayAccess
         if (!$this->data['rules'])
         {
             // Delete definition
-            $delRules = $this->clean()['rules'];
+            $delRules = $this->clean()['rules'] ?: array();
             $addRules = array();
             $st->deleteRules(array(array('pe_type' => $peType, 'pe_id' => $peID)));
         }

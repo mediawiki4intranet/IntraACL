@@ -467,9 +467,10 @@ class IACLParserFunctions
                 // FIXME: resolve multiple IDs at once
                 $result[$r] = IACLDefinition::nameOfPE($r);
                 $result[$r][2] = IACLDefinition::peIDforName($result[$r][0], $result[$r][1]);
-                if (!$result[$r][2])
+                $subt = Title::newFromText(IACLDefinition::nameOfSD($result[$r][0], $result[$r][1]));
+                if (!$subt->exists())
                 {
-                    $this->badLinks[] = IACLDefition::nameOfSD($result[$r][0], $result[$r][1]);
+                    $this->badLinks[] = $subt;
                 }
             }
         }
@@ -649,11 +650,16 @@ class IACLParserFunctions
                     ' Maybe title contains an invalid UTF-8 sequence and should be deleted from the database?'
                 );
             }
-            if ($self->def)
+            // Prevent overwriting canonical definitions with non-canonical ones
+            $canonical = ($self->def['def_title']->getPrefixedText() === $title->getPrefixedText());
+            if ($canonical || $self->def['rules'])
             {
-                $self->def->save();
+                if ($self->def)
+                {
+                    $self->def->save();
+                }
+                $self->saveBadlinks($title);
             }
-            $self->saveBadlinks($title);
             self::destroyInstance($self);
         }
         self::refreshBadlinks($title);
