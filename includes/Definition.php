@@ -612,37 +612,43 @@ class IACLDefinition implements ArrayAccess
      */
     public static function peNameForID($peType, $peID)
     {
+        $res = NULL;
+        $etc = haclfDisableTitlePatch();
         if ($peType == IACL::PE_NAMESPACE)
         {
-            return iaclfCanonicalNsText($peID);
+            $res = iaclfCanonicalNsText($peID);
         }
         elseif ($peType == IACL::PE_RIGHT || $peType == IACL::PE_CATEGORY)
         {
             $t = Title::newFromId($peID);
-            return $t ? $t->getText() : NULL;
+            $res = $t ? $t->getText() : NULL;
         }
         elseif ($peType == IACL::PE_USER)
         {
             $u = User::newFromId($peID);
-            return $u ? $u->getName() : NULL;
+            $res = $u ? $u->getName() : NULL;
         }
         elseif ($peType == IACL::PE_GROUP)
         {
             $t = Title::newFromId($peID);
-            return $t ? substr($t->getText(), 6) : NULL;
+            $res = $t ? substr($t->getText(), 6) : NULL;
         }
         elseif ($peType == IACL::PE_SPECIAL)
         {
             $name = IACLStorage::get('SpecialPage')->specialsForIds($peID);
-            return reset($name);
+            $res = reset($name);
         }
-        $t = Title::newFromId($peID);
-        if ($t)
+        else
         {
-            // Always use canonical namespace names
-            return ($t->getNamespace() ? iaclfCanonicalNsText($t->getNamespace()).':' : '') . $t->getText();
+            $t = Title::newFromId($peID);
+            if ($t)
+            {
+                // Always use canonical namespace names
+                $res = ($t->getNamespace() ? iaclfCanonicalNsText($t->getNamespace()).':' : '') . $t->getText();
+            }
         }
-        return NULL;
+        haclfRestoreTitlePatch($etc);
+        return $res;
     }
 
     /**

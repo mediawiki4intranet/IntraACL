@@ -858,7 +858,7 @@ class IACLToolbar
             list($peType, $peName) = IACLDefinition::nameOfPE($wgTitle->getText());
             if ($peType == IACL::PE_PAGE || $peType == IACL::PE_CATEGORY)
             {
-                $title = Title::newFromText($peName);
+                $title = $peType == IACL::PE_PAGE ? Title::newFromText($peName) : Title::makeTitleSafe(NS_CATEGORY, $peName);
                 return array(
                     'class' => false,
                     'text'  => wfMsg("hacl_tab_".IACL::$typeToName[$peType]),
