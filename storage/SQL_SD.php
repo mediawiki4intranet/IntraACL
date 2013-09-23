@@ -145,18 +145,15 @@ class IntraACL_SQL_SD
      * This method does not return used content with recursion as it used to
      * determine embedded content of only ONE article.
      *
-     * @param int $peID
-     *      Page ID to retrieve the list of content used in.
-     * @param int $incSDType
-     *      (optional) SD type to to check if used content SDs are a single inclusion of this SD.
-     * @param int $incSDId
-     *      (optional) SD ID to check if used content SDs are a single inclusion of this SD.
-     * @param $linkstable
-     *      'imagelinks' (retrieve used images) or 'templatelinks' (retrieve used templates).
-     * @return array(array('title' => , 'sd_touched' => , 'single' => ))
+     * @param int $peID      Page ID to retrieve the list of content used in.
+     * @param int $incSDType (optional) SD type to to check if used content SDs are a single inclusion of this SD.
+     * @param int $incSDId   (optional) SD ID to check if used content SDs are a single inclusion of this SD.
+     * @param $linkstable    'imagelinks' (retrieve used images) or 'templatelinks' (retrieve used templates).
+     * @return array(array('title' => , 'sd_revid' => , 'single' => ))
      */
     public function getEmbedded($peID, $incSDType, $incSDId, $linkstable)
     {
+        global $haclgContLang;
         $dbr = wfGetDB(DB_SLAVE);
         if ($linkstable == 'imagelinks')
         {
@@ -177,14 +174,17 @@ class IntraACL_SQL_SD
         $p = $dbr->tableName('page');
         $rules = $dbr->tableName('intraacl_rules');
         $rev = $dbr->tableName('revision');
+        // SQL subquery for single inclusion detection
         $sql_is_single = $incSDType && $incSDId ?
             "(SELECT 1=SUM(CASE WHEN child_type=".$incSDType." AND child_id=".$incSDId.
             " AND (actions & ".((1 << IACL::INDIRECT_OFFSET) - 1).") = ".IACL::ACTION_INCLUDE_SD.
-            " THEN 1 WHEN !(action & ".((1 << IACL::INDIRECT_OFFSET) - 1).") THEN 0 ELSE 2 END) FROM $rules r".
+            " THEN 1 WHEN !(actions & ".((1 << IACL::INDIRECT_OFFSET) - 1).") THEN 0 ELSE 2 END) FROM $rules r".
             " WHERE r.pe_type=".IACL::PE_PAGE." AND r.pe_id=p1.page_id)" : "0";
+        // Full SQL query
         $sql =
-            "SELECT p1.*, $sql_is_single sd_inc_single,".
-            " (COUNT(il2.$linksfield)) used_on_pages".
+            "SELECT p1.*,".
+            " $sql_is_single sd_inc_single,".
+            " COUNT(il2.$linksfield) used_on_pages".
             " FROM $il il1 INNER JOIN $p p1 ON $linksjoin".
             " LEFT JOIN $il il2 ON $linksjoin2".
             " WHERE il1.$linksfield=$peID".
@@ -196,12 +196,12 @@ class IntraACL_SQL_SD
         foreach ($res as $obj)
         {
             $title = Title::newFromRow($obj);
-            $sd_title = IACLDefinition::nameOfSD(IACL::PE_PAGE, $title);
+            $sd_title = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_PAGE, $title));
             $batch->addObj($sd_title);
             $embedded[] = array(
                 'title' => $title,                      // Embedded content title
                 'sd_title' => $sd_title,                // SD title (if it exists)
-                'sd_touched' => $obj->sd_touched,       // Modification timestamp of an SD
+                'sd_revid' => NULL,
                 'sd_single' => $obj->sd_inc_single,     // Is SD a single inclusion of $incSDType/$incSDId?
                 'used_on_pages' => $obj->used_on_pages, // Count of pages on which it is used
             );
@@ -212,6 +212,11 @@ class IntraACL_SQL_SD
             if (!$e['sd_title']->exists())
             {
                 $e['sd_title'] = NULL;
+            }
+            else
+            {
+                // Add SD modification timestamp
+                $e['sd_revid'] = $e['sd_title']->getLatestRevID();
             }
         }
         return $embedded;

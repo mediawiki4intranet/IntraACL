@@ -634,7 +634,7 @@ class IACLToolbar
                 $wgRequest->setVal($k, false); // clear value to handle embedded content only one time
                 $emb_pe_id = intval(substr($k, 7));
                 $emb_title = Title::newFromId($emb_pe_id);
-                list($req_sd_id, $emb_sd_timestamp) = explode('-', $v, 2);
+                list($req_sd_type, $req_sd_id, $emb_sd_revid) = explode('-', $v, 3);
                 if ($emb_title)
                 {
                     $emb_sd_title = Title::newFromText(
@@ -650,13 +650,13 @@ class IACLToolbar
                     // Embedded content deleted || Manage access denied
                     $errors[] = array($emb_title, 'canedit');
                 }
-                elseif ($req_sd_id && $req_sd_id != $articleSD->getSDId())
+                elseif ($req_sd_type && $req_sd_id && "$req_sd_type-$req_sd_id" != $articleSD['key'])
                 {
                     // Invalid SD requested for protection
                     $errors[] = array($emb_title, 'invalidsd');
                 }
-                elseif (!$emb_sd_timestamp && $emb_sd_article->exists() ||
-                    $emb_sd_timestamp && $emb_sd_article->getTimestamp() > $emb_sd_timestamp)
+                elseif (!$emb_sd_revid && $emb_sd_title->exists() ||
+                    $emb_sd_revid && $emb_sd_title->getLatestRevId() != $emb_sd_revid)
                 {
                     // Mid-air collision: SD created/changed by someone in the meantime
                     $errors[] = array($emb_title, 'midair');
@@ -665,8 +665,8 @@ class IACLToolbar
                 {
                     // Save embedded element SD
                     $emb_sd_article->doEdit(
-                        '{{#predefined right: rights='.$articleSD->getSDName().'}}',
-                        wfMsg('hacl_comment_protect_embedded', $articleSD->getSDName()),
+                        '{{#predefined right: rights='.$articleSD['def_title'].'}}',
+                        wfMsg('hacl_comment_protect_embedded', ''.$articleSD['def_title']),
                         EDIT_FORCE_BOT
                     );
                 }
@@ -704,13 +704,18 @@ class IACLToolbar
      * Used by ACL editor and IntraACL toolbar.
      * Handled by IACLToolbar::articleSaveComplete_SaveEmbedded.
      *
+     * FIXME: Linked content protection is not exactly usable, because it does not replicate
+     * namespace and category rights applied to the source page. I don't yet know how to deal
+     * with it...
+     *
      * @param required int $peID - page ID to retrieve linked content from
+     * @param optional int $sdType
      * @param optional int $sdID - page SD ID to check if SDs of linked content are already
      *     single inclusions of this SD.
      * @return html code for embedded content protection toolbar
      *     it containts checkboxes with names "sd_emb_$pageID" and values
-     *     "$sdID-$ts". $sdID here is the passed $sdID and $ts is the modification
-     *     timestamp of embedded element's SD, if it does exist.
+     *     "$sdType-$sdID-$revid". $sdID here is the passed $sdID and $revid is the ID
+     *     of embedded element's SD last revision, if it exists.
      *     Value may be even just "-" when the toolbar was queried for article without SD,
      *     and when the embedded element did not have any SD.
      */
@@ -734,10 +739,11 @@ class IACLToolbar
             $id = $link['title']->getArticleId();
             $href = $link['title']->getLocalUrl();
             $t = $link['title']->getPrefixedText();
-            $ts = $link['sd_touched'];
+            // Latest revision ID is checked to detect editing conflicts
+            $revid = $link['sd_revid'];
             if ($prev = $wgRequest->getVal("sd_emb_$id"))
             {
-                list($unused, $ts) = explode($prev, '/', 2);
+                list($unused, $revid) = explode($prev, '/', 2);
             }
             if ($link['sd_title'])
             {
@@ -771,7 +777,7 @@ class IACLToolbar
             $h = '<input type="checkbox" id="sd_emb_'.$id.'" name="sd_emb_'.$id.'"'.
                 ($link['sd_single']
                     ? ' value="" checked="checked" disabled="disabled"'
-                    : " value=\"$sdID-$ts\" onchange=\"hacle_noall(this)\" onclick=\"hacle_noall(this)\"".
+                    : " value=\"$sdType-$sdID-$revid\" onchange=\"hacle_noall(this)\" onclick=\"hacle_noall(this)\"".
                       ($prev ? ' checked="checked"' : '')).
                 ' />'.
                 ' <label for="sd_emb_'.$id.'"><a target="_blank" href="'.htmlspecialchars($href).'">'.
@@ -879,7 +885,9 @@ class IACLToolbar
                 $sd = $haclgContLang->getPetPrefix(IACL::PE_PAGE).
                     '/'.$wgTitle->getPrefixedText();
             }
+            $etc = haclfDisableTitlePatch();
             $sd = Title::newFromText($sd, HACL_NS_ACL);
+            haclfRestoreTitlePatch($etc);
             // Hide ACL tab if SD does not exist and $haclgDisableACLTab is true
             if (!$sd || !empty($haclgDisableACLTab) && !$sd->exists() && !$wgUser->getOption('showacltab'))
             {

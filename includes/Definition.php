@@ -137,9 +137,7 @@ class IACLDefinition implements ArrayAccess
             }
             elseif ($allowEmpty)
             {
-                $def = self::newEmpty();
-                $def['pe_type'] = $peType;
-                $def['pe_id'] = $id;
+                $def = self::newEmpty($peType, $id);
             }
             return $def;
         }

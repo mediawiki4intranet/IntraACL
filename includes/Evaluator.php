@@ -45,7 +45,9 @@ class IACLEvaluator
      * if the article for the given title can be accessed.
      * See further information at: http://www.mediawiki.org/wiki/Manual:Hooks/userCan
      *
-     * TODO: Switch to getUserPermissionsErrors hooks
+     * TODO: Switch to getUserPermissionsErrors hook.
+     * We'll either need to raise minimal MW version requirement to 1.19, or leave
+     * userCan hook for checking read permission in 1.18 and below.
      *
      * @param Title $title      The title object for the article that will be accessed.
      * @param User $user        Reference to the current user.
@@ -79,8 +81,8 @@ class IACLEvaluator
         self::log("The action is " . ($result ? "allowed.\n\n" : "forbidden.\n\n"));
         self::finishLog();
 
-        // Always continue hook processing
-        return true;
+        // Stop hook processing if access is denied
+        return $result;
     }
 
     /**

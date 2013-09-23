@@ -426,7 +426,7 @@ function haclSDExists_GetEmbedded($type, $name)
         if ($type == IACL::PE_PAGE)
         {
             // Build HTML code for embedded protection toolbar
-            $data['embedded'] = IACLToolbar::getEmbeddedHtml($sd);
+            $data['embedded'] = IACLToolbar::getEmbeddedHtml(Title::newFromText($name)->getArticleId(), $sd['pe_type'], $sd['pe_id']);
         }
     }
     return json_encode($data);
