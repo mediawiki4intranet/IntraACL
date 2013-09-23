@@ -117,7 +117,11 @@ class IACLToolbar
                     $cat = array(IACL::PE_CATEGORY, $cat);
                 }
                 unset($cat); // prevent reference bugs
-                $globalACL = array_merge($globalACL, IACLDefinition::select(array('pe' => $categories)));
+                $defs = IACLDefinition::select(array('pe' => $categories));
+                foreach ($defs as $def)
+                {
+                    $globalACL[] = $def['def_title'];
+                }
             }
         }
 
