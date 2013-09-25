@@ -41,11 +41,74 @@ class IACLEvaluator
     static $mLogEnabled = false;
 
     /**
+     * Returns additional customisation for parser cache key based
+     * on ACLs applied to an article.
+     *
+     * @param Title $title
+     * @param User $user
+     * @return string|NULL
+     */
+    public static function getParserCacheKey($title, $user)
+    {
+        global $haclgSuperGroups, $haclgContLang;
+        if (!$title || $title->getInterwiki() !== '' || !$title->getArticleId())
+        {
+            return NULL;
+        }
+        if ($title->getUserPermissionsErrors('read', $user))
+        {
+            return '0';
+        }
+        $groups = $user->getGroups();
+        if ($groups && array_intersect($groups, $haclgSuperGroups))
+        {
+            // We know that superuser can read anything included in the article
+            return '1';
+        }
+        $readAll = true;
+        $readKey = '';
+        $byte = 1;
+        $n = 1;
+        $dbr = wfGetDB(DB_SLAVE);
+        // Get used images and templates - they affect resulting readability
+        $res = $dbr->query(
+            '(' . $dbr->selectSQLText(
+                array('page', 'imagelinks'), 'page.*',
+                array('il_from' => $title->getArticleId(), 'il_to=page_title', 'page_namespace' => NS_FILE), __METHOD__
+            ) . ') UNION (' .
+            $dbr->selectSQLText(
+                array('page', 'templatelinks'), 'page.*',
+                array('tl_from' => $title->getArticleId(), 'tl_title=page_title', 'tl_namespace=page_namespace'), __METHOD__
+            ) . ') ORDER BY page_id',
+            __METHOD__
+        );
+        foreach ($res as $row)
+        {
+            $title = Title::newFromRow($row);
+            $canRead = !$title->getUserPermissionsErrors('read', $user);
+            $readAll = $readAll && $canRead;
+            // Pack readable bits into a string
+            $byte = ($byte << 1) | ($canRead ? 1 : 0);
+            if ($n++ >= 8)
+            {
+                $readKey .= chr($byte);
+                $n = $byte = 0;
+            }
+        }
+        if ($readAll)
+        {
+            return '1';
+        }
+        return base64_encode($readKey);
+    }
+
+    /**
      * This function is called from the userCan-hook of MW. This method decides
      * if the article for the given title can be accessed.
      * See further information at: http://www.mediawiki.org/wiki/Manual:Hooks/userCan
      *
-     * TODO: Switch to getUserPermissionsErrors hook.
+     * TODO: Untie right evaluation from logging and the hook itself.
+     * TODO: Also switch to getUserPermissionsErrors hook and return sensible error messages.
      * We'll either need to raise minimal MW version requirement to 1.19, or leave
      * userCan hook for checking read permission in 1.18 and below.
      *
@@ -128,8 +191,7 @@ class IACLEvaluator
         }
 
         // If there is a whitelist, then allow user to read the page
-        global $wgWhitelistRead;
-        if ($wgWhitelistRead && $actionID == IACL::ACTION_READ && in_array($title, $wgWhitelistRead, false))
+        if ($actionID == IACL::ACTION_READ && self::isWhitelisted($title))
         {
             return array('Page is in MediaWiki whitelist', 1);
         }
@@ -164,6 +226,22 @@ class IACLEvaluator
         }
 
         return self::hasSD($title, $articleID, $userID, $actionID);
+    }
+
+    /**
+     * Checks if a page is in MediaWiki whitelist
+     */
+    public static function isWhitelisted($title)
+    {
+        global $wgWhitelistRead;
+        if (!$wgWhitelistRead)
+        {
+            return false;
+        }
+        $name = $this->getPrefixedText();
+        $dbName = $this->getPrefixedDBKey();
+        // Check with and without underscores
+        return (in_array($name, $wgWhitelistRead, true) || in_array($dbName, $wgWhitelistRead, true));
     }
 
     /**

@@ -31,6 +31,8 @@ if (!defined('MEDIAWIKI'))
     die("This file is part of the IntraACL extension. It is not a valid entry point.");
 }
 
+define('IACL_PARSERCACHE_PERSONAL', 1);
+
 /**
  * Switch on Halo Access Control Lists. This function must be called in
  * LocalSettings.php after HACL_Initialize.php was included and default values
@@ -241,7 +243,6 @@ function haclfSetupExtension()
         // Permission and cache checks - intentionally disabled in console mode
         $wgHooks['userCan'][] = 'IACLEvaluator::userCan';
         $wgHooks['IsFileCacheable'][] = 'haclfIsFileCacheable';
-        $wgHooks['PageRenderingHash'][] = 'haclfPageRenderingHash';
     }
     else
     {
@@ -406,26 +407,6 @@ function haclfInitContentLanguage($langcode)
 function haclfIsFileCacheable($article)
 {
     return $article->getTitle()->getNamespace() != HACL_NS_ACL;
-}
-
-/**
- * The hash for the page cache depends on the user.
- *
- * TODO: Improve IntraACL page caching so different users can share
- * parser cache items correctly (without affecting applied permissions).
- *
- * @param string $hash
- *         A reference to the hash. This the ID of the current user is appended
- *         to this hash.
- */
-function haclfPageRenderingHash(&$hash)
-{
-    global $wgUser, $wgTitle;
-    if (is_object($wgUser))
-    {
-        $hash .= '!'.$wgUser->getId();
-    }
-    return true;
 }
 
 /**
