@@ -89,9 +89,9 @@ class IACLEvaluator
             $readAll = $readAll && $canRead;
             // Pack readable bits into a string
             $byte = ($byte << 1) | ($canRead ? 1 : 0);
-            if ($n++ >= 8)
+            if ($n++ >= 6)
             {
-                $readKey .= chr($byte);
+                $readKey .= chr($byte+0x40);
                 $n = $byte = 0;
             }
         }
@@ -99,7 +99,7 @@ class IACLEvaluator
         {
             return '1';
         }
-        return base64_encode($readKey);
+        return $readKey;
     }
 
     /**
