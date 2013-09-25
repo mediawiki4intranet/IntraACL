@@ -881,13 +881,11 @@ class IACLToolbar
             // Display the link to category or page SD
             if ($wgTitle->getNamespace() == NS_CATEGORY)
             {
-                $sd = $haclgContLang->getPetPrefix(IACL::PE_CATEGORY).
-                    '/'.$wgTitle->getText();
+                $sd = IACLDefinition::nameOfSD(IACL::PE_CATEGORY, $wgTitle);
             }
             else
             {
-                $sd = $haclgContLang->getPetPrefix(IACL::PE_PAGE).
-                    '/'.$wgTitle->getPrefixedText();
+                $sd = IACLDefinition::nameOfSD(IACL::PE_PAGE, $wgTitle);
             }
             $etc = haclfDisableTitlePatch();
             $sd = Title::newFromText($sd, HACL_NS_ACL);

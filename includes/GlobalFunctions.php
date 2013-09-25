@@ -410,7 +410,9 @@ function haclfIsFileCacheable($article)
 
 /**
  * The hash for the page cache depends on the user.
- * TODO: Rework this along with the new IntraACL caching system.
+ *
+ * TODO: Improve IntraACL page caching so different users can share
+ * parser cache items correctly (without affecting applied permissions).
  *
  * @param string $hash
  *         A reference to the hash. This the ID of the current user is appended
@@ -491,7 +493,14 @@ function haclfArticleID($articleName, $defaultNS = NS_MAIN, $force = false)
     }
     if ($t->getNamespace() == NS_SPECIAL)
     {
-        return -IACLStorage::get('SpecialPage')->idForSpecial($t->getBaseText());
+        // Canonicalize special page titles
+        list($base, $par) = SpecialPageFactory::resolveAlias($t->getText());
+        if (!$base)
+        {
+            // No such special page exists, just take the base text
+            $base = $t->getBaseText();
+        }
+        return -IACLStorage::get('SpecialPage')->idForSpecial($base);
     }
     $id = $t->getArticleID();
     if ($id === 0)

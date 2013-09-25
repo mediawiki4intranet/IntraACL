@@ -732,9 +732,24 @@ class IACLDefinition implements ArrayAccess
     {
         global $wgContLang, $haclgContLang;
         $defTitle = $wgContLang->getNsText(HACL_NS_ACL).':';
+        if ($nameOfPE instanceof Title)
+        {
+            // Get canonical prefixed text from a Title object
+            $base = $nameOfPE->getText();
+            $ns = $nameOfPE->getNamespace();
+            if ($ns == NS_SPECIAL)
+            {
+                // Canonicalize special page titles
+                list($base, $par) = SpecialPageFactory::resolveAlias($t->getText());
+                if ("$par" !== '')
+                {
+                    $base = "$base/$par";
+                }
+            }
+            $nameOfPE = ($ns ? iaclfCanonicalNsText($nameOfPE->getNamespace()).':' : '') . $base;
+        }
         if ($peType == IACL::PE_SPECIAL)
         {
-            // FIXME We need to canonicalize special page titles!
             $defTitle .= $haclgContLang->getPetPrefix(IACL::PE_PAGE).'/Special:';
         }
         elseif ($peType != IACL::PE_RIGHT)
