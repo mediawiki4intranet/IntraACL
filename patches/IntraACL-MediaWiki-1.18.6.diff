@@ -9,6 +9,7 @@ in various parts of MediaWiki.
 2013-03-29 - Still register dependencies for unreadable images and templates.
 2013-07-31 - Check permissions for email notifications
 2013-08-27 - Check permissions in API
+2013-09-25 - Support parser cache key personalisation
 
 diff --git a/includes/CategoryPage.php b/includes/CategoryPage.php
 index 6a0f613..53821d8 100644
@@ -1052,7 +1053,7 @@ index b38df6b..68f42b6 100644
  				if ( $qp->usesTimestamps() ) {
  					$data['timestamp'] = wfTimestamp( TS_ISO_8601, $row->value );
 diff --git a/includes/api/ApiQueryRandom.php b/includes/api/ApiQueryRandom.php
-index dea0b0f..061ede4 100644
+index dea0b0f..a6b3e5c 100644
 --- a/includes/api/ApiQueryRandom.php
 +++ b/includes/api/ApiQueryRandom.php
 @@ -85,9 +85,13 @@ class ApiQueryRandom extends ApiQueryGeneratorBase {
@@ -1272,7 +1273,7 @@ index 5418b6e..53fab05 100644
  
  	/**
 diff --git a/includes/parser/Parser.php b/includes/parser/Parser.php
-index 939d9e3..f089ff5 100644
+index 939d9e3..002d644 100644
 --- a/includes/parser/Parser.php
 +++ b/includes/parser/Parser.php
 @@ -1738,7 +1738,18 @@ class Parser {
@@ -1325,7 +1326,7 @@ index 939d9e3..f089ff5 100644
  				$ns = $this->mTitle->getNamespace();
  			}
 +			// <IntraACL>
-+			// Template access check is done in statelessFetchTemplate()
++			// Template access check is done below, after loading
 +			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
 +				$etc = haclfDisableTitlePatch();
 +			}
@@ -1339,7 +1340,77 @@ index 939d9e3..f089ff5 100644
  			if ( $title ) {
  				$titleText = $title->getPrefixedText();
  				# Check for language variants if the template is not found
-@@ -3326,6 +3358,7 @@ class Parser {
+@@ -3136,11 +3168,25 @@ class Parser {
+ 					$found = false; # access denied
+ 					wfDebug( __METHOD__.": template inclusion denied for " . $title->getPrefixedDBkey() );
+ 				} else {
+-					list( $text, $title ) = $this->getTemplateDom( $title );
++					list( $text, $title, $canRead ) = $this->getTemplateDom( $title );
+ 					if ( $text !== false ) {
+ 						$found = true;
+ 						$isChildObj = true;
+ 					}
++					// <IntraACL>
++					if ( !$canRead ) {
++						// Expand templates to always get correct templatelinks,
++						// even if current user has no access to some templates
++						global $haclgInclusionDeniedMessage;
++						$this->getPreprocessor()->newFrame()->expand( $text, 0 );
++						if ( $haclgInclusionDeniedMessage ) {
++							$text = wfMsg( $haclgInclusionDeniedMessage );
++						} elseif ( $haclgInclusionDeniedMessage === '' ) {
++							$text = '';
++						}
++						$isChildObj = false;
++					}
++					// </IntraACL>
+ 				}
+ 
+ 				# If the title is valid but undisplayable, make a link to it
+@@ -3270,7 +3316,7 @@ class Parser {
+ 		}
+ 
+ 		# Cache miss, go to the database
+-		list( $text, $title ) = $this->fetchTemplateAndTitle( $title );
++		list( $text, $title, $canRead ) = $this->fetchTemplateAndTitle( $title );
+ 
+ 		if ( $text === false ) {
+ 			$this->mTplDomCache[$titleText] = false;
+@@ -3285,13 +3331,13 @@ class Parser {
+ 				array( $title->getNamespace(), $cdb = $title->getDBkey() );
+ 		}
+ 
+-		return array( $dom, $title );
++		return array( $dom, $title, $canRead );
+ 	}
+ 
+ 	/**
+ 	 * Fetch the unparsed text of a template and register a reference to it.
+ 	 * @param Title $title
+-	 * @return Array ( string or false, Title )
++	 * @return Array ( string or false, Title, boolean )
+ 	 */
+ 	function fetchTemplateAndTitle( $title ) {
+ 		$templateCb = $this->mOptions->getTemplateCallback(); # Defaults to Parser::statelessFetchTemplate()
+@@ -3303,7 +3349,7 @@ class Parser {
+ 				$this->mOutput->addTemplate( $dep['title'], $dep['page_id'], $dep['rev_id'] );
+ 			}
+ 		}
+-		return array( $text, $finalTitle );
++		return array( $text, $finalTitle, $stuff['canRead'] );
+ 	}
+ 
+ 	/**
+@@ -3313,7 +3359,7 @@ class Parser {
+ 	 */
+ 	function fetchTemplate( $title ) {
+ 		$rv = $this->fetchTemplateAndTitle( $title );
+-		return $rv[0];
++		return $rv[2] ? $rv[0] : '';
+ 	}
+ 
+ 	/**
+@@ -3326,6 +3372,7 @@ class Parser {
  		$text = $skip = false;
  		$finalTitle = $title;
  		$deps = array();
@@ -1347,7 +1418,7 @@ index 939d9e3..f089ff5 100644
  
  		# Loop to fetch the article, with up to 1 redirect
  		for ( $i = 0; $i < 2 && is_object( $title ); $i++ ) {
-@@ -3334,6 +3367,7 @@ class Parser {
+@@ -3334,6 +3381,7 @@ class Parser {
  			wfRunHooks( 'BeforeParserFetchTemplateAndtitle',
  				array( $parser, $title, &$skip, &$id ) );
  
@@ -1355,7 +1426,7 @@ index 939d9e3..f089ff5 100644
  			if ( $skip ) {
  				$text = false;
  				$deps[] = array(
-@@ -3343,11 +3377,21 @@ class Parser {
+@@ -3343,11 +3391,21 @@ class Parser {
  				);
  				break;
  			}
@@ -1377,7 +1448,7 @@ index 939d9e3..f089ff5 100644
  			# If there is no current revision, there is no page
  			if ( $id === false && !$rev ) {
  				$linkCache = LinkCache::singleton();
-@@ -3384,8 +3428,28 @@ class Parser {
+@@ -3384,9 +3442,20 @@ class Parser {
  			}
  			# Redirect?
  			$finalTitle = $title;
@@ -1392,20 +1463,31 @@ index 939d9e3..f089ff5 100644
 +				haclfRestoreTitlePatch( $etc );
 +			}
 +			// </IntraACL>
-+		}
-+		// <IntraACL>
-+		if ( !$canRead ) {
-+			global $haclgInclusionDeniedMessage;
-+			if ( $haclgInclusionDeniedMessage ) {
-+				$text = wfMsg( $haclgInclusionDeniedMessage );
-+			} elseif ( $haclgInclusionDeniedMessage === '' ) {
-+				$text = '';
-+			}
  		}
-+		// </IntraACL>
  		return array(
++			'canRead' => $canRead,
  			'text' => $text,
  			'finalTitle' => $finalTitle,
+ 			'deps' => $deps );
+diff --git a/includes/parser/ParserCache.php b/includes/parser/ParserCache.php
+index dcbf7a4..ae6b70a 100644
+--- a/includes/parser/ParserCache.php
++++ b/includes/parser/ParserCache.php
+@@ -50,6 +50,14 @@ class ParserCache {
+ 		$pageid = $article->getID();
+ 		$renderkey = (int)($wgRequest->getVal('action') == 'render');
+ 
++		if ( defined( 'IACL_PARSERCACHE_PERSONAL' ) ) {
++			// IntraACL - include readability flags of templates and images
++			// used on the page in the cache key so parser cache can still
++			// be efficient with IntraACL being enabled
++			global $wgUser;
++			$renderkey .= IACLEvaluator::getParserCacheKey( $article->getTitle(), $wgUser );
++		}
++
+ 		$key = wfMemcKey( 'pcache', 'idhash', "{$pageid}-{$renderkey}!{$hash}" );
+ 		return $key;
+ 	}
 diff --git a/includes/specials/SpecialAllpages.php b/includes/specials/SpecialAllpages.php
 index a9cbf3a..63a3ac4 100644
 --- a/includes/specials/SpecialAllpages.php
