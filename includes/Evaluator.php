@@ -95,6 +95,10 @@ class IACLEvaluator
                 $n = $byte = 0;
             }
         }
+        if ($n)
+        {
+            $readKey .= chr($byte+0x40);
+        }
         if ($readAll)
         {
             return '1';
