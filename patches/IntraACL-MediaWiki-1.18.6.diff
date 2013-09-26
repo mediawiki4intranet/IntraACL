@@ -1273,7 +1273,7 @@ index 5418b6e..53fab05 100644
  
  	/**
 diff --git a/includes/parser/Parser.php b/includes/parser/Parser.php
-index 939d9e3..047c3b4 100644
+index 939d9e3..277ed91 100644
 --- a/includes/parser/Parser.php
 +++ b/includes/parser/Parser.php
 @@ -1738,7 +1738,18 @@ class Parser {
@@ -1351,7 +1351,7 @@ index 939d9e3..047c3b4 100644
  						$isChildObj = true;
  					}
 +					// <IntraACL>
-+					if ( !$canRead ) {
++					if ( $text !== false && !$canRead ) {
 +						// Expand templates to always get correct templatelinks,
 +						// even if current user has no access to some templates
 +						global $haclgInclusionDeniedMessage;
@@ -1367,12 +1367,15 @@ index 939d9e3..047c3b4 100644
  				}
  
  				# If the title is valid but undisplayable, make a link to it
-@@ -3266,32 +3312,33 @@ class Parser {
+@@ -3266,32 +3312,36 @@ class Parser {
  			$titleText = $title->getPrefixedDBkey();
  		}
  		if ( isset( $this->mTplDomCache[$titleText] ) ) {
 -			return array( $this->mTplDomCache[$titleText], $title );
 +			$dom = $this->mTplDomCache[$titleText];
++			if ( !$dom ) {
++				return array( false, $title, true );
++			}
 +			return array( $dom[0], $title, $dom[1] );
  		}
  
@@ -1407,7 +1410,7 @@ index 939d9e3..047c3b4 100644
  	 */
  	function fetchTemplateAndTitle( $title ) {
  		$templateCb = $this->mOptions->getTemplateCallback(); # Defaults to Parser::statelessFetchTemplate()
-@@ -3303,7 +3350,7 @@ class Parser {
+@@ -3303,7 +3353,7 @@ class Parser {
  				$this->mOutput->addTemplate( $dep['title'], $dep['page_id'], $dep['rev_id'] );
  			}
  		}
@@ -1416,7 +1419,7 @@ index 939d9e3..047c3b4 100644
  	}
  
  	/**
-@@ -3313,7 +3360,7 @@ class Parser {
+@@ -3313,7 +3363,7 @@ class Parser {
  	 */
  	function fetchTemplate( $title ) {
  		$rv = $this->fetchTemplateAndTitle( $title );
@@ -1425,7 +1428,7 @@ index 939d9e3..047c3b4 100644
  	}
  
  	/**
-@@ -3326,6 +3373,7 @@ class Parser {
+@@ -3326,6 +3376,7 @@ class Parser {
  		$text = $skip = false;
  		$finalTitle = $title;
  		$deps = array();
@@ -1433,7 +1436,7 @@ index 939d9e3..047c3b4 100644
  
  		# Loop to fetch the article, with up to 1 redirect
  		for ( $i = 0; $i < 2 && is_object( $title ); $i++ ) {
-@@ -3334,6 +3382,7 @@ class Parser {
+@@ -3334,6 +3385,7 @@ class Parser {
  			wfRunHooks( 'BeforeParserFetchTemplateAndtitle',
  				array( $parser, $title, &$skip, &$id ) );
  
@@ -1441,7 +1444,7 @@ index 939d9e3..047c3b4 100644
  			if ( $skip ) {
  				$text = false;
  				$deps[] = array(
-@@ -3343,11 +3392,21 @@ class Parser {
+@@ -3343,11 +3395,21 @@ class Parser {
  				);
  				break;
  			}
@@ -1463,7 +1466,7 @@ index 939d9e3..047c3b4 100644
  			# If there is no current revision, there is no page
  			if ( $id === false && !$rev ) {
  				$linkCache = LinkCache::singleton();
-@@ -3384,9 +3443,20 @@ class Parser {
+@@ -3384,9 +3446,20 @@ class Parser {
  			}
  			# Redirect?
  			$finalTitle = $title;

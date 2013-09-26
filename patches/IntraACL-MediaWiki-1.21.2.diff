@@ -1324,7 +1324,7 @@ index 49b2d33..74d9730 100644
  
  	/**
 diff --git a/includes/parser/Parser.php b/includes/parser/Parser.php
-index 5ef0bc7..cc943f1 100644
+index 5ef0bc7..de1a96f 100644
 --- a/includes/parser/Parser.php
 +++ b/includes/parser/Parser.php
 @@ -1898,7 +1898,18 @@ class Parser {
@@ -1402,7 +1402,7 @@ index 5ef0bc7..cc943f1 100644
  						$isChildObj = true;
  					}
 +					// <IntraACL>
-+					if ( !$canRead ) {
++					if ( $text !== false && !$canRead ) {
 +						// Expand templates to always get correct templatelinks,
 +						// even if current user has no access to some templates
 +						global $haclgInclusionDeniedMessage;
@@ -1418,12 +1418,15 @@ index 5ef0bc7..cc943f1 100644
  				}
  
  				# If the title is valid but undisplayable, make a link to it
-@@ -3586,32 +3632,37 @@ class Parser {
+@@ -3586,32 +3632,36 @@ class Parser {
  			$titleText = $title->getPrefixedDBkey();
  		}
  		if ( isset( $this->mTplDomCache[$titleText] ) ) {
 -			return array( $this->mTplDomCache[$titleText], $title );
 +			$dom = $this->mTplDomCache[$titleText];
++			if ( !$dom ) {
++				return array( false, $title, true );
++			}
 +			return array( $dom[0], $title, $dom[1] );
  		}
  
@@ -1439,10 +1442,6 @@ index 5ef0bc7..cc943f1 100644
  
  		$dom = $this->preprocessToDom( $text, self::PTD_FOR_INCLUSION );
 -		$this->mTplDomCache[ $titleText ] = $dom;
-+		// CustIS Bug 70192 - named section transclusion
-+		if ( $frag ) {
-+			$dom = $this->tryExtractNamedSection( $dom, $frag );
-+		}
 +		$this->mTplDomCache[ $titleText ] = array( $dom, $canRead );
  
  		if ( !$title->equals( $cacheTitle ) ) {
@@ -1462,7 +1461,7 @@ index 5ef0bc7..cc943f1 100644
  	 */
  	function fetchTemplateAndTitle( $title ) {
  		$templateCb = $this->mOptions->getTemplateCallback(); # Defaults to Parser::statelessFetchTemplate()
-@@ -3623,7 +3674,7 @@ class Parser {
+@@ -3623,7 +3673,7 @@ class Parser {
  				$this->mOutput->addTemplate( $dep['title'], $dep['page_id'], $dep['rev_id'] );
  			}
  		}
@@ -1471,7 +1470,7 @@ index 5ef0bc7..cc943f1 100644
  	}
  
  	/**
-@@ -3633,7 +3684,7 @@ class Parser {
+@@ -3633,7 +3683,7 @@ class Parser {
  	 */
  	function fetchTemplate( $title ) {
  		$rv = $this->fetchTemplateAndTitle( $title );
@@ -1480,7 +1479,7 @@ index 5ef0bc7..cc943f1 100644
  	}
  
  	/**
-@@ -3649,6 +3700,7 @@ class Parser {
+@@ -3649,6 +3699,7 @@ class Parser {
  		$text = $skip = false;
  		$finalTitle = $title;
  		$deps = array();
@@ -1488,7 +1487,7 @@ index 5ef0bc7..cc943f1 100644
  
  		# Loop to fetch the article, with up to 1 redirect
  		for ( $i = 0; $i < 2 && is_object( $title ); $i++ ) {
-@@ -3657,6 +3709,7 @@ class Parser {
+@@ -3657,6 +3708,7 @@ class Parser {
  			wfRunHooks( 'BeforeParserFetchTemplateAndtitle',
  				array( $parser, $title, &$skip, &$id ) );
  
@@ -1496,7 +1495,7 @@ index 5ef0bc7..cc943f1 100644
  			if ( $skip ) {
  				$text = false;
  				$deps[] = array(
-@@ -3666,11 +3719,21 @@ class Parser {
+@@ -3666,11 +3718,21 @@ class Parser {
  				);
  				break;
  			}
@@ -1518,7 +1517,7 @@ index 5ef0bc7..cc943f1 100644
  			# If there is no current revision, there is no page
  			if ( $id === false && !$rev ) {
  				$linkCache = LinkCache::singleton();
-@@ -3714,9 +3777,20 @@ class Parser {
+@@ -3714,9 +3776,20 @@ class Parser {
  			}
  			# Redirect?
  			$finalTitle = $title;
