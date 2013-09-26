@@ -333,6 +333,7 @@ HACLACLEditor.prototype.parse_make_closure = function()
 {
     this.parse_sd();
     this.fill_closure();
+    this.to_type_change();
 };
 
 // re-fill this.rights_indirect
@@ -686,7 +687,6 @@ HACLACLEditor.prototype.init = function(aclTitle, aclType, aclExists)
         else
             document.getElementById('acl_what_right').selected = true;
     }
-    this.parse_make_closure();
     // use ge.XX instead of this.XX because methods are often called in element or SHint context
     var ge = this;
     // create autocompleter for user/group name
@@ -698,7 +698,7 @@ HACLACLEditor.prototype.init = function(aclTitle, aclType, aclExists)
     exAttach('to_name', 'change', function(ev, e) { ge.to_name_change() });
     // init protection target
     this.target_change();
-    this.to_name_change();
+    this.parse_make_closure();
     // create autocompleter for protection target
     this.target_hint = new SHint('acl_name', 'hacl', function(h, v) { ge.target_hint_fill(h, v) });
     this.target_hint.change_old = this.target_hint.change;
