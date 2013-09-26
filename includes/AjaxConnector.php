@@ -401,7 +401,7 @@ function haclGroupClosure($groups, $rights)
             }
         }
     }
-    return json_encode(array('groups' => $members, 'rules' => $rules));
+    return json_encode(array('groups' => $members, 'rights' => $rules));
 }
 
 function haclSDExists_GetEmbedded($type, $name)

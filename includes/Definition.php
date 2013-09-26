@@ -282,16 +282,16 @@ class IACLDefinition implements ArrayAccess
     }
 
     /**
-     * Checks whether this SD only includes SINGLE predefined right and
-     * does not include any inline rights or manage template rights.
-     * If so, the ID of this single predefined right is returned.
+     * Checks whether this SD only includes a SINGLE predefined right and
+     * does not include any inline rights (except {{#manage rights}} = ACTION_MANAGE).
+     * If so, (Type, ID) pair for this single predefined right is returned.
      * If not, NULL is returned.
      *
      * @return array($peType, $peId) Identifier of child SD or NULL
      */
     protected function get_single_child()
     {
-        $direct = (1 << IACL::INDIRECT_OFFSET) - 1;
+        $direct = ((1 << IACL::INDIRECT_OFFSET) - 1) & ~IACL::ACTION_MANAGE;
         $single = NULL;
         foreach ($this['rules'] as $type => $rules)
         {
