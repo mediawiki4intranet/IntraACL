@@ -1,6 +1,6 @@
 Patch: intraacl-rights
 Type: feature
-MediaWiki: REL1_21 1.21.1 df12d1df2a8d7eead3f0a0d1cb97d8fb8589fe54
+MediaWiki: REL1_21 1.21.2 df12d1df2a8d7eead3f0a0d1cb97d8fb8589fe54
 
 Patch needed for IntraACL extension. Enables read access checks
 in various parts of MediaWiki.
@@ -1324,7 +1324,7 @@ index 49b2d33..74d9730 100644
  
  	/**
 diff --git a/includes/parser/Parser.php b/includes/parser/Parser.php
-index 5ef0bc7..54a1e8f 100644
+index 5ef0bc7..cc943f1 100644
 --- a/includes/parser/Parser.php
 +++ b/includes/parser/Parser.php
 @@ -1898,7 +1898,18 @@ class Parser {
@@ -1418,7 +1418,13 @@ index 5ef0bc7..54a1e8f 100644
  				}
  
  				# If the title is valid but undisplayable, make a link to it
-@@ -3590,7 +3636,7 @@ class Parser {
+@@ -3586,32 +3632,37 @@ class Parser {
+ 			$titleText = $title->getPrefixedDBkey();
+ 		}
+ 		if ( isset( $this->mTplDomCache[$titleText] ) ) {
+-			return array( $this->mTplDomCache[$titleText], $title );
++			$dom = $this->mTplDomCache[$titleText];
++			return array( $dom[0], $title, $dom[1] );
  		}
  
  		# Cache miss, go to the database
@@ -1427,7 +1433,20 @@ index 5ef0bc7..54a1e8f 100644
  
  		if ( $text === false ) {
  			$this->mTplDomCache[$titleText] = false;
-@@ -3605,13 +3651,13 @@ class Parser {
+-			return array( false, $title );
++			return array( false, $title, $canRead );
+ 		}
+ 
+ 		$dom = $this->preprocessToDom( $text, self::PTD_FOR_INCLUSION );
+-		$this->mTplDomCache[ $titleText ] = $dom;
++		// CustIS Bug 70192 - named section transclusion
++		if ( $frag ) {
++			$dom = $this->tryExtractNamedSection( $dom, $frag );
++		}
++		$this->mTplDomCache[ $titleText ] = array( $dom, $canRead );
+ 
+ 		if ( !$title->equals( $cacheTitle ) ) {
+ 			$this->mTplRedirCache[$cacheTitle->getPrefixedDBkey()] =
  				array( $title->getNamespace(), $cdb = $title->getDBkey() );
  		}
  
@@ -1443,7 +1462,7 @@ index 5ef0bc7..54a1e8f 100644
  	 */
  	function fetchTemplateAndTitle( $title ) {
  		$templateCb = $this->mOptions->getTemplateCallback(); # Defaults to Parser::statelessFetchTemplate()
-@@ -3623,7 +3669,7 @@ class Parser {
+@@ -3623,7 +3674,7 @@ class Parser {
  				$this->mOutput->addTemplate( $dep['title'], $dep['page_id'], $dep['rev_id'] );
  			}
  		}
@@ -1452,7 +1471,7 @@ index 5ef0bc7..54a1e8f 100644
  	}
  
  	/**
-@@ -3633,7 +3679,7 @@ class Parser {
+@@ -3633,7 +3684,7 @@ class Parser {
  	 */
  	function fetchTemplate( $title ) {
  		$rv = $this->fetchTemplateAndTitle( $title );
@@ -1461,7 +1480,7 @@ index 5ef0bc7..54a1e8f 100644
  	}
  
  	/**
-@@ -3649,6 +3695,7 @@ class Parser {
+@@ -3649,6 +3700,7 @@ class Parser {
  		$text = $skip = false;
  		$finalTitle = $title;
  		$deps = array();
@@ -1469,7 +1488,7 @@ index 5ef0bc7..54a1e8f 100644
  
  		# Loop to fetch the article, with up to 1 redirect
  		for ( $i = 0; $i < 2 && is_object( $title ); $i++ ) {
-@@ -3657,6 +3704,7 @@ class Parser {
+@@ -3657,6 +3709,7 @@ class Parser {
  			wfRunHooks( 'BeforeParserFetchTemplateAndtitle',
  				array( $parser, $title, &$skip, &$id ) );
  
@@ -1477,7 +1496,7 @@ index 5ef0bc7..54a1e8f 100644
  			if ( $skip ) {
  				$text = false;
  				$deps[] = array(
-@@ -3666,11 +3714,21 @@ class Parser {
+@@ -3666,11 +3719,21 @@ class Parser {
  				);
  				break;
  			}
@@ -1499,7 +1518,7 @@ index 5ef0bc7..54a1e8f 100644
  			# If there is no current revision, there is no page
  			if ( $id === false && !$rev ) {
  				$linkCache = LinkCache::singleton();
-@@ -3714,9 +3772,20 @@ class Parser {
+@@ -3714,9 +3777,20 @@ class Parser {
  			}
  			# Redirect?
  			$finalTitle = $title;
