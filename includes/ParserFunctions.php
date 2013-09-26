@@ -527,9 +527,8 @@ class IACLParserFunctions
                 }
             }
             // Add "Create/edit with IntraACL editor" link
-            if ($editor)
+            if ($editor && $article->getTitle()->userCan('edit'))
             {
-                // TODO do not display it when the user has no rights to change ACL
                 $html .= wfMsgForContent($self->def && $self->def->clean() ? 'hacl_edit_with_special' : 'hacl_create_with_special',
                     Title::newFromText('Special:IntraACL')->getLocalUrl(array(
                         'action' => ($self->peType == IACL::PE_GROUP ? 'group' : 'acl'),
@@ -695,10 +694,31 @@ class IACLParserFunctions
                 $this->badLinks[] = $title;
             }
         }
+        // Overwrite rules
         if ($this->def)
         {
-            $this->def['rules'] = $this->rules;
+            if ($this->isUnprotectable())
+            {
+                // This namespace can not be protected
+                $this->def['rules'] = array();
+            }
+            else
+            {
+                $this->def['rules'] = $this->rules;
+            }
         }
+    }
+
+    /**
+     * Does current PE belong to an unprotectable namespace?
+     */
+    protected function isUnprotectable()
+    {
+        global $haclgUnprotectableNamespaceIds;
+        return $haclgUnprotectableNamespaceIds &&
+            ($this->peType == IACL::PE_NAMESPACE && isset($haclgUnprotectableNamespaceIds[$this->def['pe_id']]) ||
+            $this->peType == IACL::PE_PAGE && isset($haclgUnprotectableNamespaceIds[Title::newFromText($this->peName)->getNamespace()]) ||
+            $this->peType == IACL::PE_CATEGORY && isset($haclgUnprotectableNamespaceIds[NS_CATEGORY]));
     }
 
     /**
@@ -907,18 +927,10 @@ class IACLParserFunctions
             $msg[] = wfMsgForContent('hacl_errors_in_definition');
         }
         $this->makeDef();
-        if ($this->peType == IACL::PE_NAMESPACE)
+        if ($this->isUnprotectable())
         {
-            global $haclgUnprotectableNamespaceIds;
-            // a namespace can only be protected if it is not member of $haclgUnprotectableNamespaces
-            // (transformed into $haclgUnprotectableNamespaceIds on extension init)
-            if ($haclgUnprotectableNamespaceIds &&
-                $haclgUnprotectableNamespaceIds[$this->def['pe_id']])
-            {
-                // This namespace can not be protected
-                // TODO So don't save the definition
-                $msg[] = wfMsgForContent('hacl_unprotectable_namespace');
-            }
+            // This namespace can not be protected
+            $msg[] = wfMsgForContent('hacl_unprotectable_namespace');
         }
         if ($this->title->exists() && !$this->rules)
         {

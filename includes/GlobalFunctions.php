@@ -217,7 +217,8 @@ function haclfSetupExtension()
     wfProfileIn(__FUNCTION__);
 
     global $haclgIP, $wgHooks, $wgParser, $wgExtensionCredits,
-        $wgLanguageCode, $wgRequest, $wgContLang, $haclgUnprotectableNamespaces, $haclgUnprotectableNamespaceIds;
+        $wgLanguageCode, $wgRequest, $wgContLang;
+    global $haclgUnprotectableNamespaces, $haclgUnprotectableNamespaceIds;
 
     /* Title patch is disabled until full initialization of extension.
      * This was formerly done with haclfDisableTitlePatch() in the beginning
@@ -257,6 +258,10 @@ function haclfSetupExtension()
     $haclgUnprotectableNamespaceIds = array();
     foreach ($haclgUnprotectableNamespaces as $ns)
     {
+        if ($ns === 'Main')
+        {
+            $ns = '';
+        }
         $ns = $wgContLang->getNsIndex($ns);
         if ($ns !== false)
         {
