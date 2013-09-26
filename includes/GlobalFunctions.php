@@ -148,9 +148,6 @@ function enableIntraACL()
         'IACLParserFunctions'       => "$haclgIP/includes/ParserFunctions.php",
         'IACLParserFunctionHooks'   => "$haclgIP/includes/ParserFunctions.php",
         'IACLEvaluator'             => "$haclgIP/includes/Evaluator.php",
-        'HACLGroup'                 => "$haclgIP/includes/HACL_Group.php",
-        'HACLSecurityDescriptor'    => "$haclgIP/includes/HACL_SecurityDescriptor.php",
-        'HACLRight'                 => "$haclgIP/includes/HACL_Right.php",
         'IACLQuickacl'              => "$haclgIP/includes/Quickacl.php",
         'IACLToolbar'               => "$haclgIP/includes/Toolbar.php",
 
@@ -160,8 +157,6 @@ function enableIntraACL()
 
         // Storage
         'IACLStorage'               => "$haclgIP/storage/Storage.php",
-        'IntraACL_SQL_Groups'       => "$haclgIP/storage/SQL_Groups.php",
-        'IntraACL_SQL_IR'           => "$haclgIP/storage/SQL_IR.php",
         'IntraACL_SQL_QuickACL'     => "$haclgIP/storage/SQL_QuickACL.php",
         'IntraACL_SQL_SD'           => "$haclgIP/storage/SQL_SD.php",
         'IntraACL_SQL_SpecialPage'  => "$haclgIP/storage/SQL_SpecialPage.php",
@@ -565,6 +560,7 @@ class DeferReparsePageRights
         if ($dbw->selectField('halo_acl_rights', '1', array('1=1'), __METHOD__, array('LIMIT' => 1)))
         {
             print "Old-style IntraACL/HaloACL storage detected, refreshing right definitions...\n";
+            $dbw->delete('halo_acl_special_pages', array('1=1'), __METHOD__);
             $res = $dbw->select('page', '*', array('page_namespace' => HACL_NS_ACL), __METHOD__);
             $titles = array();
             foreach ($res as $row)

@@ -316,11 +316,12 @@ class IACLToolbar
         return true;
     }
 
-    // Get categories which are granted readable for current user
+    /**
+     * Get categories which are granted readable for current user
+     */
     public static function getReadableCategories()
     {
         global $wgUser;
-        $groups = $wgUser->getId() ? IACLStorage::get('Groups')->getGroupsOfMember('user', $wgUser->getId()) : NULL;
         $uid = $wgUser->getId();
         // Lookup readable categories
         $pe = IACLStorage::get('SD')->getRules(array(

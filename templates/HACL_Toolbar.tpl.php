@@ -39,7 +39,7 @@
  <?= wfMsg('hacl_toolbar_select_qacl', $quick_acl_link) ?>
 <?php } if ($nonreadable) { ?>
  <input style="vertical-align: middle" type="checkbox" name="hacl_nonreadable_create" id="hacl_nonreadable_create" />
- <label style="vertical-align: middle" for="hacl_nonreadable_create"><?= wfMsg('hacl_create_unreadable_article') ?></label>
+ <label style="vertical-align: middle" for="hacl_nonreadable_create"><?= wfMsg('hacl_create_nonreadable_article') ?></label>
 <?php } ?>
  <div class="qacl"><a target="_blank" href="<?= $quick_acl_link ?>" title="<?= wfMsg('hacl_toolbar_qacl_title') ?>"><?= wfMsg('hacl_toolbar_qacl') ?></a></div>
 </div>
