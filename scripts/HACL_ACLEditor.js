@@ -319,7 +319,7 @@ HACLACLEditor.prototype.closure_groups_sd = function(d, sd)
             {
                 this.rights_indirect[m] = this.rights_indirect[m] || {};
                 for (var a in this.predef_cache[r][m])
-                    this.rights_indirect[m][a] = m;
+                    this.rights_indirect[m][a] = r;
             }
         }
     }
