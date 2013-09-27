@@ -834,10 +834,10 @@ index 9dbd859..e58c007 100644
  				}
  				if ( $fld_sortkey ) {
 diff --git a/includes/api/ApiQueryDeletedrevs.php b/includes/api/ApiQueryDeletedrevs.php
-index 31ca1ef..7d0aac5 100644
+index 890e4ec..37f7345 100644
 --- a/includes/api/ApiQueryDeletedrevs.php
 +++ b/includes/api/ApiQueryDeletedrevs.php
-@@ -228,6 +228,11 @@ class ApiQueryDeletedrevs extends ApiQueryBase {
+@@ -233,6 +233,11 @@ class ApiQueryDeletedrevs extends ApiQueryBase {
  			}
  
  			$title = Title::makeTitle( $row->ar_namespace, $row->ar_title );
@@ -1639,22 +1639,25 @@ index 6affa73..67942e2 100644
  						$link = ($s->page_is_redirect ? '<div class="allpagesredirect">' : '' ) .
  							Linker::linkKnown(
 diff --git a/includes/specials/SpecialRandompage.php b/includes/specials/SpecialRandompage.php
-index b59f834..ae7d6d0 100644
+index b59f834..19d87b8 100644
 --- a/includes/specials/SpecialRandompage.php
 +++ b/includes/specials/SpecialRandompage.php
-@@ -67,6 +67,12 @@ class RandomPage extends SpecialPage {
- 			$this->getOutput()->addWikiMsg( strtolower( $this->getName() ) . '-nopages',
- 				$this->getNsList(), count( $this->namespaces ) );
+@@ -69,6 +69,15 @@ class RandomPage extends SpecialPage {
  			return;
-+		// <IntraACL>
-+		} elseif ( $title->userCan('read') ) {
-+		// </IntraACL>
-+			$article = new Article( $title );
-+			$article->view();
-+			return;
  		}
  
++		// <IntraACL>
++		// Do not redirect to non-readable pages, just print permission errors in that case
++		global $wgUser;
++		$permErrors = $title->getUserPermissionsErrors( 'read', $wgUser );
++		if ( count( $permErrors ) ) {
++			throw new PermissionsError( 'read', $permErrors );
++		}
++		// </IntraACL>
++
  		$redirectParam = $this->isRedirect() ? array( 'redirect' => 'no' ) : array();
+ 		$query = array_merge( $this->getRequest()->getValues(), $redirectParam );
+ 		unset( $query['title'] );
 diff --git a/includes/specials/SpecialRecentchanges.php b/includes/specials/SpecialRecentchanges.php
 index 008678f..3ffeb1e 100644
 --- a/includes/specials/SpecialRecentchanges.php
