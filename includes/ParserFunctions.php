@@ -650,7 +650,7 @@ class IACLParserFunctions
                 );
             }
             // Prevent overwriting canonical definitions with non-canonical ones
-            $canonical = ($self->def['def_title']->getPrefixedText() === $title->getPrefixedText());
+            $canonical = ($self->def && $self->def['def_title']->getPrefixedText() === $title->getPrefixedText());
             if ($canonical || $self->def['rules'])
             {
                 if ($self->def)
