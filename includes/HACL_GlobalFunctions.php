@@ -63,6 +63,10 @@ function enableIntraACL()
         'localBasePath' => dirname(__DIR__) . '/scripts',
         'remoteExtPath' => 'IntraACL/scripts',
         'group' => 'ext.intraacl',
+        'dependencies' => array(
+            'mediawiki.legacy.wikibits',
+            'mediawiki.legacy.ajax',
+        ),
     );
     $wgResourceModules['ext.intraacl.acleditor'] = $mod + array(
         'scripts' => array(
