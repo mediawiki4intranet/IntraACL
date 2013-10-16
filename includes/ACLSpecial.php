@@ -406,7 +406,7 @@ class IntraACLSpecial extends SpecialPage
                 }
                 foreach ($ks as $nodename)
                 {
-                    $graph .= "$nodename [".self::attrstring($nodes[$nodename])."];\n";
+                    $graph .= "\"$nodename\" [".self::attrstring($nodes[$nodename])."];\n";
                 }
                 if ($cat !== '')
                 {
@@ -437,7 +437,7 @@ class IntraACLSpecial extends SpecialPage
                         'href' => $nodes[$from]['href'],
                         'tooltip' => $nodes[$from]['label'],
                     ));
-                    $graph .= "$from -> $id [$attr];\n";
+                    $graph .= "\"$from\" -> \"$id\" [$attr];\n";
                 }
             }
         }

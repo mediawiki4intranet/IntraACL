@@ -406,11 +406,11 @@ function haclGroupClosure($groups, $rights)
 
 function haclSDExists_GetEmbedded($type, $name)
 {
-    $type = @IACL::$nameToType[$type];
-    if (!$type)
+    if (!isset(IACL::$nameToType[$type]))
     {
         return 'null';
     }
+    $type = IACL::$nameToType[$type];
     $data = array(
         'exists' => false,
         'embedded' => '',

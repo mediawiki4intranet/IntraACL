@@ -51,7 +51,7 @@ class IACLToolbar
     static function get($title, $nonreadable)
     {
         global $wgUser, $wgRequest, $haclgContLang, $wgContLang,
-            $haclgIP, $haclgHaloScriptPath, $wgScriptPath, $wgOut,
+            $haclgHaloScriptPath, $wgScriptPath, $wgOut,
             $haclgOpenWikiAccess;
 
         self::addToolbarLinks($wgOut);

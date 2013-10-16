@@ -38,7 +38,7 @@ define('HACL_COMBINE_OVERRIDE', 'override');
 
 # This is the path to your installation of IntraACL as seen on your
 # local filesystem. Used against some PHP file path issues.
-$haclgIP = $IP . '/extensions/IntraACL';
+$haclgIP = dirname(__DIR__);
 
 # This is the path to your installation of IntraACL as seen from the
 # web. Change it if required ($wgScriptPath is the path to the base directory

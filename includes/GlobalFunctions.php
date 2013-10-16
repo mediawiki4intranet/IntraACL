@@ -184,9 +184,13 @@ function iaclfCanonicalNsText($index)
     {
         global $wgCanonicalNamespaceNames;
         $ns = $wgCanonicalNamespaceNames;
+        foreach ($ns as &$v)
+        {
+            $v = str_replace('_', ' ', $v);
+        }
         $ns[0] = 'Main';
     }
-    return @$ns[$index];
+    return isset($ns[$index]) ? $ns[$index] : NULL;
 }
 
 function haclfLanguageGetMagic(&$magicWords, $langCode)
@@ -657,6 +661,6 @@ class IACL
      */
     static function getActionID($name)
     {
-        return @self::$nameToAction[$name] ?: 0;
+        return isset(self::$nameToAction[$name]) ? self::$nameToAction[$name] : 0;
     }
 }

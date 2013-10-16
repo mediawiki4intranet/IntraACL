@@ -368,20 +368,41 @@ class IACLParserFunctions
         }
         foreach ($all_reg as $t => $true)
         {
-            @$this->rules[$t][0] |= $actions;
+            if (!isset($this->rules[$t][0]))
+            {
+                $this->rules[$t][0] = $actions;
+            }
+            else
+            {
+                $this->rules[$t][0] |= $actions;
+            }
         }
         foreach ($users as $name => $id)
         {
             if ($id !== false)
             {
-                @$this->rules[IACL::PE_USER][$id] |= $actions;
+                if (!isset($this->rules[IACL::PE_USER][$id]))
+                {
+                    $this->rules[IACL::PE_USER][$id] = $actions;
+                }
+                else
+                {
+                    $this->rules[IACL::PE_USER][$id] |= $actions;
+                }
             }
         }
         foreach ($groups as $name => $id)
         {
             if ($id !== false)
             {
-                @$this->rules[IACL::PE_GROUP][$id] |= $actions;
+                if (!isset($this->rules[IACL::PE_GROUP][$id]))
+                {
+                    $this->rules[IACL::PE_GROUP][$id] = $actions;
+                }
+                else
+                {
+                    $this->rules[IACL::PE_GROUP][$id] |= $actions;
+                }
             }
         }
         haclfRestoreTitlePatch($etc);
@@ -860,10 +881,11 @@ class IACLParserFunctions
             $old = IACLDefinition::newFromTitle($oldTitle, false);
             if ($old)
             {
+                $rules = $old['rules'];
                 $old['rules'] = array();
                 $old->save();
-                $new = IACLDefinition::newFromTitle($oldTitle, true);
-                $new['rules'] = $old['rules'];
+                $new = IACLDefinition::newFromTitle($newTitle, true);
+                $new['rules'] = $rules;
                 $new->save();
             }
             return true;

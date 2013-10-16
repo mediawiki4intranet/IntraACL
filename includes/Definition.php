@@ -106,7 +106,7 @@ class IACLDefinition implements ArrayAccess
         {
             if ($k[2])
             {
-                $r[$k[3]] = @$defs[$k[0].'-'.$k[2]];
+                $r[$k[3]] = isset($defs[$k[0].'-'.$k[2]]) ? $defs[$k[0].'-'.$k[2]] : NULL;
             }
         }
         return $r;
@@ -193,7 +193,7 @@ class IACLDefinition implements ArrayAccess
             {
                 return array();
             }
-            if (!is_array(@$pe[0]))
+            if (!empty($pe[0]) && !is_array($pe[0]))
             {
                 $pe = array($pe);
             }
@@ -490,7 +490,7 @@ class IACLDefinition implements ArrayAccess
             !(self::$userCacheLoaded[$userID] & (1 << $isGroup)))
         {
             global $iaclPreloadLimit;
-            self::$userCacheLoaded[$userID] = @self::$userCacheLoaded[$userID] | (1 << $isGroup);
+            self::$userCacheLoaded[$userID] = (isset(self::$userCacheLoaded[$userID]) ? self::$userCacheLoaded[$userID] : 0) | (1 << $isGroup);
             // Preload up to $iaclPreloadLimit rules, preferring more general (pe_type ASC)
             // and more recent (pe_id DESC) rules for better cache hit ratio.
             // Groups are unused in permission checks and thus have no effect on permission check speed,
