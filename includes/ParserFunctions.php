@@ -586,7 +586,7 @@ class IACLParserFunctions
                 else
                 {
                     $peID = IACLDefinition::peIDforName($pe[0], $pe[1]);
-                    if ($peID)
+                    if ($peID !== NULL)
                     {
                         $peName = IACLDefinition::peNameForID($pe[0], $peID);
                     }
@@ -694,7 +694,7 @@ class IACLParserFunctions
         if (!$this->def)
         {
             $id = IACLDefinition::peIDforName($this->peType, $this->peName);
-            if ($id)
+            if ($id !== NULL)
             {
                 $this->def = IACLDefinition::select(array('pe' => array($this->peType, $id)));
                 if ($this->def)

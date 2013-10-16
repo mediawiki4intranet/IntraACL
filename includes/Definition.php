@@ -94,7 +94,7 @@ class IACLDefinition implements ArrayAccess
             // id = get_id(name, type)
             $pe = self::nameOfPE($k);
             $id = self::peIDforName($pe[0], $pe[1]);
-            if ($id)
+            if ($id !== NULL)
             {
                 $where[] = array($pe[0], $id);
             }
@@ -128,7 +128,7 @@ class IACLDefinition implements ArrayAccess
     static function newFromName($peType, $peName, $allowEmpty = true)
     {
         $id = self::peIDforName($peType, $peName);
-        if ($id)
+        if ($id !== NULL)
         {
             $def = self::select(array('pe' => array($peType, $id)));
             if ($def)
@@ -602,7 +602,7 @@ class IACLDefinition implements ArrayAccess
             }
             return -$id;
         }
-        return $id ? $id : false;
+        return $id ? $id : NULL;
     }
 
     /**
