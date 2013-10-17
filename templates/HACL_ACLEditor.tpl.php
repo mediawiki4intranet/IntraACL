@@ -21,14 +21,6 @@
    </select>
    <input type="text" autocomplete="off" id="acl_name" style="width: 290px" />
   </p>
-  <p id="acl_pns">
-   <span><a id="acl_pn" class="acl_pn" href="#"></a></span>
-   <input type="submit" name="wpSave" value="<?= wfMsg($aclArticle ? 'hacl_edit_save' : 'hacl_edit_create') ?>" id="wpSave" />&nbsp;<a id="acl_delete_link" href="<?= $aclArticle ? $aclTitle->getLocalUrl(array('action' => 'delete')) : '' ?>"><?= wfMsg('hacl_edit_delete') ?></a>
-  </p>
-  <p id="acl_pnhint" class="acl_error" style="display: none"><?= wfMsg('hacl_edit_enter_name_first') ?></p>
-  <p id="acl_exists_hint" class="acl_info" style="display: none"><?= wfMsg('hacl_edit_sd_exists') ?></p>
-  <p id="acl_define_rights" class="acl_error"><?= wfMsg('hacl_edit_define_rights') ?></p>
-  <p id="acl_define_manager" class="acl_error"></p>
  </td>
  <td style="vertical-align: top">
   <p><b><?= wfMsg('hacl_edit_modify_definition') ?></b></p>
@@ -66,6 +58,15 @@
  </td>
 </tr>
 </table>
+<p id="acl_pns">
+ <span><a id="acl_pn" class="acl_pn" href="#"></a></span>
+ <input type="submit" name="wpSave" value="<?= wfMsg($aclArticle ? 'hacl_edit_save' : 'hacl_edit_create') ?>" id="wpSave" />&nbsp;<a id="acl_delete_link" href="<?= $aclArticle ? $aclTitle->getLocalUrl(array('action' => 'delete')) : '' ?>"><?= wfMsg('hacl_edit_delete') ?></a>
+</p>
+<p id="acl_pnhint" class="acl_error" style="display: none"><?= wfMsg('hacl_edit_enter_name_first') ?></p>
+<p id="acl_exists_hint" class="acl_info" style="display: none"><?= wfMsg('hacl_edit_sd_exists') ?></p>
+<p id="acl_define_rights" class="acl_error"><?= wfMsg('hacl_edit_define_rights') ?></p>
+<p id="acl_define_manager" class="acl_error"></p>
+<p id="acl_non_canonical" class="acl_error"></p>
 </form>
 
 <script language="JavaScript">

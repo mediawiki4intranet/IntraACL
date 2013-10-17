@@ -356,7 +356,7 @@ class IACLDefinition implements ArrayAccess
             $names = IACLStorage::get('SpecialPage')->specialsForIds($ids);
             foreach ($names as &$n)
             {
-                $n = SpecialPage::getTitleFor($n);
+                $n = Title::newFromText(NS_SPECIAL, $n);
             }
         }
         else

@@ -65,10 +65,10 @@ class IACLParserFunctions
     var $title, $peType, $peName;
 
     // Parsed right definitions and errors are saved here
-    var $rules = array(), $hasActions = 0, $errors = array(), $badLinks = array();
+    var $rules = array(), $hasActions = 0, $errors = array(), $badLinks = array(), $isInterwiki = false;
 
     // Right definiton object
-    var $def;
+    var $def = NULL;
 
     // Parser instance
     static $parser;
@@ -520,31 +520,23 @@ class IACLParserFunctions
             // FIXME We need to canonicalize special page names!
             $self = self::instance($article->getTitle());
             $editor = true;
-            $peName = false;
             $self->makeDef();
             $html = '';
-            if ($self->def)
+            $sdName = self::getCanonicalDefTitle($self->title);
+            $old = $self->title->getPrefixedText();
+            if ($sdName !== NULL && $sdName != $old)
             {
-                $peName = IACLDefinition::peNameForID($self->peType, $self->def['pe_id']);
-            }
-            elseif ($self->peType == IACL::PE_PAGE)
-            {
-                // Pages may contain namespace name, and we want to redirect
-                // from a non-canonical name even the page itself does not exist
-                $t = Title::newFromText($peName);
-                if ($t)
+                if (!$article->exists())
                 {
-                    $peName = ($t->getNamespace() ? iaclfCanonicalNsText($t->getNamespace()).':' : '') . $t->getText();
-                }
-            }
-            if ($peName)
-            {
-                $sdName = IACLDefinition::nameOfSD($self->peType, $peName);
-                if ($sdName != $self->title->getPrefixedText())
-                {
-                    $html .= '<div class="error"><p>'.wfMsgForContent('hacl_non_canonical_acl',
-                        Title::newFromText($sdName)->getLocalUrl(), $sdName, $self->title->getPrefixedText()).'</p></div>';
                     $editor = false;
+                    $html .= '<div class="error"><p>'.
+                        wfMsgForContent('hacl_non_canonical_acl_new', Title::newFromText($sdName)->getLocalUrl(), $sdName, $old).'</p></div>';
+                }
+                else
+                {
+                    $html .= '<div class="error"><p>'.
+                        wfMsgForContent('hacl_non_canonical_acl', SpecialPage::getTitleFor('MovePage', $old)
+                        ->getLocalUrl(array('wpLeaveRedirect' => 0, 'wpNewTitle' => $sdName)), $sdName, $old).'</p></div>';
                 }
             }
             // Add "Create/edit with IntraACL editor" link
@@ -563,46 +555,61 @@ class IACLParserFunctions
     }
 
     /**
+     * Returns a canonical definition title for $title, even
+     * if the protected page does not exist
+     */
+    protected static function getCanonicalDefTitle($title)
+    {
+        $pe = IACLDefinition::nameOfPE($title);
+        if ($pe)
+        {
+            $peName = false;
+            if ($pe[0] == IACL::PE_PAGE)
+            {
+                // Pages may contain namespace name, and we want to redirect
+                // from a non-canonical name even the page itself does not exist
+                $t = Title::newFromText($pe[1]);
+                if ($t->getInterwiki())
+                {
+                    // No protection can be applied to interwiki links!
+                    return NULL;
+                }
+                if ($t)
+                {
+                    $peName = ($t->getNamespace() ? iaclfCanonicalNsText($t->getNamespace()).':' : '') . $t->getText();
+                }
+            }
+            else
+            {
+                $peID = IACLDefinition::peIDforName($pe[0], $pe[1]);
+                if ($peID !== NULL)
+                {
+                    $peName = IACLDefinition::peNameForID($pe[0], $peID);
+                }
+            }
+            if ($peName)
+            {
+                return IACLDefinition::nameOfSD($pe[0], $peName);
+            }
+        }
+        return NULL;
+    }
+
+    /**
      * Redirect to canonical ACL page from a non-canonical one if the latter doesn't exist
      */
     public static function initializeArticleMaybeRedirect(&$title, &$request, &$ignoreRedirect, &$target, &$article)
     {
         if ($title->getNamespace() == HACL_NS_ACL && !$article->exists())
         {
-            $pe = IACLDefinition::nameOfPE($title);
-            if ($pe)
+            $sdName = self::getCanonicalDefTitle($title);
+            if ($sdName !== NULL && $sdName != $title->getPrefixedText())
             {
-                $peName = false;
-                if ($pe[0] == IACL::PE_PAGE)
-                {
-                    // Pages may contain namespace name, and we want to redirect
-                    // from a non-canonical name even the page itself does not exist
-                    $t = Title::newFromText($pe[1]);
-                    if ($t)
-                    {
-                        $peName = ($t->getNamespace() ? iaclfCanonicalNsText($t->getNamespace()).':' : '') . $t->getText();
-                    }
-                }
-                else
-                {
-                    $peID = IACLDefinition::peIDforName($pe[0], $pe[1]);
-                    if ($peID !== NULL)
-                    {
-                        $peName = IACLDefinition::peNameForID($pe[0], $peID);
-                    }
-                }
-                if ($peName)
-                {
-                    $sdName = IACLDefinition::nameOfSD($pe[0], $peName);
-                    if ($sdName != $title->getPrefixedText())
-                    {
-                        // Use $article instead of $target because MW doesn't redirect
-                        // when $target does not exist
-                        $article = new Article(Title::newFromText($sdName));
-                        $article->setRedirectedFrom($title);
-                        return false;
-                    }
-                }
+                // Use $article instead of $target because MW doesn't redirect
+                // when $target does not exist
+                $article = new Article(Title::newFromText($sdName));
+                $article->setRedirectedFrom($title);
+                return false;
             }
         }
         return true;
@@ -691,8 +698,9 @@ class IACLParserFunctions
      */
     protected function makeDef()
     {
-        if (!$this->def)
+        if ($this->def === NULL)
         {
+            $this->def = false;
             $id = IACLDefinition::peIDforName($this->peType, $this->peName);
             if ($id !== NULL)
             {
@@ -708,11 +716,19 @@ class IACLParserFunctions
             }
             elseif ($this->peType == IACL::PE_PAGE || $this->peType == IACL::PE_CATEGORY)
             {
-                // Save PE itself into bad links
                 $title = $this->peType == IACL::PE_CATEGORY
                     ? Title::makeTitleSafe(NS_CATEGORY, $this->peName)
                     : Title::newFromText($this->peName);
-                $this->badLinks[] = $title;
+                if (!$title->getInterwiki())
+                {
+                    // Save PE itself into bad links
+                    $this->badLinks[] = $title;
+                }
+                else
+                {
+                    // This is an interwiki title!
+                    $this->isInterwiki = true;
+                }
             }
         }
         // Overwrite rules
@@ -944,11 +960,11 @@ class IACLParserFunctions
     {
         global $haclgContLang, $haclgHaloScriptPath;
         $msg = array();
+        $this->makeDef();
         if ($this->errors)
         {
             $msg[] = wfMsgForContent('hacl_errors_in_definition');
         }
-        $this->makeDef();
         if ($this->isUnprotectable())
         {
             // This namespace can not be protected
@@ -969,7 +985,14 @@ class IACLParserFunctions
         {
             if (!$this->def)
             {
-                $msg[] = wfMsgForContent('hacl_pe_not_exists', $this->peName);
+                if ($this->isInterwiki)
+                {
+                    $msg[] = wfMsgForContent('hacl_pe_is_interwiki', $this->peName);
+                }
+                else
+                {
+                    $msg[] = wfMsgForContent('hacl_pe_not_exists', $this->peName);
+                }
             }
             else
             {
@@ -1068,13 +1091,16 @@ class IACLParserFunctions
     function showErrors($messages)
     {
         $text = "";
-        $this->errors = array_merge($this->errors, $messages);
-        if (!empty($messages))
+        if ($messages)
         {
-            $text .= "\n:;".wfMsgForContent('hacl_error').
-                wfMsgForContent('hacl_will_not_work_as_expected').
-                "\n:*".implode("\n:*", $messages);
+            if (!$this->errors)
+            {
+                $text .= "\n:;".wfMsgForContent('hacl_error').
+                    wfMsgForContent('hacl_will_not_work_as_expected');
+            }
+            $text .= "\n:*".implode("\n:*", $messages);
         }
+        $this->errors = array_merge($this->errors, $messages);
         return $text;
     }
 

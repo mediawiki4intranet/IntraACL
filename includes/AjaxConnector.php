@@ -108,8 +108,9 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
             // Filter unreadable
             if ($title->userCanRead())
             {
-                $title = $title->getPrefixedText();
-                $a[] = array($title, $title);
+                // Use canonical titles
+                $t = ($title->getNamespace() ? iaclfCanonicalNsText($title->getNamespace()).':' : '') . $title->getText();
+                $a[] = array($title->getPrefixedText(), $t);
             }
         }
     }
@@ -414,13 +415,15 @@ function haclSDExists_GetEmbedded($type, $name)
     $data = array(
         'exists' => false,
         'embedded' => '',
+        'canon' => false,
     );
     $sd = IACLDefinition::newFromName($type, $name);
     if ($sd)
     {
+        $data['canon'] = $sd['def_title']->getPrefixedText();
         if ($sd['rules'])
         {
-            // FIXME Maybe check page instead of SD itself?
+            // FIXME Maybe check page for existence instead of SD rules?
             $data['exists'] = true;
         }
         if ($type == IACL::PE_PAGE)

@@ -110,6 +110,7 @@ function enableIntraACL()
             'hacl_edit_ahint_move',
             'hacl_edit_goto_group',
             'hacl_edit_lose',
+            'hacl_non_canonical_acl',
         ),
     );
     $wgResourceModules['ext.intraacl.groupeditor'] = $mod + array(
@@ -472,7 +473,7 @@ function haclfArticleID($articleName, $defaultNS = NS_MAIN, $force = false)
             : Title::newFromText($articleName, $defaultNS);
         haclfRestoreTitlePatch($etc);
     }
-    if (!$t)
+    if (!$t || $t->getInterwiki())
     {
         return 0;
     }

@@ -96,7 +96,7 @@ HACLACLEditor.prototype.target_change = function(total_change)
         var pn = document.getElementById('acl_pn');
         t = this.NS_ACL+':'+this.pet_prefixes[what]+'/'+name;
         pn.innerHTML = t;
-        pn.href = wgScript+'/'+encodeURI(t);
+        pn.href = wgArticlePath.replace('$1', encodeURI(t));
         document.getElementById('wpTitle').value = t;
         document.getElementById('acl_delete_link').href = wgScript + '?title=' + encodeURI(t) + '&action=delete';
         var ae = this;
@@ -127,8 +127,24 @@ HACLACLEditor.prototype.ajax_sd_exists = function(request)
     if (request.status != 200)
         return;
     var data = eval('('+request.responseText+')'); // json parse
+    // Check if the SD exists
     document.getElementById('acl_exists_hint').style.display = data.exists ? '' : 'none';
     document.getElementById('acl_delete_link').style.display = data.exists ? '' : 'none';
+    // Check if the SD has canonical title
+    var pn = document.getElementById('acl_pn');
+    var nc = document.getElementById('acl_non_canonical');
+    var cur = document.getElementById('wpTitle').value;
+    if (data.canon && data.canon != cur)
+    {
+        nc.style.display = '';
+        nc.innerHTML = mw.msg('hacl_non_canonical_acl', wgArticlePath.replace('$1',
+            'Special:MovePage/'+cur+'?wpLeaveRedirect=0&wpNewTitle='+encodeURIComponent(data.canon)), data.canon, cur);
+    }
+    else
+    {
+        nc.style.display = 'none';
+    }
+    // Output "embedded content" message
     var emb = document.getElementById('acl_embed');
     emb.innerHTML = data.exists && data.embedded ? data.embedded : '';
     emb.style.display = data.exists && data.embedded ? '' : 'none';
@@ -481,7 +497,7 @@ HACLACLEditor.prototype.to_name_change = function()
     var goto_link = document.getElementById('hacl_to_goto');
     if (g_to && g_to.substr(0, 6) == 'Group/')
     {
-        goto_link.href = wgScript+'/'+this.NS_ACL+':'+this.group_prefix+'/'+encodeURI(g_to.substr(6));
+        goto_link.href = wgArticlePath.replace('$1', this.NS_ACL+':'+this.group_prefix+'/'+encodeURI(g_to.substr(6)));
         goto_link.title = mw.msg('hacl_edit_goto_group', g_to.substr(6));
         goto_link.style.display = '';
     }
