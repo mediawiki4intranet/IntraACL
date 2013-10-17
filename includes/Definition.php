@@ -104,7 +104,7 @@ class IACLDefinition implements ArrayAccess
         $r = array();
         foreach ($titles as &$k)
         {
-            if ($k[2])
+            if ($k[2] !== NULL)
             {
                 $r[$k[3]] = isset($defs[$k[0].'-'.$k[2]]) ? $defs[$k[0].'-'.$k[2]] : NULL;
             }
