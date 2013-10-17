@@ -456,21 +456,33 @@ class IntraACLSpecial extends SpecialPage
     {
         global $wgOut, $wgUser, $wgScript, $haclgHaloScriptPath, $haclgContLang;
         $limit = !empty($q['limit']) ? intval($q['limit']) : 100;
-        if (empty($q['filter'])) $q['filter'] = '';
-        if (empty($q['offset'])) $q['offset'] = 0;
+        if (empty($q['filter']))
+        {
+            $q['filter'] = '';
+        }
+        if (empty($q['offset']))
+        {
+            $q['offset'] = 0;
+        }
         if (!empty($q['types']))
         {
             $types = array_flip(explode(',', $q['types']));
             foreach ($types as $k => &$i)
+            {
                 $i = true;
+            }
             unset($i);
         }
         else
         {
             $types = array();
             foreach ($this->aclTargetTypes as $k => $a)
+            {
                 foreach ($a as $v => $t)
+                {
                     $types[$v] = true;
+                }
+            }
         }
         $types['all'] = true;
         foreach ($this->aclTargetTypes as $k => $a)
