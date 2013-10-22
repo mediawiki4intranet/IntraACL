@@ -527,6 +527,7 @@ function iaclfLoadExtensionSchemaUpdates($updater = NULL)
     {
         die("IntraACL only supports MySQL at the moment");
     }
+    // FIXME: Use $updater->addPostDatabaseUpdateMaintenance() (1.19+) instead of destructor hack
     // Defer creating 'Permission Denied' page until all schema updates are finished
     global $egDeferCreatePermissionDenied;
     $egDeferCreatePermissionDenied = new DeferCreatePermissionDenied();
