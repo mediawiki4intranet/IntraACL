@@ -562,7 +562,8 @@ class DeferReparsePageRights
     {
         global $wgContLang;
         $dbw = wfGetDB(DB_MASTER);
-        if ($dbw->selectField('halo_acl_rights', '1', array('1=1'), __METHOD__, array('LIMIT' => 1)))
+        if ($dbw->tableExists('halo_acl_rights') &&
+            $dbw->selectField('halo_acl_rights', '1', array('1=1'), __METHOD__, array('LIMIT' => 1)))
         {
             print "Old-style IntraACL/HaloACL storage detected, refreshing right definitions...\n";
             $dbw->delete('halo_acl_special_pages', array('1=1'), __METHOD__);
