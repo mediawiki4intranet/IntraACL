@@ -107,7 +107,9 @@ $haclgCombineMode = HACL_COMBINE_EXTEND;
 # relatively complex right model).
 $haclgSuperGroups = array('bureaucrat', 'sysop');
 
-# Preload no more than 1000 rules for current user.
+# Preload 1000 SDs individually granted for current user during right checks.
+# If your database is very large and this number is exceeded, IntraACL will begin to
+# make individual DB queries for the access check of each separate page.
 $iaclPreloadLimit = 1000;
 
 # See also $wgWhitelistRead - IntraACL opens whitelisted pages for reading
