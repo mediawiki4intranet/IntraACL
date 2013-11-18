@@ -958,7 +958,7 @@ class IACLDefinition implements ArrayAccess
         {
             $this->makeDirty();
         }
-        $rules = array();
+        $directRules = $rules = array();
         $directMask = ((1 << IACL::INDIRECT_OFFSET)-1);
         $childIds = array();
         $thisId = array(
@@ -973,7 +973,7 @@ class IACLDefinition implements ArrayAccess
                 $actions = $directMask & (is_array($actions) ? $actions['actions'] : $actions);
                 if ($actions)
                 {
-                    if ($childType != IACL::PE_USER)
+                    if ($childType != IACL::PE_USER && $childType != IACL::PE_ALL_USERS && $childType != IACL::PE_REG_USERS)
                     {
                         $childIds[] = array($childType, $child);
                     }
@@ -985,10 +985,10 @@ class IACLDefinition implements ArrayAccess
                             $actions |= IACL::ACTION_READ;
                         }
                     }
-                    $rules[$childType][$child] = $thisId + array(
+                    $directRules[$childType][$child] = $rules[$childType][$child] = $thisId + array(
                         'child_type'    => $childType,
                         'child_id'      => $child,
-                        'actions'       => $actions & $directMask,
+                        'actions'       => $actions,
                     );
                 }
             }
@@ -1001,7 +1001,7 @@ class IACLDefinition implements ArrayAccess
             if ($child['pe_type'] == IACL::PE_GROUP)
             {
                 // Groups may be included in other groups or in right definitions
-                $actions = $rules[$child['pe_type']][$child['pe_id']]['actions'] << IACL::INDIRECT_OFFSET;
+                $actions = $directRules[$child['pe_type']][$child['pe_id']]['actions'] << IACL::INDIRECT_OFFSET;
                 foreach ($child['rules'] as $ccType => $ccs)
                 {
                     foreach ($ccs as $ccId => $rule)
