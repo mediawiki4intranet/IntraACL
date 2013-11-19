@@ -737,6 +737,16 @@ class IACLDefinition implements ArrayAccess
             // Get canonical prefixed text from a Title object
             $base = $nameOfPE->getText();
             $ns = $nameOfPE->getNamespace();
+            if ($ns == NS_CATEGORY && $peType == IACL::PE_CATEGORY ||
+                $ns == HACL_NS_ACL && ($peType == IACL::PE_RIGHT || $peType == IACL::PE_GROUP) ||
+                $ns == NS_SPECIAL && $peType == IACL::PE_SPECIAL)
+            {
+                $ns = false;
+            }
+            elseif ($peType != IACL::PE_PAGE)
+            {
+                throw new Exception("BUG: ".__METHOD__." called with title object $nameOfPE, but peType=$peType");
+            }
             if ($ns == NS_SPECIAL)
             {
                 // Canonicalize special page titles
