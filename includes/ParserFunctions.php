@@ -126,10 +126,6 @@ class IACLParserFunctions
         list($users, $groups, $em1) = $this->assignedTo($params, 'assigned to', $bitmask);
 
         $errMsgs = $em1 + $em2;
-        if ($errMsgs)
-        {
-            $this->mDefinitionValid = false;
-        }
 
         // Format the defined right in Wikitext
         $text = wfMsgForContent('hacl_pf_rights_title', implode(', ', $actions));
@@ -160,14 +156,9 @@ class IACLParserFunctions
 
         foreach ($rights as $name => $id)
         {
-            if ($id)
+            if ($id[2])
             {
                 $this->rules[$id[0]][$id[2]] = IACL::ACTION_INCLUDE_SD;
-            }
-            else
-            {
-                $this->mDefinitionValid = false;
-                $errors[] = wfMsgForContent('hacl_invalid_predefined_right', $name);
             }
         }
 
@@ -192,11 +183,6 @@ class IACLParserFunctions
 
         // handle the parameter "assigned to"
         list($users, $groups, $errMsgs) = $this->assignedTo($params, 'assigned to', IACL::ACTION_MANAGE);
-
-        if ($errMsgs)
-        {
-            $this->mDefinitionValid = false;
-        }
 
         // Format the right managers in Wikitext
         $text = wfMsgForContent('hacl_pf_right_managers_title');
@@ -224,11 +210,6 @@ class IACLParserFunctions
 
         // handle the parameter "assigned to"
         list($users, $groups, $errMsgs) = $this->assignedTo($params, 'members', IACL::ACTION_GROUP_MEMBER);
-
-        if ($errMsgs)
-        {
-            $this->mDefinitionValid = false;
-        }
 
         // Format the group members in Wikitext
         $text = wfMsgForContent('hacl_pf_group_members_title');
@@ -489,9 +470,10 @@ class IACLParserFunctions
                 $result[$r] = IACLDefinition::nameOfPE($r);
                 $result[$r][2] = IACLDefinition::peIDforName($result[$r][0], $result[$r][1]);
                 $subt = Title::newFromText(IACLDefinition::nameOfSD($result[$r][0], $result[$r][1]));
-                if (!$subt->exists())
+                if (!$result[$r][2] || !$subt->exists())
                 {
                     $this->badLinks[] = $subt;
+                    $errMsgs[] = wfMsgForContent('hacl_invalid_predefined_right', $subt);
                 }
             }
         }
