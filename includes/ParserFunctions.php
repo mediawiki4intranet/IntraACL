@@ -963,27 +963,24 @@ class IACLParserFunctions
                 $msg[] = wfMsgForContent('hacl_right_must_have_rights');
             }
         }
-        elseif ($this->rules)
+        if (!$this->def)
         {
-            if (!$this->def)
+            if ($this->isInterwiki)
             {
-                if ($this->isInterwiki)
-                {
-                    $msg[] = wfMsgForContent('hacl_pe_is_interwiki', $this->peName);
-                }
-                else
-                {
-                    $msg[] = wfMsgForContent('hacl_pe_not_exists', $this->peName);
-                }
+                $msg[] = wfMsgForContent('hacl_pe_is_interwiki', $this->peName);
             }
             else
             {
-                list($del, $add) = $this->def->diffRules();
-                if ($del || $add)
-                {
-                    // TODO Show inconsistency details
-                    $msg[] = wfMsgForContent('hacl_acl_element_inconsistent');
-                }
+                $msg[] = wfMsgForContent('hacl_pe_not_exists', $this->peName);
+            }
+        }
+        else
+        {
+            list($del, $add) = $this->def->diffRules();
+            if ($del || $add)
+            {
+                // TODO Show inconsistency details
+                $msg[] = wfMsgForContent('hacl_acl_element_inconsistent');
             }
         }
         if (!$asHtml)
