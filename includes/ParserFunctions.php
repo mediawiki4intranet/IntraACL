@@ -630,7 +630,7 @@ class IACLParserFunctions
         $html = self::instance($article->getTitle(), true);
         if ($html)
         {
-            $html = $html->consistencyCheckHtml();
+            $html = $html->consistencyCheckStatus();
             if ($html)
             {
                 $wgOut->addHTML($html);
@@ -942,7 +942,7 @@ class IACLParserFunctions
     /**
      * Parse wikitext inside a separate parser to overcome its non-reenterability
      */
-    static function parse($text, $title)
+    public static function parse($text, $title)
     {
         global $wgParser;
         if (!self::$parser)
@@ -956,7 +956,7 @@ class IACLParserFunctions
     /**
      * Return HTML consistency check status for pages in ACL namespace
      */
-    function consistencyCheckHtml()
+    public function consistencyCheckStatus($asHtml = true)
     {
         global $haclgContLang, $haclgHaloScriptPath;
         $msg = array();
@@ -1003,6 +1003,10 @@ class IACLParserFunctions
                     $msg[] = wfMsgForContent('hacl_acl_element_inconsistent');
                 }
             }
+        }
+        if (!$asHtml)
+        {
+            return $msg;
         }
         // Merge errors into HTML text
         $html = '';

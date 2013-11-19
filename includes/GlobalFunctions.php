@@ -559,6 +559,23 @@ class DeferCreatePermissionDenied
 // Reparse right definitions if HaloACL tables are present
 class DeferReparsePageRights
 {
+    static function refreshAll()
+    {
+        $dbw = wfGetDB(DB_MASTER);
+        print "Refreshing right definitions...\n";
+        $res = $dbw->select('page', '*', array('page_namespace' => HACL_NS_ACL), __METHOD__);
+        $titles = array();
+        foreach ($res as $row)
+        {
+            $titles[] = Title::newFromRow($row);
+        }
+        foreach ($titles as $title)
+        {
+            $article = new WikiPage($title);
+            $article->doEdit($article->getText(), 'Re-parse right definition', EDIT_UPDATE);
+        }
+    }
+
     function __destruct()
     {
         global $wgContLang;
@@ -566,19 +583,9 @@ class DeferReparsePageRights
         if ($dbw->tableExists('halo_acl_rights') &&
             $dbw->selectField('halo_acl_rights', '1', array('1=1'), __METHOD__, array('LIMIT' => 1)))
         {
-            print "Old-style IntraACL/HaloACL storage detected, refreshing right definitions...\n";
+            print "Old-style IntraACL/HaloACL storage detected\n";
             $dbw->delete('halo_acl_special_pages', array('1=1'), __METHOD__);
-            $res = $dbw->select('page', '*', array('page_namespace' => HACL_NS_ACL), __METHOD__);
-            $titles = array();
-            foreach ($res as $row)
-            {
-                $titles[] = Title::newFromRow($row);
-            }
-            foreach ($titles as $title)
-            {
-                $article = new WikiPage($title);
-                $article->doEdit($article->getText(), 'Re-parse right definition', EDIT_UPDATE);
-            }
+            self::refreshAll();
             $dbw->delete('halo_acl_pe_rights', array('1=1'), __METHOD__);
             $dbw->delete('halo_acl_rights_hierarchy', array('1=1'), __METHOD__);
             $dbw->delete('halo_acl_rights', array('1=1'), __METHOD__);
