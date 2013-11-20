@@ -470,7 +470,7 @@ class IACLParserFunctions
                 $result[$r] = IACLDefinition::nameOfPE($r);
                 $result[$r][2] = IACLDefinition::peIDforName($result[$r][0], $result[$r][1]);
                 $subt = Title::newFromText(IACLDefinition::nameOfSD($result[$r][0], $result[$r][1]));
-                if (!$result[$r][2] || !$subt->exists())
+                if ($result[$r][2] === NULL || !$subt->exists())
                 {
                     $this->badLinks[] = $subt;
                     $errMsgs[] = wfMsgForContent('hacl_invalid_predefined_right', $subt);
