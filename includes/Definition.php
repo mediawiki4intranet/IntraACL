@@ -218,6 +218,8 @@ class IACLDefinition implements ArrayAccess
             $where[] = '(pe_type, pe_id) IN ('.implode(', ', $pe).')';
         }
         $rules = IACLStorage::get('SD')->getRules($where);
+        // $coll is a separate array so we include into $object->collection
+        // only items actually fetched from the DB, not from the cache
         $coll = array();
         foreach ($rules as $rule)
         {
@@ -235,7 +237,7 @@ class IACLDefinition implements ArrayAccess
             }
             $obj->data['rules'][$rule['child_type']][$rule['child_id']] = $rule;
         }
-        return $coll;
+        return $byid;
     }
 
     protected function get_key()
