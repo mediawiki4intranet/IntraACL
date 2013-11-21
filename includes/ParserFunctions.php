@@ -156,7 +156,7 @@ class IACLParserFunctions
 
         foreach ($rights as $name => $id)
         {
-            if ($id[2])
+            if ($id[2] !== NULL)
             {
                 $this->rules[$id[0]][$id[2]] = IACL::ACTION_INCLUDE_SD;
             }
