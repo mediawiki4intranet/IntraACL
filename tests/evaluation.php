@@ -42,7 +42,7 @@ class IntraACLEvaluationTester extends Maintenance
 
     var $pfx = '', $newline = "\n";
 
-    var $stopOnFailure = false;
+    var $stopOnFailure = false, $onlyFailure = false, $logActions = false;
 
     function __construct()
     {
@@ -52,6 +52,35 @@ class IntraACLEvaluationTester extends Maintenance
         $this->addOption('only-failures', 'Only print test failure results', false, false);
         $this->addOption('admin-user', 'Administrator username (WikiSysop by default)', false, false);
         $this->addOption('one-line', 'Print output in one line using escape seq', false, false);
+        $this->addOption('log-actions', 'Log all performed wiki page manipulations', false, false);
+    }
+
+    /**
+     * Save $content to $page
+     */
+    protected function doEdit($page, $content)
+    {
+        $page->doEdit($content, '-', EDIT_FORCE_BOT);
+        if ($this->logActions)
+        {
+            print "Update ".$page->getTitle()." = ".$page->getId()." to: ".str_replace("\n", " ", $content)."\n";
+        }
+    }
+
+    /**
+     * Delete $page
+     */
+    protected function doDelete($page)
+    {
+        if ($page instanceof Title)
+        {
+            $page = new WikiPage($page);
+        }
+        if ($this->logActions)
+        {
+            print "Delete ".$page->getTitle()." = ".$page->getId()."\n";
+        }
+        $page->doDeleteArticle('-');
     }
 
     function execute()
@@ -78,6 +107,7 @@ class IntraACLEvaluationTester extends Maintenance
         }
         $this->onlyFailures = $this->getOption('only-failures', false);
         $this->stopOnFailure = $this->getOption('stop', false);
+        $this->logActions = $this->getOption('log-actions', false);
         $this->numOk = $this->numFailed = 0;
         print "Starting test suite\n";
         // AclTestUser0 is never specified in any ACL so we use it for testing access denial
@@ -85,16 +115,14 @@ class IntraACLEvaluationTester extends Maintenance
         // AclTestUser1 is specified in every ACL so we can test the shrink mode
         $u1 = $this->makeUser(":shrink")->getName();
         $g = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/G_$u1"));
-        $g->doEdit("{{#member: members = User:$u1}}", '-', EDIT_FORCE_BOT);
+        $this->doEdit($g, "{{#member: members = User:$u1}}");
         $gg = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/GG_$u1"));
-        $gg->doEdit("{{#member: members = Group/G_$u1}}", '-', EDIT_FORCE_BOT);
+        $this->doEdit($gg, "{{#member: members = Group/G_$u1}}");
         // Run tests
         $this->test();
         // Remove users
-        $g = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/G_$u1"));
-        $g->doDeleteArticle('-');
-        $gg = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/GG_$u1"));
-        $gg->doDeleteArticle('-');
+        $this->doDelete(Title::makeTitle(HACL_NS_ACL, "Group/G_$u1"));
+        $this->doDelete(Title::makeTitle(HACL_NS_ACL, "Group/GG_$u1"));
         $this->cleanupUsers();
         print "\nRan ".($this->numOk + $this->numFailed)." tests, {$this->numOk} OK, {$this->numFailed} failed\n";
     }
@@ -125,17 +153,16 @@ class IntraACLEvaluationTester extends Maintenance
         $this->title = Title::newFromText("ACLTestPage");
         $this->acls = array();
         $art = new WikiPage($this->title);
-        $art->doEdit('Test page', '-', EDIT_FORCE_BOT);
+        $this->doEdit($art, 'Test page');
         $acl = Title::newFromText("ACL:Page/".$this->title);
         if ($acl->exists())
         {
-            (new WikiPage($acl))->doDeleteArticle('-');
+            $this->doDelete($acl);
             $acl = Title::newFromText("ACL:Page/".$this->title);
         }
         $this->test();
         $this->testACLs($acl, 'page');
-        $art = new WikiPage($this->title);
-        $art->doDeleteArticle('-');
+        $this->doDelete($this->title);
     }
 
     /**
@@ -152,8 +179,11 @@ class IntraACLEvaluationTester extends Maintenance
         $ot = $this->title;
         if ($nt->exists())
         {
-            $a = new Article($nt);
-            $a->doDeleteArticle('-');
+            $this->doDelete($nt);
+        }
+        if ($this->logActions)
+        {
+            print "Move $ot to $nt\n";
         }
         $err = $ot->moveTo($nt, true, '-', false);
         if ($err !== true)
@@ -165,6 +195,10 @@ class IntraACLEvaluationTester extends Maintenance
         $this->title = $nt;
         $acl = Title::newFromText("ACL:Namespace/".$wgCanonicalNamespaceNames[NS_PROJECT]);
         $this->testACLs($acl, 'ns');
+        if ($this->logActions)
+        {
+            print "Move $nt to $ot\n";
+        }
         $err = $nt->moveTo($ot, true, '-', false);
         if ($err !== true)
         {
@@ -188,20 +222,20 @@ class IntraACLEvaluationTester extends Maintenance
         $this->test();
         $this->queue[] = 'category2ACL';
         $art = new WikiPage($this->title);
-        $art->doEdit(preg_replace('/\[\[Category:[^\]]*\]\]/is', '', $art->getText())." [[Category:C1]]", '-', EDIT_FORCE_BOT);
+        $this->doEdit($art, preg_replace('/\[\[Category:[^\]]*\]\]/is', '', $art->getText())." [[Category:C1]]");
         $cat1 = new WikiPage(Title::makeTitle(NS_CATEGORY, "C1"));
-        $cat1->doEdit("Test category 1", '-', EDIT_FORCE_BOT);
+        $this->doEdit($cat1, "Test category 1");
         $acl1 = Title::newFromText("ACL:Category/C1");
         $this->testACLs($acl1, 'cat.1');
         $art = new WikiPage($this->title);
-        $art->doEdit(preg_replace('/\[\[Category:[^\]]*\]\]/is', '', $art->getText())." [[Category:SubC1]]", '-', EDIT_FORCE_BOT);
+        $this->doEdit($art, preg_replace('/\[\[Category:[^\]]*\]\]/is', '', $art->getText())." [[Category:SubC1]]");
         $subc1 = new WikiPage(Title::makeTitle(NS_CATEGORY, "SubC1"));
-        $subc1->doEdit("Test subcategory 1 [[Category:C1]]", '-', EDIT_FORCE_BOT);
+        $this->doEdit($subc1, "Test subcategory 1 [[Category:C1]]");
         $this->testACLs($acl1, 'cat.1');
         $art = new WikiPage($this->title);
-        $art->doEdit(preg_replace('/\[\[Category:[^\]]*\]\]/is', '', $art->getText()), '-', EDIT_FORCE_BOT);
-        $cat1->doDeleteArticle('-');
-        $subc1->doDeleteArticle('-');
+        $this->doEdit($art, preg_replace('/\[\[Category:[^\]]*\]\]/is', '', $art->getText()));
+        $this->doDelete($cat1);
+        $this->doDelete($subc1);
         array_pop($this->queue);
     }
 
@@ -215,14 +249,14 @@ class IntraACLEvaluationTester extends Maintenance
     {
         $this->test();
         $art = new WikiPage($this->title);
-        $art->doEdit($art->getText()." [[Category:C2]]", '-', EDIT_FORCE_BOT);
+        $this->doEdit($art, $art->getText()." [[Category:C2]]");
         $cat2 = new WikiPage(Title::makeTitle(NS_CATEGORY, "C2"));
-        $cat2->doEdit("Test category 2", '-', EDIT_FORCE_BOT);
+        $this->doEdit($cat2, "Test category 2");
         $acl2 = Title::newFromText("ACL:Category/C2");
         $this->testACLs($acl2, 'cat.2');
         $art = new WikiPage($this->title);
-        $art->doEdit(str_replace(" [[Category:C2]]", '', $art->getText()), '-', EDIT_FORCE_BOT);
-        $cat2->doDeleteArticle('-');
+        $this->doEdit($art, str_replace(" [[Category:C2]]", '', $art->getText()));
+        $this->doDelete($cat2);
     }
 
     /**
@@ -238,9 +272,9 @@ class IntraACLEvaluationTester extends Maintenance
         $user = $this->makeUser($acl->getPrefixedText());
         $username = $user->getName();
         $g = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/G_$username"));
-        $g->doEdit("{{#member: members = User:$username}}", '-', EDIT_FORCE_BOT);
+        $this->doEdit($g, "{{#member: members = User:$username}}");
         $gg = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/GG_$username"));
-        $gg->doEdit("{{#member: members = Group/G_$username}}", '-', EDIT_FORCE_BOT);
+        $this->doEdit($gg, "{{#member: members = Group/G_$username}}");
         $this->acls[$priority] = array(
             'title' => $acl,
             'users' => array($username => $user, $u1 => $user1),
@@ -271,16 +305,14 @@ class IntraACLEvaluationTester extends Maintenance
             elseif ($i == 4)
             {
                 $g = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/G_$username"));
-                $g->doEdit("{{#member: members = #}}", '-', EDIT_FORCE_BOT);
+                $this->doEdit($g, "{{#member: members = #}}");
             }
-            (new WikiPage($acl))->doEdit($opt, '-', EDIT_FORCE_BOT);
+            $this->doEdit(new WikiPage($acl), $opt);
             $this->test();
         }
-        $gg = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/GG_$username"));
-        $gg->doDeleteArticle('-');
-        $g = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/G_$username"));
-        $g->doDeleteArticle('-');
-        (new Article($acl))->doDeleteArticle('-');
+        $this->doDelete(Title::makeTitle(HACL_NS_ACL, "Group/GG_$username"));
+        $this->doDelete(Title::makeTitle(HACL_NS_ACL, "Group/G_$username"));
+        $this->doDelete($acl);
         unset($this->acls[$priority]);
         $this->test();
     }
