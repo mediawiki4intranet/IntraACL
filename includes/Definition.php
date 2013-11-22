@@ -715,7 +715,7 @@ class IACLDefinition implements ArrayAccess
         }
         $prefix = substr($defTitle, 0, $p);
         $type = $haclgContLang->getPetAlias($prefix);
-        if ($type != IACL::PE_RIGHT && strlen($defTitle) > $p+1)
+        if ($type && $type != IACL::PE_RIGHT && strlen($defTitle) > $p+1)
         {
             $peName = substr($defTitle, $p+1);
             if ($type == IACL::PE_PAGE)
