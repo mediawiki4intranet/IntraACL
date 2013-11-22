@@ -93,12 +93,15 @@ class IACLDefinition implements ArrayAccess
             // FIXME: resolve multiple IDs at once
             // id = get_id(name, type)
             $pe = self::nameOfPE($k);
-            $id = self::peIDforName($pe[0], $pe[1]);
-            if ($id !== NULL)
+            if ($pe)
             {
-                $where[] = array($pe[0], $id);
+                $id = self::peIDforName($pe[0], $pe[1]);
+                if ($id !== NULL)
+                {
+                    $where[] = array($pe[0], $id);
+                }
+                $k = array($pe[0], $pe[1], $id, "$k");
             }
-            $k = array($pe[0], $pe[1], $id, "$k");
         }
         $defs = self::select(array('pe' => $where));
         $r = array();
@@ -675,17 +678,20 @@ class IACLDefinition implements ArrayAccess
      *  ACL:Group/<Group name>              PE_GROUP
      *  ACL:<Right template name>           PE_RIGHT
      *
-     * @param string/Title $defTitle            Definition title, with or without ACL: namespace
-     * @return array(int $type, string $name)   Name of the protected element and its type.
+     * @param string/Title $defTitle
+     *     Definition title, with or without ACL: namespace.
+     * @return array(int $type, string $name)
+     *     Name of the protected element and its type, or NULL if title belongs
+     *     to an incorrect namespace.
      */
     public static function nameOfPE($defTitle)
     {
         global $wgContLang, $haclgContLang;
         if ($defTitle instanceof Title)
         {
-            if ($defTitle->getNamespace() != HACL_NS_ACL)
+            if ($defTitle->getNamespace() != HACL_NS_ACL || $defTitle->getInterwiki())
             {
-                return false;
+                return NULL;
             }
             $defTitle = $defTitle->getText();
         }
@@ -705,7 +711,7 @@ class IACLDefinition implements ArrayAccess
         }
         $prefix = substr($defTitle, 0, $p);
         $type = $haclgContLang->getPetAlias($prefix);
-        if ($type != IACL::PE_RIGHT)
+        if ($type != IACL::PE_RIGHT && strlen($defTitle) > $p+1)
         {
             $peName = substr($defTitle, $p+1);
             if ($type == IACL::PE_PAGE)

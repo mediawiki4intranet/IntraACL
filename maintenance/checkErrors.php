@@ -48,7 +48,7 @@ class IntraACL_ErrorCheck extends Maintenance
         {
             $titles[] = Title::newFromRow($row);
         }
-        $quiet = $this->hasOption( 'quiet' );
+        $quiet = $this->hasOption('quiet');
         foreach ($titles as $title)
         {
             $page = new WikiPage($title);

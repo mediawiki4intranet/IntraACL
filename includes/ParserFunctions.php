@@ -156,7 +156,7 @@ class IACLParserFunctions
 
         foreach ($rights as $name => $id)
         {
-            if ($id[2] !== NULL)
+            if ($id && $id[2] !== NULL)
             {
                 $this->rules[$id[0]][$id[2]] = IACL::ACTION_INCLUDE_SD;
             }
@@ -468,12 +468,19 @@ class IACLParserFunctions
             {
                 // FIXME: resolve multiple IDs at once
                 $result[$r] = IACLDefinition::nameOfPE($r);
-                $result[$r][2] = IACLDefinition::peIDforName($result[$r][0], $result[$r][1]);
-                $subt = Title::newFromText(IACLDefinition::nameOfSD($result[$r][0], $result[$r][1]));
-                if ($result[$r][2] === NULL || !$subt->exists())
+                if ($result[$r])
                 {
-                    $this->badLinks[] = $subt;
-                    $errMsgs[] = wfMsgForContent('hacl_invalid_predefined_right', $subt);
+                    $result[$r][2] = IACLDefinition::peIDforName($result[$r][0], $result[$r][1]);
+                    $subt = Title::newFromText(IACLDefinition::nameOfSD($result[$r][0], $result[$r][1]));
+                    if ($result[$r][2] === NULL || !$subt->exists())
+                    {
+                        $this->badLinks[] = $subt;
+                        $errMsgs[] = wfMsgForContent('hacl_invalid_predefined_right', $subt);
+                    }
+                }
+                else
+                {
+                    $errMsgs[] = wfMsgForContent('hacl_invalid_predefined_right', $r);
                 }
             }
         }
@@ -501,6 +508,10 @@ class IACLParserFunctions
             // Warn for non-canonical titles
             // FIXME We need to canonicalize special page names!
             $self = self::instance($article->getTitle());
+            if (!$self)
+            {
+                return true;
+            }
             $editor = true;
             $self->makeDef();
             $html = '';
@@ -648,6 +659,10 @@ class IACLParserFunctions
             if (!$self)
             {
                 $self = self::instance($title);
+                if (!$self)
+                {
+                    return true;
+                }
                 self::parse($article->getText(), $title);
             }
             // TODO Remove incorrect definitions from the DB?
@@ -898,7 +913,7 @@ class IACLParserFunctions
             wfDebug("Move SD for page: $oldSDTitle -> $newSDTitle\n");
             if ($newSDTitle->exists() && $newSDTitle->userCan('delete'))
             {
-                $page = new Article($newSDTitle);
+                $page = new WikiPage($newSDTitle);
                 $page->doDeleteArticle(wfMsg('hacl_move_acl'));
             }
             else
@@ -908,7 +923,7 @@ class IACLParserFunctions
             $oldSDTitle->moveTo($oldSDTitle, false, wfMsg('hacl_move_acl'), true);
             if ($oldTitle->exists())
             {
-                $fromA = new Article($oldTitle);
+                $fromA = new WikiPage($oldTitle);
                 $fromA->doEdit('{{#predefined right:rights='.$newSDTitle->getPrefixedText().'}}', wfMsg('hacl_move_acl_include'));
             }
             else
