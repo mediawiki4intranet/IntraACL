@@ -65,7 +65,7 @@ class IACLDefinition implements ArrayAccess
      */
     static $userCacheLoaded = array();
 
-    static function newEmpty($type, $id)
+    protected static function newEmpty($type, $id)
     {
         $self = new self();
         $self->rw = true;
@@ -205,7 +205,10 @@ class IACLDefinition implements ArrayAccess
                 $key = $id[0].'-'.$id[1];
                 if (isset(self::$clean[$key]))
                 {
-                    $byid[$key] = self::$clean[$key];
+                    if (self::$clean[$key])
+                    {
+                        $byid[$key] = self::$clean[$key];
+                    }
                     unset($pe[$i]);
                 }
             }
@@ -864,7 +867,7 @@ class IACLDefinition implements ArrayAccess
         {
             foreach ($ids as $peID => $rules)
             {
-                if (isset(self::$clean["$peType-$peID"]))
+                if (!empty(self::$clean["$peType-$peID"]))
                 {
                     unset(self::$clean["$peType-$peID"]->data['parents']);
                 }
@@ -874,16 +877,23 @@ class IACLDefinition implements ArrayAccess
         {
             foreach ($ids as $peID => $rules)
             {
-                if (isset(self::$clean["$peType-$peID"]))
+                if (!empty(self::$clean["$peType-$peID"]))
                 {
                     unset(self::$clean["$peType-$peID"]->data['parents']);
                 }
             }
         }
         // Commit new state into the object cache (FIXME - is the object cache needed at all?)
-        self::$clean[$key] = $this;
         unset(self::$dirty[$key]);
         $this->rw = false;
+        if ($this->data['rules'])
+        {
+            self::$clean[$key] = $this;
+        }
+        else
+        {
+            self::$clean[$key] = false;
+        }
         // Invalidate parents - they will do the same recursively for their parents and so on
         $preventLoop[$key] = true;
         foreach ($parents as $p)

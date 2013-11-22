@@ -697,21 +697,12 @@ class IACLParserFunctions
     {
         if ($this->def === NULL)
         {
-            $this->def = false;
-            $id = IACLDefinition::peIDforName($this->peType, $this->peName);
-            if ($id !== NULL)
+            $this->def = IACLDefinition::newFromName($this->peType, $this->peName, true);
+            if (!$this->def)
             {
-                $this->def = IACLDefinition::select(array('pe' => array($this->peType, $id)));
-                if ($this->def)
-                {
-                    $this->def = reset($this->def);
-                }
-                else
-                {
-                    $this->def = IACLDefinition::newEmpty($this->peType, $id);
-                }
+                $this->def = false;
             }
-            elseif ($this->peType == IACL::PE_PAGE || $this->peType == IACL::PE_CATEGORY)
+            if (!$this->def && ($this->peType == IACL::PE_PAGE || $this->peType == IACL::PE_CATEGORY))
             {
                 $title = $this->peType == IACL::PE_CATEGORY
                     ? Title::makeTitleSafe(NS_CATEGORY, $this->peName)
