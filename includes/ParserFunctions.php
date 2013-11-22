@@ -888,18 +888,28 @@ class IACLParserFunctions
      */
     public static function TitleMoveComplete($oldTitle, $newTitle, $user, $pageid, $redirid)
     {
+        global $wgVersion;
         if ($oldTitle->getNamespace() == HACL_NS_ACL)
         {
             // Move definition data!
             $old = IACLDefinition::newFromTitle($oldTitle, false);
+            $new = false;
             if ($old)
             {
                 $rules = $old['rules'];
                 $old['rules'] = array();
                 $old->save();
                 $new = IACLDefinition::newFromTitle($newTitle, true);
+            }
+            if ($old && $new)
+            {
                 $new['rules'] = $rules;
                 $new->save();
+            }
+            elseif (version_compare($wgVersion, '1.19', '<'))
+            {
+                // Before 1.19, Title::moveTo() doesn't do ArticleEditUpdates, do it manually
+                self::updateDefinition(new WikiPage($newTitle));
             }
             return true;
         }
