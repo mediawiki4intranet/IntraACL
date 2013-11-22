@@ -252,7 +252,8 @@ class IACLDefinition implements ArrayAccess
     }
 
     /**
-     * Get SDs that directly include this SD. Fetches them massively.
+     * Get definitions that directly include this one with any granted action.
+     * Fetches them massively.
      */
     protected function get_parents()
     {
@@ -269,7 +270,7 @@ class IACLDefinition implements ArrayAccess
         $ids = implode(', ', $ids);
         $rules = IACLStorage::get('SD')->getRules(array(
             "(child_type, child_id) IN ($ids)",
-            '(actions & '.IACL::ACTION_INCLUDE_SD.')',
+            '(actions & '.((1 << IACL::INDIRECT_OFFSET) - 1).')',
         ));
         $ids = array();
         $keys = array();
