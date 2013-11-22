@@ -288,10 +288,10 @@ function haclfSetupExtension()
     //--- credits (see "Special:Version") ---
     $wgExtensionCredits['other'][] = array(
         'name'        => 'IntraACL',
-        'version'     => '2011-12-30',
+        'version'     => 'v2.0',
         'author'      => "Vitaliy Filippov, Stas Fomin, Thomas Schweitzer",
         'url'         => 'http://wiki.4intra.net/IntraACL',
-        'description' => 'The best MediaWiki rights extension, based on HaloACL.');
+        'description' => 'The best MediaWiki rights extension, loosely based on HaloACL');
 
     // IACLParserFunctions callbacks
     $wgParser->setFunctionHook('haclaccess',            'IACLParserFunctionHooks::access');
