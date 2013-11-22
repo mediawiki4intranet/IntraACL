@@ -7,6 +7,8 @@ based on HaloACL, correcting its endless bugs and inconveniences.
 * License: GNU GPLv3
 * Copyright (c) 2010+, Vitaliy Filippov, Stas Fomin
 * Loosely based on HaloACL (c) 2009, ontoprise GmbH
+* This is a '''legacy''' version of IntraACL backed by HaloACL storage code.
+  Assume version number 1.0. :-)
 
 == REQUIREMENTS ==
 
