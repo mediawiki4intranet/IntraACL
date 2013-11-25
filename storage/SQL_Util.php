@@ -142,7 +142,8 @@ class IntraACL_SQL_Util
     /**
      * Returns IDs of all parent categories for article with ID $articleID
      * (including non-direct inclusions)
-     * FIXME: Maybe speed up this by materializing?
+     *
+     * TODO: Speed this up in some way... by materializing?
      *
      * @param int|array(int) $articleID
      */

@@ -71,6 +71,8 @@ class IACLEvaluator
         $n = 1;
         $dbr = wfGetDB(DB_SLAVE);
         // Get used images and templates - they affect resulting readability
+        // TODO: preload rights of these titles
+        // TODO: include category members for category pages
         $res = $dbr->query(
             '(' . $dbr->selectSQLText(
                 array('page', 'imagelinks'), 'page.*',
