@@ -26,6 +26,24 @@
 
 class IntraACL_SQL_SpecialPage
 {
+    var $name2id, $id2name;
+
+    /**
+     * There is always a relatively small amount of special pages
+     * So we are free to load all their ID<>name mappings at once
+     */
+    protected function load()
+    {
+        $dbr = wfGetDB(DB_SLAVE);
+        $res = $dbr->select('halo_acl_special_pages', '*', NULL, __METHOD__);
+        $this->name2id = $this->id2name = array();
+        foreach ($res as $row)
+        {
+            $this->name2id[$row->name] = $row->id;
+            $this->id2name[$row->id] = $row->name;
+        }
+    }
+
     /**
      * Special pages do not have an article ID, however access control relies
      * on IDs. This method assigns an ID to each Special Page whose ID
@@ -36,16 +54,20 @@ class IntraACL_SQL_SpecialPage
      */
     public function idForSpecial($name)
     {
-        $dbw = wfGetDB(DB_MASTER);
-        $obj = $dbw->selectRow('halo_acl_special_pages', 'id', array('name' => $name), __METHOD__);
-        if ($obj === false)
+        if (!$this->name2id)
         {
-            // ID not found => create a new one
-            $dbw->insert('halo_acl_special_pages', array('name' => $name), __METHOD__);
-            // retrieve the auto-incremented ID of the right
-            return $dbw->insertId();
+            $this->load();
         }
-        return $obj->id;
+        if (empty($this->name2id[$name]))
+        {
+            $dbw = wfGetDB(DB_MASTER);
+            $dbw->insert('halo_acl_special_pages', array('name' => $name), __METHOD__);
+            $id = $dbw->insertId();
+            $this->name2id[$name] = $id;
+            $this->id2name[$id] = $name;
+            return $id;
+        }
+        return $this->name2id[$name];
     }
 
     /**
@@ -56,12 +78,17 @@ class IntraACL_SQL_SpecialPage
      */
     public function specialsForIds($ids)
     {
-        $dbr = wfGetDB(DB_MASTER);
-        $names = array();
-        $res = $dbr->select('halo_acl_special_pages', '*', array('id' => (array)$ids), __METHOD__);
-        foreach ($res as $row)
+        if (!$this->id2name)
         {
-            $names[$row->id] = $row->name;
+            $this->load();
+        }
+        $names = array();
+        foreach ((array)$ids as $id)
+        {
+            if (isset($this->id2name[$id]))
+            {
+                $names[$id] = $this->id2name[$id];
+            }
         }
         return $names;
     }
