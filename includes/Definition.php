@@ -522,7 +522,8 @@ class IACLDefinition implements ArrayAccess
             }
             foreach ($rules as $rule)
             {
-                self::$userCache[$userID][$rule['pe_type']][$rule['pe_id']] = $rule['actions'];
+                $a = &self::$userCache[$userID][$rule['pe_type']][$rule['pe_id']];
+                $a = $a | $rule['actions'];
             }
         }
         if ((self::$userCacheLoaded[$userID] & (4 << $isGroup)))
@@ -533,10 +534,8 @@ class IACLDefinition implements ArrayAccess
             $rules = IACLStorage::get('SD')->getRules($where, $options);
             foreach ($rules as $rule)
             {
-                if (!isset(self::$userCache[$userID][$rule['pe_type']][$rule['pe_id']]))
-                {
-                    self::$userCache[$userID][$rule['pe_type']][$rule['pe_id']] = $rule['actions'];
-                }
+                $a = &self::$userCache[$userID][$rule['pe_type']][$rule['pe_id']];
+                $a = $a | $rule['actions'];
             }
         }
         // Check cache again
