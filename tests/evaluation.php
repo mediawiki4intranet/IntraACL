@@ -282,8 +282,8 @@ class IntraACLEvaluationTester extends Maintenance
         $options = array(
             "{{#access: assigned to = Group/GG_$u1, User:$username | actions = *}}",
             "{{#access: assigned to = User:$u1, Group/GG_$username | actions = *}}",
-            "{{#access: assigned to = * | actions = *}}",
-            "{{#access: assigned to = # | actions = *}}",
+            "{{#access: assigned to = * | actions = *}} {{#manage rights: assigned to = User:$u1}}",
+            "{{#access: assigned to = # | actions = *}} {{#manage rights: assigned to = Group/GG_$u1}}",
         );
         static $testedRegGroup;
         if (!$testedRegGroup)
