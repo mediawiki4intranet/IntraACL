@@ -21,6 +21,7 @@ var htmlspecialchars = function(s)
 window.HACLACLEditor = function(params)
 {
     this.pet_prefixes = params.petPrefixes;
+    delete this.pet_prefixes['right'];
     this.is_sysop = params.isSysop;
     this.NS_ACL = params.NS_ACL;
     this.group_prefix = params.group_prefix;
@@ -94,7 +95,7 @@ HACLACLEditor.prototype.target_change = function(total_change)
     if (name.length)
     {
         var pn = document.getElementById('acl_pn');
-        t = this.NS_ACL+':'+this.pet_prefixes[what]+'/'+name;
+        t = this.NS_ACL+':'+(what != 'right' ? this.pet_prefixes[what]+'/' : '')+name;
         pn.innerHTML = t;
         pn.href = wgArticlePath.replace('$1', encodeURI(t));
         document.getElementById('wpTitle').value = t;
@@ -691,12 +692,11 @@ HACLACLEditor.prototype.init = function(aclTitle, aclType, aclExists)
 {
     if (aclTitle)
     {
-        // JS split() has no limit parameter
-        aclTitle = aclTitle.split('/');
-        var typ = aclTitle.shift();
-        aclTitle = [ typ, aclTitle.join('/') ];
-        document.getElementById('acl_name').value = aclTitle[1];
-        this.pet_prefixes[aclType] = aclTitle[0];
+        if (aclType != 'right' && aclTitle.substr(0, this.pet_prefixes[aclType].length+1) == this.pet_prefixes[aclType]+'/')
+        {
+            aclTitle = aclTitle.substr(this.pet_prefixes[aclType].length+1);
+        }
+        document.getElementById('acl_name').value = aclTitle;
         var what_item = document.getElementById('acl_what_'+aclType);
         if (what_item)
             what_item.selected = true;

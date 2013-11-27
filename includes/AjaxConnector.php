@@ -276,7 +276,7 @@ function haclGroupClosure($groups, $rights)
     $pe = IACLDefinition::newFromTitles($pe);
     // Transform all user and group IDs into names
     $users = $groups = array();
-    foreach ($pe as $name => &$def)
+    foreach ($pe as $name => $def)
     {
         if (isset($def['rules'][IACL::PE_USER]))
         {
@@ -301,7 +301,7 @@ function haclGroupClosure($groups, $rights)
     $memberAction = IACL::ACTION_GROUP_MEMBER | (IACL::ACTION_GROUP_MEMBER << IACL::INDIRECT_OFFSET);
     $members = array();
     $rules = array();
-    foreach ($pe as $name => &$def)
+    foreach ($pe as $name => $def)
     {
         if ($def['pe_type'] != IACL::PE_GROUP)
         {
@@ -347,8 +347,7 @@ function haclGroupClosure($groups, $rights)
             {
                 foreach (IACL::$actionToName as $i => $a)
                 {
-                    // Only direct rights
-                    if ($child[1] & $i)
+                    if ($child[1] & ($i | ($i << IACL::INDIRECT_OFFSET)))
                     {
                         $rules[$name][$child[0]][$a] = true;
                     }
