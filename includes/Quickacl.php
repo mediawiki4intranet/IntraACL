@@ -48,7 +48,7 @@ class IACLQuickacl
     function __construct($userid, $pe_ids, $default_pe_id = NULL)
     {
         $this->userid = $userid;
-        $this->default_pe_id = $default_pe_id ?: NULL;
+        $this->default_pe_id = $default_pe_id ? $default_pe_id : NULL;
         if ($default_pe_id)
         {
             $pe_ids[] = $default_pe_id;

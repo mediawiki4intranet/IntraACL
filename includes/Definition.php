@@ -257,7 +257,7 @@ class IACLDefinition implements ArrayAccess
      */
     protected function get_parents()
     {
-        $sds = $this->collection ?: array($this['key'] => $this);
+        $sds = $this->collection ? $this->collection : array($this['key'] => $this);
         $ids = array();
         foreach ($sds as $sd)
         {
@@ -351,7 +351,7 @@ class IACLDefinition implements ArrayAccess
         {
             return NULL;
         }
-        $sds = $this->collection ?: array($this['key'] => $this);
+        $sds = $this->collection ? $this->collection : array($this['key'] => $this);
         $ids = array();
         foreach ($sds as $sd)
         {
@@ -817,7 +817,8 @@ class IACLDefinition implements ArrayAccess
         if (!$this->data['rules'])
         {
             // Delete definition
-            $delRules = $this->clean()['rules'] ?: array();
+            $clean = $this->clean();
+            $delRules = $clean['rules'] ? $clean['rules'] : array();
             $addRules = array();
             $st->deleteRules(array(array('pe_type' => $peType, 'pe_id' => $peID)));
         }
