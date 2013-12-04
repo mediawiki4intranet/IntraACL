@@ -576,7 +576,7 @@ class IACLToolbar
         {
             // Create/modify page SD
             $selectedSDTitle = IACLDefinition::getSDTitle($selectedSD);
-            $content = '{{#predefined right: rights = '.$selectedSDTitle->getText()."}}\n".
+            $content = '{{#predefined right: '.$selectedSDTitle->getText()."}}\n".
                 '{{#manage rights: assigned to = User:'.$wgUser->getName()."}}\n";
             $newSDArticle->doEdit($content, wfMsg('hacl_comment_protect_with', $selectedSDTitle->getFullText()));
         }
@@ -670,7 +670,7 @@ class IACLToolbar
                 {
                     // Save embedded element SD
                     $emb_sd_article->doEdit(
-                        '{{#predefined right: rights='.$articleSD['def_title'].'}}',
+                        '{{#predefined right: '.$articleSD['def_title'].'}}',
                         wfMsg('hacl_comment_protect_embedded', ''.$articleSD['def_title']),
                         EDIT_FORCE_BOT
                     );

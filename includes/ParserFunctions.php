@@ -938,7 +938,7 @@ class IACLParserFunctions
             if ($oldTitle->exists())
             {
                 $fromA = new WikiPage($oldTitle);
-                $fromA->doEdit('{{#predefined right:rights='.$newSDTitle->getPrefixedText().'}}', wfMsg('hacl_move_acl_include'));
+                $fromA->doEdit('{{#predefined right: '.$newSDTitle->getPrefixedText().'}}', wfMsg('hacl_move_acl_include'));
             }
             else
             {
