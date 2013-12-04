@@ -571,7 +571,7 @@ class IACLToolbar
             return true;
         }
 
-        $newSDArticle = new Article($pageSDTitle);
+        $newSDArticle = new WikiPage($pageSDTitle);
         if ($selectedSD)
         {
             // Create/modify page SD
@@ -643,7 +643,7 @@ class IACLToolbar
                 if ($emb_title)
                 {
                     $emb_sd_title = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_PAGE, $emb_title));
-                    $emb_sd_article = new Article($emb_sd_title);
+                    $emb_sd_article = new WikiPage($emb_sd_title);
                 }
                 // Check for errors:
                 if (!$emb_title || !$emb_title->getArticleId() || !$emb_sd_title->userCan('edit'))

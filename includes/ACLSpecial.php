@@ -518,10 +518,10 @@ class IntraACLSpecial extends SpecialPage
             $defId = IACLDefinition::nameOfPE($aclTitle);
             if ($aclTitle && $defId[0] != IACL::PE_GROUP)
             {
-                if (($aclArticle = new Article($aclTitle)) &&
+                if (($aclArticle = new WikiPage($aclTitle)) &&
                     $aclArticle->exists())
                 {
-                    $aclContent = $aclArticle->getContent();
+                    $aclContent = $aclArticle->getText();
                     $aclSDName = $aclTitle->getText();
                 }
                 else
@@ -674,7 +674,7 @@ class IntraACLSpecial extends SpecialPage
             $t = Title::newFromText($q['group'], HACL_NS_ACL);
             if ($t && $pe[0] == IACL::PE_GROUP)
             {
-                $a = new Article($t);
+                $a = new WikiPage($t);
                 if ($a->exists())
                 {
                     $grpTitle = $t;

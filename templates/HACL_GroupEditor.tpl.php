@@ -12,7 +12,7 @@
     <input type="text" id="grp_name" style="width: 200px" onchange="GE.name_change(true)" onkeyup="GE.name_change()"  />
    </p>
    <p><b><?= wfMsg('hacl_grp_definition_text') ?></b></p>
-   <p><textarea id="grp_def" name="wpTextbox1" rows="6" style="width: 500px" onchange="GE.parse_fill_indirect()"><?= $grpTitle ? htmlspecialchars($grpArticle->getContent()) : '' ?></textarea></p>
+   <p><textarea id="grp_def" name="wpTextbox1" rows="6" style="width: 500px" onchange="GE.parse_fill_indirect()"><?= $grpTitle ? htmlspecialchars($grpArticle->getText()) : '' ?></textarea></p>
   </form>
  </td>
  <td style="vertical-align: top">
