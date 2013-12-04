@@ -1,4 +1,6 @@
-/* Подсказки в текстовых полях ввода. Использование:
+/* TODO: Remove and replace by http://yourcmc.ru/wiki/SimpleAutocomplete
+
+   Подсказки в текстовых полях ввода. Использование:
      var hint = new SHint(input, style_prefix, fill_handler);
      SHint.init();
    Параметры конструктора:

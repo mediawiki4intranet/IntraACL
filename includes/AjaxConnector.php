@@ -38,7 +38,7 @@ $wgAjaxExportList[] = 'haclSDExists_GetEmbedded';
 $wgAjaxExportList[] = 'haclGrouplist';
 $wgAjaxExportList[] = 'haclGroupExists';
 
-function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
+function haclAutocomplete($t, $n, $limit = 11, $add_checkboxes = false, $item_prefix = false)
 {
     global $haclgContLang;
     if (!$limit)
@@ -201,10 +201,10 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
     }
     $i = 0;
     $html = '';
-    if ($checkbox_prefix)
+    $ip = $item_prefix ? $item_prefix . '_' : 'item';
+    if ($add_checkboxes)
     {
         // This is used by Group Editor: display autocomplete list with checkboxes
-        $ip = $checkbox_prefix . '_';
         foreach ($a as $item)
         {
             $i++;
@@ -219,7 +219,7 @@ function haclAutocomplete($t, $n, $limit = 11, $checkbox_prefix = false)
         foreach ($a as $item)
         {
             $i++;
-            $html .= '<div id="item'.$i.'" class="hacl_ti" title="'.
+            $html .= '<div id="'.$ip.$i.'" class="hacl_ti" title="'.
                 htmlspecialchars($item[1]).'">'.
                 htmlspecialchars($item[0]).'</div>';
         }

@@ -652,7 +652,7 @@ HACLACLEditor.prototype.user_hint_fill = function(h, v)
     if (!v.length)
         h.change_ajax(this.get_empty_hint());
     else
-        sajax_do_call('haclAutocomplete', [ document.getElementById('to_type').value, v ],
+        sajax_do_call('haclAutocomplete', [ document.getElementById('to_type').value, v, 11, 0, 'userhintitem' ],
             function (request) { if (request.status == 200) h.change_ajax(request.responseText) })
 };
 
@@ -678,7 +678,7 @@ HACLACLEditor.prototype.target_hint_fill = function (h, v)
     if (wv != 'namespace' && !v.length)
         h.tip_div.innerHTML = '<div class="hacl_tt">'+mw.msg('hacl_start_typing_'+wv)+'</div>';
     else
-        sajax_do_call('haclAutocomplete', [ wv, v ],
+        sajax_do_call('haclAutocomplete', [ wv, v, 11, 0, 'targethintitem' ],
             function (request) { if (request.status == 200) h.change_ajax(request.responseText) })
 };
 
@@ -692,7 +692,7 @@ HACLACLEditor.prototype.target_hint_focus = function(f)
 
 HACLACLEditor.prototype.inc_hint_fill = function(h, v)
 {
-    sajax_do_call('haclAutocomplete', [ 'sd', v ],
+    sajax_do_call('haclAutocomplete', [ 'sd', v, 11, 0, 'inchintitem' ],
         function (request) { if (request.status == 200) h.change_ajax(request.responseText) })
 };
 

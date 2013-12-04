@@ -353,7 +353,7 @@ HACLGroupEditor.prototype.load_handler = function(ge, h, v)
     if (!v.length)
         h.change_ajax(ge.get_empty_hint(who, what));
     else
-        sajax_do_call('haclAutocomplete', [ what, v, ge.limit, who[1]+what[0] ],
+        sajax_do_call('haclAutocomplete', [ what, v, ge.limit, 1, who[1]+what[0] ],
             function (request)
             {
                 if (request.status == 200)
