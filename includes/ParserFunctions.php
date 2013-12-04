@@ -136,8 +136,12 @@ class IACLParserFunctions
     }
 
     /**
-     * {{#predefined right: rights = Right/Default, ...}}
-     * Includes other right definitions into this one.
+     * Includes other right definition(s) into this one.
+     *
+     * Preferred syntax (split by |):
+     *   {{#predefined right: ACL:Right/Default | ACL:Page/Begemot}}
+     * Deprecated syntax:
+     *   {{#predefined right: rights = Right/Default, ...}}
      *
      * @param Parser $parser
      * @return string Wikitext
@@ -150,6 +154,17 @@ class IACLParserFunctions
         }
 
         $params = $this->getParameters($args);
+        if (!isset($params['rights']))
+        {
+            // New syntax
+            $params = array('rights' => $args);
+        }
+        else
+        {
+            $rights = trim($params['rights']);
+            $rights = $rights === '' ? array() : explode(',', $rights);
+            $params['rights'] = $rights;
+        }
 
         // handle the parameter 'rights'
         list($rights, $errors) = $this->rights($params);
@@ -458,10 +473,8 @@ class IACLParserFunctions
             return array($rights, $errMsgs);
         }
 
-        $rights = trim($params[$param]);
-        $rights = $rights === '' ? array() : explode(',', $rights);
         $result = array();
-        foreach ($rights as $r)
+        foreach ($params[$param] as $r)
         {
             $r = trim($r);
             if ($r)

@@ -239,8 +239,17 @@ HACLACLEditor.prototype.parse_sd = function()
     while (m2[i])
     {
         ass = this.pf_param('rights', m2[i], false);
+        if (!ass.length)
+        {
+            // New syntax: {{predefined right: A | B | C}}
+            ass = m2[i].replace(/\{\{\s*\#predefined\s+right\s*:\s*([^\}]*)\}\}/i, '$1').split('|');
+        }
         for (k in ass)
-            this.predef_included[ass[k]] = true;
+        {
+            var c = ass[k].trim();
+            if (c)
+                this.predef_included[c] = true;
+        }
         i++;
     }
     // Save this.rights_direct
@@ -441,7 +450,7 @@ HACLACLEditor.prototype.save_sd = function()
     for (var i in this.predef_included)
         predef.push(i);
     if (predef.length)
-        t = t + "{{#predefined right: rights="+predef.join(", ")+"}}\n";
+        t = t + "{{#predefined right: "+predef.join(" | ")+"}}\n";
     document.getElementById('acl_def').value = t;
     this.check_errors();
 };
