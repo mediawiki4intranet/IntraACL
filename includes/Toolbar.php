@@ -642,11 +642,7 @@ class IACLToolbar
                 list($req_sd_type, $req_sd_id, $emb_sd_revid) = explode('-', $v, 3);
                 if ($emb_title)
                 {
-                    $emb_sd_title = Title::newFromText(
-                        $haclgContLang->getPetPrefix(IACL::PE_PAGE)
-                        . '/' . $emb_title->getPrefixedText(),
-                        HACL_NS_ACL
-                    );
+                    $emb_sd_title = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_PAGE, $emb_title));
                     $emb_sd_article = new Article($emb_sd_title);
                 }
                 // Check for errors:
