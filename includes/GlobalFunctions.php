@@ -288,7 +288,7 @@ function haclfSetupExtension()
     //--- credits (see "Special:Version") ---
     $wgExtensionCredits['other'][] = array(
         'name'        => 'IntraACL',
-        'version'     => 'v2.01',
+        'version'     => 'v2.02',
         'author'      => "Vitaliy Filippov, Stas Fomin, Thomas Schweitzer",
         'url'         => 'http://wiki.4intra.net/IntraACL',
         'description' => 'The best MediaWiki rights extension, loosely based on HaloACL');
