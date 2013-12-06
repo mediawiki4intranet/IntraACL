@@ -48,22 +48,26 @@ class IACLEvaluator
      * @param User $user
      * @return string|NULL
      */
-    public static function getParserCacheKey($title, $user)
+    public static function ParserOutputRenderKey($article, &$renderkey)
     {
-        global $haclgSuperGroups, $haclgContLang;
-        if (!$title || $title->getInterwiki() !== '' || !$title->getArticleId())
+        global $haclgSuperGroups, $haclgContLang, $wgUser;
+        $title = $article->getTitle();
+        $user = $wgUser;
+        if ($title->getInterwiki() !== '' || !$title->getArticleId())
         {
-            return NULL;
+            return true;
         }
         if ($title->getUserPermissionsErrors('read', $user))
         {
-            return '0';
+            $renderkey .= '0';
+            return true;
         }
         $groups = $user->getGroups();
         if ($groups && array_intersect($groups, $haclgSuperGroups))
         {
             // We know that superuser can read anything included in the article
-            return '1';
+            $renderkey .= '1';
+            return true;
         }
         $readAll = true;
         $readKey = '';
@@ -101,11 +105,8 @@ class IACLEvaluator
         {
             $readKey .= chr($byte+0x40);
         }
-        if ($readAll)
-        {
-            return '1';
-        }
-        return $readKey;
+        $renderkey .= $readAll ? '1' : $readKey;
+        return true;
     }
 
     /**

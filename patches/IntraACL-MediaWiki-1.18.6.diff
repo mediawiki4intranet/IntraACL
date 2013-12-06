@@ -5,11 +5,12 @@ MediaWiki: REL1_18 1.18.6 7e508a3b9bfc532a0b4a1bd780c61f69ff4ccbda
 Patch needed for IntraACL extension. Enables read access checks
 in various parts of MediaWiki.
 
-2013-03-25 - Do not cloak page and category links in article content.
-2013-03-29 - Still register dependencies for unreadable images and templates.
+2013-03-25 - Do not cloak page and category links in article content
+2013-03-29 - Still register dependencies for unreadable images and templates
 2013-07-31 - Check permissions for email notifications
 2013-08-27 - Check permissions in API
 2013-09-25 - Support parser cache key personalisation
+2013-12-06 - Use hook for parser cache key personalisation, disable title patch in LinkBatch
 
 diff --git a/includes/CategoryPage.php b/includes/CategoryPage.php
 index 6a0f613..53821d8 100644
@@ -1186,6 +1187,34 @@ index 126f6d8..b398222 100644
  				$vals = array();
  				ApiQueryBase::addTitleInfo( $vals, $t );
  				if ( isset( $prop['changed'] ) && !is_null( $row->wl_notificationtimestamp ) )
+diff --git a/includes/cache/LinkBatch.php b/includes/cache/LinkBatch.php
+index 0bd869f..4e6a62b 100644
+--- a/includes/cache/LinkBatch.php
++++ b/includes/cache/LinkBatch.php
+@@ -119,6 +119,11 @@ class LinkBatch {
+ 		if ( !$res ) {
+ 			return array();
+ 		}
++		// <IntraACL>
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			$etc = haclfDisableTitlePatch();
++		}
++		// </IntraACL>
+ 
+ 		// For each returned entry, add it to the list of good links, and remove it from $remaining
+ 
+@@ -139,6 +144,11 @@ class LinkBatch {
+ 				$ids[$title->getPrefixedDBkey()] = 0;
+ 			}
+ 		}
++		// <IntraACL>
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			haclfRestoreTitlePatch( $etc );
++		}
++		// </IntraACL>
+ 		return $ids;
+ 	}
+ 
 diff --git a/includes/diff/DifferenceEngine.php b/includes/diff/DifferenceEngine.php
 index 5902461..0319176 100644
 --- a/includes/diff/DifferenceEngine.php
@@ -1488,20 +1517,15 @@ index 939d9e3..277ed91 100644
  			'finalTitle' => $finalTitle,
  			'deps' => $deps );
 diff --git a/includes/parser/ParserCache.php b/includes/parser/ParserCache.php
-index dcbf7a4..ae6b70a 100644
+index dcbf7a4..ebf1bf3 100644
 --- a/includes/parser/ParserCache.php
 +++ b/includes/parser/ParserCache.php
-@@ -50,6 +50,14 @@ class ParserCache {
+@@ -50,6 +50,9 @@ class ParserCache {
  		$pageid = $article->getID();
  		$renderkey = (int)($wgRequest->getVal('action') == 'render');
  
-+		if ( defined( 'IACL_PARSERCACHE_PERSONAL' ) ) {
-+			// IntraACL - include readability flags of templates and images
-+			// used on the page in the cache key so parser cache can still
-+			// be efficient with IntraACL being enabled
-+			global $wgUser;
-+			$renderkey .= IACLEvaluator::getParserCacheKey( $article->getTitle(), $wgUser );
-+		}
++		// Needed for IntraACL >= 2.03 to modify parser cache key for correct permissions
++		wfRunHooks( 'ParserOutputRenderKey', array( $article, &$renderkey ) );
 +
  		$key = wfMemcKey( 'pcache', 'idhash', "{$pageid}-{$renderkey}!{$hash}" );
  		return $key;

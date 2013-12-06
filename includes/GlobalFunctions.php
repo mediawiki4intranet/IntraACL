@@ -31,8 +31,6 @@ if (!defined('MEDIAWIKI'))
     die("This file is part of the IntraACL extension. It is not a valid entry point.");
 }
 
-define('IACL_PARSERCACHE_PERSONAL', 1);
-
 /**
  * Switch on Halo Access Control Lists. This function must be called in
  * LocalSettings.php after HACL_Initialize.php was included and default values
@@ -244,6 +242,7 @@ function haclfSetupExtension()
         // Permission and cache checks - intentionally disabled in console mode
         $wgHooks['userCan'][] = 'IACLEvaluator::userCan';
         $wgHooks['IsFileCacheable'][] = 'haclfIsFileCacheable';
+        $wgHooks['ParserOutputRenderKey'][] = 'IACLEvaluator::ParserOutputRenderKey';
     }
     else
     {
