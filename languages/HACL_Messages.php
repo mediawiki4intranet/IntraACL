@@ -187,7 +187,7 @@ If you want to protect some pages, ACL page must be named as one of: ACL:Page/*,
 
     'hacl_edit_action_all'              => 'All',
     'hacl_edit_action_manage'           => 'Manage rights of pages',
-    'hacl_edit_action_template'         => 'Manage template',
+    'hacl_edit_action_template'         => 'Change this ACL',
     'hacl_edit_action_read'             => 'Read',
     'hacl_edit_action_edit'             => 'Edit',
     'hacl_edit_action_create'           => 'Create',
@@ -507,7 +507,7 @@ $messages['ru'] = array(
 
     'hacl_edit_action_all'              => 'Полный доступ',
     'hacl_edit_action_manage'           => 'Изменение прав отдельных страниц',
-    'hacl_edit_action_template'         => 'Изменение шаблона прав',
+    'hacl_edit_action_template'         => 'Изменение данного ACL',
     'hacl_edit_action_read'             => 'Чтение',
     'hacl_edit_action_edit'             => 'Правка',
     'hacl_edit_action_create'           => 'Создание',

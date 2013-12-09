@@ -41,13 +41,14 @@
    <label for="act_all" id="act_label_all"><?= wfMsg('hacl_edit_action_all') ?></label>
    <input type="checkbox" id="act_manage" onclick="AE.act_change(this)" onchange="AE.act_change(this)" />
    <label for="act_manage" id="act_label_manage"><?= wfMsg('hacl_edit_action_manage') ?></label>
-   <input type="checkbox" id="act_template" onclick="AE.act_change(this)" onchange="AE.act_change(this)" />
-   <label for="act_template" id="act_label_template"><?= wfMsg('hacl_edit_action_template') ?></label>
    <br />
    <?php foreach(explode(',', 'read,edit,create,delete,move') as $k) { ?>
    <input type="checkbox" id="act_<?= $k ?>" onclick="AE.act_change(this)" onchange="AE.act_change(this)" />
    <label for="act_<?= $k ?>" id="act_label_<?= $k ?>"><?= wfMsg("hacl_edit_action_$k") ?></label>
    <?php } ?>
+   <br />
+   <input type="checkbox" id="act_template" onclick="AE.act_change(this)" onchange="AE.act_change(this)" />
+   <label for="act_template" id="act_label_template"><?= wfMsg('hacl_edit_action_template') ?></label>
   </p>
   <p>
    <label for="inc_acl"><?= wfMsg('hacl_edit_include_right') ?></label>
