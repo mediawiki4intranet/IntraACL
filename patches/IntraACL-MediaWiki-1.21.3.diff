@@ -11,6 +11,7 @@ in various parts of MediaWiki.
 2013-08-27 - Check permissions in API
 2013-09-25 - Support parser cache key personalisation
 2013-12-06 - Use hook for parser cache key personalisation, disable title patch in LinkBatch
+2013-12-09 - Disable parser patch during wfIsBadImage check
 
 diff --git a/includes/CategoryViewer.php b/includes/CategoryViewer.php
 index 970adb5..8257dfe 100644
@@ -95,6 +96,28 @@ index adc1f78..71650b0 100644
  
  		// Can't diff special pages, unreadable pages or pages with no new revision
  		// to compare against: just return the text.
+diff --git a/includes/GlobalFunctions.php b/includes/GlobalFunctions.php
+index 016736f..e9e14bc 100644
+--- a/includes/GlobalFunctions.php
++++ b/includes/GlobalFunctions.php
+@@ -3938,7 +3938,17 @@ function wfIsBadImage( $name, $contextTitle = false, $blacklist = null ) {
+ 	wfProfileIn( __METHOD__ );
+ 
+ 	# Handle redirects
++// <IntraACL>
++	if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++		$hacl = haclfDisableTitlePatch();
++	}
++// </IntraACL>
+ 	$redirectTitle = RepoGroup::singleton()->checkRedirect( Title::makeTitle( NS_FILE, $name ) );
++// <IntraACL>
++	if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++		haclfRestoreTitlePatch( $hacl );
++	}
++// </IntraACL>
+ 	if( $redirectTitle ) {
+ 		$name = $redirectTitle->getDbKey();
+ 	}
 diff --git a/includes/Linker.php b/includes/Linker.php
 index 972adfc..643fdc6 100644
 --- a/includes/Linker.php
