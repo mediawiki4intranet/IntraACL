@@ -12,6 +12,7 @@ in various parts of MediaWiki.
 2013-09-25 - Support parser cache key personalisation
 2013-12-06 - Use hook for parser cache key personalisation, disable title patch in LinkBatch
 2013-12-09 - Disable parser patch during wfIsBadImage check
+2013-12-12 - Check permissions in findBySha1() of file repo - fixes duplicate upload errors
 
 diff --git a/includes/CategoryPage.php b/includes/CategoryPage.php
 index 6a0f613..53821d8 100644
@@ -1270,6 +1271,40 @@ index 5902461..0319176 100644
  
  			$t = $wgLang->timeanddate( $this->mOldRev->getTimestamp(), true );
  			$dateofrev = $wgLang->date( $this->mOldRev->getTimestamp(), true );
+diff --git a/includes/filerepo/LocalFile.php b/includes/filerepo/LocalFile.php
+index 14da912..d5acacb 100644
+--- a/includes/filerepo/LocalFile.php
++++ b/includes/filerepo/LocalFile.php
+@@ -85,6 +85,11 @@ class LocalFile extends File {
+ 	 */
+ 	static function newFromRow( $row, $repo ) {
+ 		$title = Title::makeTitle( NS_FILE, $row->img_name );
++		// <IntraACL>
++		if ( !$title->userCan( 'read' ) ) {
++			return NULL;
++		}
++		// </IntraACL>
+ 		$file = new self( $title, $repo );
+ 		$file->loadFromRow( $row );
+ 
+diff --git a/includes/filerepo/LocalRepo.php b/includes/filerepo/LocalRepo.php
+index 9089f4d..0ffffce 100644
+--- a/includes/filerepo/LocalRepo.php
++++ b/includes/filerepo/LocalRepo.php
+@@ -194,7 +194,12 @@ class LocalRepo extends FSRepo {
+ 		
+ 		$result = array();
+ 		foreach ( $res as $row ) {
+-			$result[] = $this->newFileFromRow( $row );
++			$file = $this->newFileFromRow( $row );
++			// <IntraACL>
++			if ( $file !== NULL ) {
++				$result[] = $file;
++			}
++			// </IntraACL>
+ 		}
+ 		$res->free();
+ 
 diff --git a/includes/parser/LinkHolderArray.php b/includes/parser/LinkHolderArray.php
 index 5418b6e..53fab05 100644
 --- a/includes/parser/LinkHolderArray.php

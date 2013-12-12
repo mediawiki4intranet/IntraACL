@@ -12,6 +12,7 @@ in various parts of MediaWiki.
 2013-09-25 - Support parser cache key personalisation
 2013-12-06 - Use hook for parser cache key personalisation, disable title patch in LinkBatch
 2013-12-09 - Disable parser patch during wfIsBadImage check
+2013-12-12 - Check permissions in findBySha1() of file repo - fixes duplicate upload errors
 
 diff --git a/includes/CategoryViewer.php b/includes/CategoryViewer.php
 index 970adb5..8257dfe 100644
@@ -703,7 +704,7 @@ index 496a0eb..cccd756 100644
  				$pages[] = $titleObj;
  			} else {
 diff --git a/includes/api/ApiQueryAllImages.php b/includes/api/ApiQueryAllImages.php
-index e24b162..e815d9b 100644
+index e24b162..967a575 100644
 --- a/includes/api/ApiQueryAllImages.php
 +++ b/includes/api/ApiQueryAllImages.php
 @@ -234,6 +234,11 @@ class ApiQueryAllImages extends ApiQueryGeneratorBase {
@@ -711,7 +712,7 @@ index e24b162..e815d9b 100644
  			if ( is_null( $resultPageSet ) ) {
  				$file = $repo->newFileFromRow( $row );
 +				// <IntraACL>
-+				if ( !$file->getTitle()->userCan('read') ) {
++				if ( !$file ) {
 +					continue;
 +				}
 +				// </IntraACL>
@@ -1305,6 +1306,67 @@ index 0f3c77f..10f2901 100644
  		}
  
  		return true;
+diff --git a/includes/filerepo/LocalRepo.php b/includes/filerepo/LocalRepo.php
+index be11b23..7a71dff 100644
+--- a/includes/filerepo/LocalRepo.php
++++ b/includes/filerepo/LocalRepo.php
+@@ -241,7 +241,12 @@ class LocalRepo extends FileRepo {
+ 
+ 		$result = array();
+ 		foreach ( $res as $row ) {
+-			$result[] = $this->newFileFromRow( $row );
++			$file = $this->newFileFromRow( $row );
++			// <IntraACL>
++			if ( $file !== NULL ) {
++				$result[] = $file;
++			}
++			// </IntraACL>
+ 		}
+ 		$res->free();
+ 
+@@ -274,7 +279,11 @@ class LocalRepo extends FileRepo {
+ 		$result = array();
+ 		foreach ( $res as $row ) {
+ 			$file = $this->newFileFromRow( $row );
+-			$result[$file->getSha1()][] = $file;
++			// <IntraACL>
++			if ( $file !== NULL ) {
++				$result[$file->getSha1()][] = $file;
++			}
++			// </IntraACL>
+ 		}
+ 		$res->free();
+ 
+@@ -304,7 +313,12 @@ class LocalRepo extends FileRepo {
+ 		// Build file objects
+ 		$files = array();
+ 		foreach ( $res as $row ) {
+-			$files[] = $this->newFileFromRow( $row );
++			$file = $this->newFileFromRow( $row );
++			// <IntraACL>
++			if ( $file !== NULL ) {
++				$files[] = $file;
++			}
++			// </IntraACL>
+ 		}
+ 		return $files;
+ 	}
+diff --git a/includes/filerepo/file/LocalFile.php b/includes/filerepo/file/LocalFile.php
+index 4f50bfa..7389030 100644
+--- a/includes/filerepo/file/LocalFile.php
++++ b/includes/filerepo/file/LocalFile.php
+@@ -113,6 +113,11 @@ class LocalFile extends File {
+ 	 */
+ 	static function newFromRow( $row, $repo ) {
+ 		$title = Title::makeTitle( NS_FILE, $row->img_name );
++		// <IntraACL>
++		if ( !$title->userCan( 'read' ) ) {
++			return NULL;
++		}
++		// </IntraACL>
+ 		$file = new self( $title, $repo );
+ 		$file->loadFromRow( $row );
+ 
 diff --git a/includes/logging/LogEventsList.php b/includes/logging/LogEventsList.php
 index 501af7d..5de437c 100644
 --- a/includes/logging/LogEventsList.php
