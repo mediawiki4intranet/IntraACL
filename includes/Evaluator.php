@@ -79,11 +79,11 @@ class IACLEvaluator
         // TODO: include category members for category pages
         $res = $dbr->query(
             '(' . $dbr->selectSQLText(
-                array('page', 'imagelinks'), 'page.*',
+                array('p' => 'page', 'imagelinks'), 'p.*',
                 array('il_from' => $title->getArticleId(), 'il_to=page_title', 'page_namespace' => NS_FILE), __METHOD__
             ) . ') UNION (' .
             $dbr->selectSQLText(
-                array('page', 'templatelinks'), 'page.*',
+                array('p' => 'page', 'templatelinks'), 'p.*',
                 array('tl_from' => $title->getArticleId(), 'tl_title=page_title', 'tl_namespace=page_namespace'), __METHOD__
             ) . ') ORDER BY page_id',
             __METHOD__
