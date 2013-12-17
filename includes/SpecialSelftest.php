@@ -60,8 +60,8 @@ class IntraACLSelftestSpecial extends SpecialPage
         }
         else
         {
-            $wgOut->setPageTitle(wfMsg('hacl_selftest_title'));
-            $wgOut->addWikiText(wfMsgNoTrans('hacl_selftest_info', $wgTitle->getFullUrl(array('do' => 1, 'quiet' => 1))));
+            $wgOut->setPageTitle(wfMsg('iacl-selftest-title'));
+            $wgOut->addWikiText(wfMsgNoTrans('iacl-selftest-info', $wgTitle->getFullUrl(array('do' => 1, 'quiet' => 1))));
             $wgOut->addHTML('<iframe style="border-width: 0; width: 100%; height: 500px" src="'.$wgTitle->getLocalUrl(array('do' => 1)).'"></iframe>');
         }
     }

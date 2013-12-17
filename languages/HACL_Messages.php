@@ -332,8 +332,12 @@ Possible reasons for this may be:
 Please review these elements, return to [[$2]] and protect them again.',
 
     'intraaclselftest'                  => 'IntraACL autotesting',
-    'hacl_selftest_title'               => 'Simple automatic tests for IntraACL',
-    'hacl_selftest_info'                =>
+    'iacl-selftest-no-curl'             => 'cURL PHP extension required',
+    'iacl-selftest-no-curl-text'        =>
+'[http://www.php.net/manual/ref.curl.php cURL PHP extension] is required for IntraACL self-tests to run,
+because they rely on HTTP request emulation instead of using APIs.',
+    'iacl-selftest-title'               => 'Simple automatic tests for IntraACL',
+    'iacl-selftest-info'                =>
 'You can create and run simple automatic tests to check IntraACL for correct operation.
 Tests are ran by HTTP request emulation without using IntraACL APIs which guarantees
 their independence of other IntraACL code. It may be useful for you if you strongly rely
@@ -651,8 +655,12 @@ $messages['ru'] = array(
 Пожалуйста, рассмотрите ситуацию внимательнее, вернитесь к [[$2]] и пересохраните права.',
 
     'intraaclselftest'                  => 'Автотестирование IntraACL',
-    'hacl_selftest_title'               => 'Простое автотестирование прав IntraACL',
-    'hacl_selftest_info'                =>
+    'iacl-selftest-no-curl'             => 'Требуется расширение PHP cURL',
+    'iacl-selftest-no-curl-text'        =>
+'[http://www.php.net/manual/ref.curl.php Расширение PHP cURL] требуется для запуска автоматических самотестов IntraACL,
+так как они работают через эмуляцию реальных HTTP-запросов, а не через программные интерфейсы.',
+    'iacl-selftest-title'               => 'Простое автотестирование прав IntraACL',
+    'iacl-selftest-info'                =>
 'Вы можете создать и запускать автоматические тесты для проверки корректной работы прав IntraACL.
 Тесты запускаются не через программные интерфейсы, а через эмуляцию реальных HTTP-запросов
 пользователей, что гарантирует независимость самих тестов от кода IntraACL.
