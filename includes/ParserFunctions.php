@@ -793,7 +793,7 @@ class IACLParserFunctions
             'bl_namespace' => $title->getNamespace(),
             'bl_title' => $title->getDBkey(),
         );
-        $res = $dbw->select(array('page', 'intraacl_badlinks'), 'page.*', $bad + array(
+        $res = $dbw->select(array('p' => 'page', 'intraacl_badlinks'), 'p.*', $bad + array(
             'bl_from=page_id'
         ), __METHOD__);
         foreach ($res as $row)
