@@ -36,6 +36,9 @@ define('HACL_COMBINE_EXTEND', 'extend');
 define('HACL_COMBINE_SHRINK', 'shrink');
 define('HACL_COMBINE_OVERRIDE', 'override');
 
+# Workaround for online updater
+global $haclgIP;
+
 # This is the path to your installation of IntraACL as seen on your
 # local filesystem. Used against some PHP file path issues.
 $haclgIP = dirname(__DIR__);
