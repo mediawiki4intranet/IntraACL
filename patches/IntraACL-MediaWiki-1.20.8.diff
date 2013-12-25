@@ -1419,7 +1419,7 @@ index 10765de..dd67ad5 100644
 -					if ( !wfIsBadImage( $nt->getDBkey(), $this->mTitle ) ) {
 +					// <IntraACL>
 +					if ( !wfIsBadImage( $nt->getDBkey(), $this->mTitle ) &&
-+						( $canRead = $nt->userCanRead() ) ) {
++						( $canRead = $nt->userCan( 'read' ) ) ) {
 +					// </IntraACL>
  						if ( $wasblank ) {
  							# if no parameters were passed, $text
@@ -1557,7 +1557,7 @@ index 10765de..dd67ad5 100644
  			wfRunHooks( 'BeforeParserFetchTemplateAndtitle',
  				array( $parser, $title, &$skip, &$id ) );
  
-+			$canRead = $canRead && $title->userCanRead();
++			$canRead = $canRead && $title->userCan( 'read' );
  			if ( $skip ) {
  				$text = false;
  				$deps[] = array(
