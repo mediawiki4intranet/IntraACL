@@ -243,6 +243,7 @@ function haclfSetupExtension()
         $wgHooks['userCan'][] = 'IACLEvaluator::userCan';
         $wgHooks['IsFileCacheable'][] = 'haclfIsFileCacheable';
         $wgHooks['ParserOutputRenderKey'][] = 'IACLEvaluator::ParserOutputRenderKey';
+        $wgHooks['FilterPageQuery'][] = 'IACLEvaluator::FilterPageQuery';
     }
     else
     {
@@ -513,14 +514,23 @@ function haclfAddToolbarForEditPage($editpage, $out)
 function iaclfLoadExtensionSchemaUpdates($updater = NULL)
 {
     global $wgExtNewTables, $wgDBtype;
-    $file = dirname(__FILE__).'/../storage/intraacl-tables.sql';
+    $f1 = __DIR__.'/../storage/intraacl-tables.sql';
+    $f2 = __DIR__.'/../storage/intraacl-functions.sql';
+    $spNote = "Creating stored procedures for DBMS-side checking of IntraACL rights";
     if ($updater && $updater->getDB()->getType() == 'mysql')
     {
-        $updater->addExtensionUpdate(array('addTable', 'intraacl_rules', $file, true));
+        $updater->addExtensionUpdate(array('addTable', 'intraacl_rules', $f1, true));
+        $updater->addExtensionUpdate(array('applyPatch', $f2, true, $spNote));
     }
     elseif ($wgDBtype == 'mysql')
     {
-        $wgExtNewTables[] = array('addTable', 'intraacl_rules', $file);
+        $wgExtNewTables[] = array('intraacl_rules', $f1);
+        $wgUpdates['mysql'][] = function() use($f2, $spNote)
+        {
+            $dbw = wfGetDB(DB_MASTER);
+            print "$spNote\n";
+            $dbw->sourceFile($f2);
+        };
     }
     else
     {

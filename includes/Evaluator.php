@@ -157,6 +157,63 @@ class IACLEvaluator
     }
 
     /**
+     * DBMS-side filtering for page queries
+     *
+     * @param &$query
+     *     Query to be modified, array(
+     *         'tables'     => $tables,
+     *         'fields'     => $fields,
+     *         'conds'      => $conds,
+     *         'options'    => $options,
+     *         'join_conds' => $join_conds
+     *     )
+     * @param $page_alias
+     *     Alias for the joined page table; it is added to $query if not already present
+     * @param $page_join_conds
+     *     Join conditions for added page table (not appended to $query if page table is already there)
+     * @param $override_namespace
+     *     If not NULL, specifies an integer namespace id to use for permission check
+     *     instead of $page_alias.page_namespace column (useful is you're only listing pages from certain NS)
+     *     If not NULL and $page_alias is to be added to $query, "$page_alias.page_namespace = $override_namespace"
+     *     term is added to join conditions.
+     */
+    static $combineId = array(
+        HACL_COMBINE_EXTEND => 0,
+        HACL_COMBINE_OVERRIDE => 1,
+        HACL_COMBINE_SHRINK => 2,
+    );
+    public static function FilterPageQuery(&$query, $page_alias = 'page', $page_join_conds = NULL, $override_namespace = NULL)
+    {
+        global $wgUser, $haclgCombineMode, $haclgSuperGroups;
+        $groups = $wgUser->getGroups();
+        if ($groups && array_intersect($groups, $haclgSuperGroups))
+        {
+            // Superuser
+            return true;
+        }
+        // TODO: Blacklist $haclgContLang->getPermissionDeniedPage()
+        // TODO: Whitelist $wgWhitelistRead
+        if (!isset($query['tables'][$page_alias]) &&
+            ($page_alias != 'page' || !array_filter(array_keys($query['tables'], 'page'), 'is_int')))
+        {
+            $query['tables'][] = $page_alias;
+            $query['join_conds'][$page_alias] = array('LEFT JOIN', $page_join_conds);
+            if ($override_namespace !== NULL)
+            {
+                $query['join_conds'][$page_alias][1][] = "$page_alias.page_namespace = $override_namespace";
+            }
+        }
+        if ($override_namespace === NULL)
+        {
+            $override_namespace = "$page_alias.page_namespace";
+        }
+        $query['conds'][] = 'check_read_right('.$wgUser->getId().
+            ", $page_alias.page_id, $override_namespace, ".IACL::ACTION_READ.', '.
+            self::$combineId[$haclgCombineMode].')';
+        return true;
+    }
+
+    /**
      * Returns array(final log message, access granted?, continue hook processing?)
      */
     public static function userCan_Switches($title, $user, $action)
