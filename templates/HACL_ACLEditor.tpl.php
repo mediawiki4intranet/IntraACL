@@ -84,6 +84,10 @@ mw.loader.using('ext.intraacl.acleditor', function()
         $v = addslashes($v);
         print "'$k' : '$v'\n";
     }
+    if ($aclPEType == IACL::PE_SPECIAL)
+    {
+        $aclPEType = IACL::PE_PAGE;
+    }
     ?>
     };
     AE = new HACLACLEditor({

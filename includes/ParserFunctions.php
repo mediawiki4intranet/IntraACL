@@ -613,7 +613,7 @@ class IACLParserFunctions
             {
                 // Use $article instead of $target because MW doesn't redirect
                 // when $target does not exist
-                $article = new WikiPage(Title::newFromText($sdName));
+                $article = new Article(Title::newFromText($sdName));
                 $article->setRedirectedFrom($title);
                 return false;
             }
