@@ -583,7 +583,7 @@ class IACLToolbar
         else
         {
             // Remove page SD
-            $newSDArticle->doDelete(wfMsg('hacl_comment_unprotect'));
+            $newSDArticle->doDeleteArticle(wfMsg('hacl_comment_unprotect'));
         }
 
         // Continue hook processing
