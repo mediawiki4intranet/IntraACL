@@ -245,8 +245,8 @@ class IACLEvaluator
         {
             return false;
         }
-        $name = $this->getPrefixedText();
-        $dbName = $this->getPrefixedDBKey();
+        $name = $title->getPrefixedText();
+        $dbName = $title->getPrefixedDBKey();
         // Check with and without underscores
         return (in_array($name, $wgWhitelistRead, true) || in_array($dbName, $wgWhitelistRead, true));
     }
