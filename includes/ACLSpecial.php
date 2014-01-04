@@ -181,6 +181,7 @@ class IntraACLSpecial extends SpecialPage
         $nodes = array();
         $edges = array();
         $ns_first = array();
+        $cluster = array();
         foreach ($defs as $def)
         {
             if ($def['pe_type'] != IACL::PE_PAGE)
@@ -385,67 +386,77 @@ class IntraACLSpecial extends SpecialPage
                 $nodes[$n]['style'] = 'filled';
             }
         }
-        // Draw clusters
-        $graph = '';
-        $ns_first[''] = '';
-        foreach ($ns_first as $ns => $first)
+        if ($nodes)
         {
-            if ($ns !== '')
+            // Draw clusters
+            $graph = '';
+            $ns_first[''] = '';
+            foreach ($ns_first as $ns => $first)
             {
-                $graph .= "subgraph clusterns$ns {\n";
-                $graph .= "graph [label=\"Namespace ".($ns ? $wgContLang->getNsText($ns) : 'Main').
-                    "\", href=\"".Title::newFromText('Special:Allpages')->getFullUrl(array('namespace' => $ns)).
-                    "\"];\n";
-            }
-            foreach ($cat_cluster[$ns] as $cat => $ks)
-            {
-                if ($cat !== '')
+                if ($ns !== '')
                 {
-                    $graph .= "subgraph clustercat${ns}_$cat {\n";
-                    $graph .= 'graph [label="'.$titles[$cat]->getPrefixedText().'", href="'.$titles[$cat]->getFullUrl().'"];'."\n";
+                    $graph .= "subgraph clusterns$ns {\n";
+                    $graph .= "graph [label=\"Namespace ".($ns ? $wgContLang->getNsText($ns) : 'Main').
+                        "\", href=\"".Title::newFromText('Special:Allpages')->getFullUrl(array('namespace' => $ns)).
+                        "\"];\n";
                 }
-                foreach ($ks as $nodename)
+                if (isset($cat_cluster[$ns]))
                 {
-                    $graph .= "\"$nodename\" [".self::attrstring($nodes[$nodename])."];\n";
+                    foreach ($cat_cluster[$ns] as $cat => $ks)
+                    {
+                        if ($cat !== '')
+                        {
+                            $graph .= "subgraph clustercat${ns}_$cat {\n";
+                            $graph .= 'graph [label="'.$titles[$cat]->getPrefixedText().'", href="'.$titles[$cat]->getFullUrl().'"];'."\n";
+                        }
+                        foreach ($ks as $nodename)
+                        {
+                            $graph .= "\"$nodename\" [".self::attrstring($nodes[$nodename])."];\n";
+                        }
+                        if ($cat !== '')
+                        {
+                            $graph .= "}\n";
+                        }
+                    }
                 }
-                if ($cat !== '')
+                if ($ns !== '')
                 {
                     $graph .= "}\n";
                 }
             }
-            if ($ns !== '')
+            // Draw edges
+            foreach ($edges as $from => $to)
             {
-                $graph .= "}\n";
-            }
-        }
-        // Draw edges
-        foreach ($edges as $from => $to)
-        {
-            if (isset($nodes[$from]))
-            {
-                foreach ($to as $id => $attr)
+                if (isset($nodes[$from]))
                 {
-                    if ($attr !== true)
+                    foreach ($to as $id => $attr)
                     {
-                        $attr .= ', ';
+                        if ($attr !== true)
+                        {
+                            $attr .= ', ';
+                        }
+                        else
+                        {
+                            $attr = '';
+                        }
+                        $attr .= self::attrstring(array(
+                            'href' => $nodes[$from]['href'],
+                            'tooltip' => $nodes[$from]['label'],
+                        ));
+                        $graph .= "\"$from\" -> \"$id\" [$attr];\n";
                     }
-                    else
-                    {
-                        $attr = '';
-                    }
-                    $attr .= self::attrstring(array(
-                        'href' => $nodes[$from]['href'],
-                        'tooltip' => $nodes[$from]['label'],
-                    ));
-                    $graph .= "\"$from\" -> \"$id\" [$attr];\n";
                 }
             }
+            // Render the graph
+            $graph = "<graphviz>\ndigraph G {\nedge [penwidth=2 color=blue];\nsplines=polyline;\n".
+                "overlap=false;\nranksep=2;\nrankdir=LR;\ncompound=true;\n$graph\n}\n</graphviz>\n";
+            $wgOut->addWikiText($graph);
+            $wgOut->addHTML("<pre>$graph</pre>");
         }
-        // Render the graph
-        $graph = "<graphviz>\ndigraph G {\nedge [penwidth=2 color=blue];\nsplines=polyline;\n".
-            "overlap=false;\nranksep=2;\nrankdir=LR;\ncompound=true;\n$graph\n}\n</graphviz>\n";
-        $wgOut->addWikiText($graph);
-        $wgOut->addHTML("<pre>$graph</pre>");
+        else
+        {
+            $wgOut->addWikiText(wfMsg('hacl_acllist_empty'));
+        }
         haclfRestoreTitlePatch($patch);
     }
 
