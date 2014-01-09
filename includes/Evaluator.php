@@ -152,6 +152,7 @@ class IACLEvaluator
         self::finishLog();
 
         // Stop hook processing if access is denied
+        $result = $result && true;
         return $result;
     }
 
