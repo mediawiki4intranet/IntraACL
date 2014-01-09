@@ -8,7 +8,7 @@ based on HaloACL, correcting its endless bugs and inconveniences.
 * Copyright (c) 2010+, Vitaliy Filippov, Stas Fomin
 * Loosely based on HaloACL (c) 2009, ontoprise GmbH
 * This is IntraACL backed by the '''new''' storage code.
-  Version number is 2.0.5.
+  Version number is 2.0.6.
 
 == REQUIREMENTS ==
 
