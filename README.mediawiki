@@ -8,11 +8,13 @@ based on HaloACL, correcting its endless bugs and inconveniences.
 * Copyright (c) 2010+, Vitaliy Filippov, Stas Fomin
 * Loosely based on HaloACL (c) 2009, ontoprise GmbH
 * This is IntraACL backed by the '''new''' storage code.
-  Version number is 2.0.6.
+* Version number is 2.1.0.
 
 == REQUIREMENTS ==
 
-The only requirement is MediaWiki of at least version 1.14.
+* MediaWiki >= 1.18
+* PHP >= 5.3
+* MySQL/MariaDB >= 5.1
 
 == INSTALLATION ==
 
@@ -40,7 +42,11 @@ This is because of MediaWiki by-design openness and extensibility
 and the need for direct database queries from extension code.
 
 You should check that all your extensions perform access right checks
-using <tt>$title->userCanRead()</tt> before displaying $title content.
+using <tt>$title->userCan('read')</tt> before displaying $title content.
+
+When showing page listings from the DB, you can use a stored procedure
+for permission checks using the FilterPageQuery hook to modify your query
+(for details see FilterPageQuery in includes/Evaluator.php)
 
 == MediaWiki 4 Intranet ==
 
