@@ -185,14 +185,13 @@ class IACLEvaluator
     public static function FilterPageQuery(&$query, $page_alias = 'page', $page_join_conds = NULL, $override_namespace = NULL)
     {
         global $wgUser, $haclgCombineMode, $haclgSuperGroups;
+        static $whitelist = NULL;
         $groups = $wgUser->getGroups();
         if ($groups && array_intersect($groups, $haclgSuperGroups))
         {
             // Superuser
             return true;
         }
-        // TODO: Blacklist $haclgContLang->getPermissionDeniedPage()
-        // TODO: Whitelist $wgWhitelistRead
         if (!isset($query['tables'][$page_alias]) &&
             ($page_alias != 'page' || !array_filter(array_keys($query['tables'], 'page'), 'is_int')))
         {
@@ -207,9 +206,34 @@ class IACLEvaluator
         {
             $override_namespace = "$page_alias.page_namespace";
         }
-        $query['conds'][] = 'check_read_right('.$wgUser->getId().
+        $cond = 'check_read_right('.$wgUser->getId().
             ", $page_alias.page_id, $override_namespace, ".IACL::ACTION_READ.', '.
-            self::$combineId[$haclgCombineMode].')';
+            self::$combineId[$haclgCombineMode].")";
+        // Whitelist $wgWhitelistRead
+        if ($whitelist === NULL)
+        {
+            global $wgWhitelistRead;
+            $whitelist = $wgWhitelistRead;
+            if ($whitelist)
+            {
+                $dbr = wfGetDB(DB_SLAVE);
+                foreach ($whitelist as &$title)
+                {
+                    $title = Title::newFromText($title);
+                    $title = '('.$title->getNamespace().', '.$dbr->quote($title->getDBkey()).')';
+                }
+                $whitelist = implode(', ', $whitelist);
+            }
+            else
+            {
+                $whitelist = false;
+            }
+        }
+        if ($whitelist)
+        {
+            $cond = "($cond OR ($page_alias.page_namespace, $page_alias.page_title) IN ($whitelist))";
+        }
+        $query['conds'][] = $cond;
         return true;
     }
 

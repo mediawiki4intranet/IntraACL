@@ -13,6 +13,7 @@ in various parts of MediaWiki.
 2013-12-06 - Use hook for parser cache key personalisation, disable title patch in LinkBatch
 2013-12-09 - Disable parser patch during wfIsBadImage check
 2013-12-12 - Check permissions in findBySha1() of file repo - fixes duplicate upload errors
+2014-01-14 - DBMS-side filtering of page lists based on read permissions
 
 diff --git a/includes/CategoryViewer.php b/includes/CategoryViewer.php
 index 55d9c1e..9cfe63e 100644
@@ -1702,11 +1703,207 @@ index a082049..d9acce4 100644
  					if ( $t ) {
  						$link = ( $s->page_is_redirect ? '<div class="allpagesredirect">' : '' ) .
  							Linker::link( $t ) .
+diff --git a/includes/specials/SpecialAncientpages.php b/includes/specials/SpecialAncientpages.php
+index b083032..020c13f 100644
+--- a/includes/specials/SpecialAncientpages.php
++++ b/includes/specials/SpecialAncientpages.php
+@@ -41,7 +41,7 @@ class AncientPagesPage extends QueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array( 'page', 'revision' ),
+ 			'fields' => array(
+ 				'namespace' => 'page_namespace',
+@@ -54,6 +54,10 @@ class AncientPagesPage extends QueryPage {
+ 				'page_latest=rev_id'
+ 			)
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	function usesTimestamps() {
+diff --git a/includes/specials/SpecialBrokenRedirects.php b/includes/specials/SpecialBrokenRedirects.php
+index b2ddc22..f60e990 100644
+--- a/includes/specials/SpecialBrokenRedirects.php
++++ b/includes/specials/SpecialBrokenRedirects.php
+@@ -52,7 +52,7 @@ class BrokenRedirectsPage extends QueryPage {
+ 	function getQueryInfo() {
+ 		$dbr = wfGetDB( DB_SLAVE );
+ 
+-		return array(
++		$query = array(
+ 			'tables' => array(
+ 				'redirect',
+ 				'p1' => 'page',
+@@ -83,6 +83,10 @@ class BrokenRedirectsPage extends QueryPage {
+ 				) ),
+ 			),
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'p1', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	/**
+diff --git a/includes/specials/SpecialCategories.php b/includes/specials/SpecialCategories.php
+index d01bfd7..b8d34ba 100644
+--- a/includes/specials/SpecialCategories.php
++++ b/includes/specials/SpecialCategories.php
+@@ -74,12 +74,16 @@ class CategoryPager extends AlphabeticPager {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$info = array(
+ 			'tables' => array( 'category' ),
+ 			'fields' => array( 'cat_title', 'cat_pages' ),
+ 			'conds' => array( 'cat_pages > 0' ),
+-			'options' => array( 'USE INDEX' => 'cat_title' ),
++			'options' => array( 'USE INDEX' => array( 'category' => 'cat_title' ) ),
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$info, 'page', array( 'page_title=cat_title' ), NS_CATEGORY ) );
++		// </IntraACL>
++		return $info;
+ 	}
+ 
+ 	function getIndexField() {
+diff --git a/includes/specials/SpecialDeadendpages.php b/includes/specials/SpecialDeadendpages.php
+index 44137c1..b25d95b 100644
+--- a/includes/specials/SpecialDeadendpages.php
++++ b/includes/specials/SpecialDeadendpages.php
+@@ -57,7 +57,7 @@ class DeadendPagesPage extends PageQueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array( 'page', 'pagelinks' ),
+ 			'fields' => array(
+ 				'namespace' => 'page_namespace',
+@@ -76,6 +76,10 @@ class DeadendPagesPage extends PageQueryPage {
+ 				)
+ 			)
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	function getOrderFields() {
+diff --git a/includes/specials/SpecialDoubleRedirects.php b/includes/specials/SpecialDoubleRedirects.php
+index c364f70..458f9ba 100644
+--- a/includes/specials/SpecialDoubleRedirects.php
++++ b/includes/specials/SpecialDoubleRedirects.php
+@@ -96,6 +96,10 @@ class DoubleRedirectsPage extends QueryPage {
+ 			$retval['conds']['pa.page_title'] = $title;
+ 		}
+ 
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$retval, 'pa', NULL, NULL ) );
++		// </IntraACL>
++
+ 		return $retval;
+ 	}
+ 
+diff --git a/includes/specials/SpecialFewestrevisions.php b/includes/specials/SpecialFewestrevisions.php
+index 47a4d75..9f03520 100644
+--- a/includes/specials/SpecialFewestrevisions.php
++++ b/includes/specials/SpecialFewestrevisions.php
+@@ -41,7 +41,7 @@ class FewestrevisionsPage extends QueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array( 'revision', 'page' ),
+ 			'fields' => array(
+ 				'namespace' => 'page_namespace',
+@@ -62,6 +62,10 @@ class FewestrevisionsPage extends QueryPage {
+ 				'GROUP BY' => array( 'page_namespace', 'page_title', 'page_is_redirect' )
+ 			)
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', array( 'page_title=tl_title', 'page_namespace=tl_namespace' ), NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	function sortDescending() {
+diff --git a/includes/specials/SpecialListfiles.php b/includes/specials/SpecialListfiles.php
+index dff1cf7..98b3b68 100644
+--- a/includes/specials/SpecialListfiles.php
++++ b/includes/specials/SpecialListfiles.php
+@@ -274,13 +274,17 @@ class ImageListPager extends TablePager {
+ 			$join_conds = array( 'oldimage' => array( 'LEFT JOIN', 'oi_name = img_name' ) );
+ 		}
+ 
+-		return array(
++		$query = array(
+ 			'tables' => $tables,
+ 			'fields' => $fields,
+ 			'conds' => $this->buildQueryConds( $table ),
+ 			'options' => $options,
+ 			'join_conds' => $join_conds
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', array( 'page_title=img_name' ), NS_FILE ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	/**
+@@ -386,6 +390,18 @@ class ImageListPager extends TablePager {
+ 		UserCache::singleton()->doQuery( $userIds, array( 'userpage' ), __METHOD__ );
+ 	}
+ 
++	function formatRow( $row ) {
++		// <IntraACL>
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			$filePage = Title::makeTitleSafe( NS_FILE, $row->img_name );
++			if ( $filePage && !$filePage->userCanRead() ) {
++				return '';
++			}
++		}
++		// </IntraACL>
++		return parent::formatRow( $row );
++	}
++
+ 	function formatValue( $field, $value ) {
+ 		switch ( $field ) {
+ 			case 'thumb':
 diff --git a/includes/specials/SpecialListredirects.php b/includes/specials/SpecialListredirects.php
-index 2c8792f..de63d77 100644
+index 2c8792f..cd4ba01 100644
 --- a/includes/specials/SpecialListredirects.php
 +++ b/includes/specials/SpecialListredirects.php
-@@ -124,6 +124,11 @@ class ListredirectsPage extends QueryPage {
+@@ -46,7 +46,7 @@ class ListredirectsPage extends QueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array( 'p1' => 'page', 'redirect', 'p2' => 'page' ),
+ 			'fields' => array( 'namespace' => 'p1.page_namespace',
+ 				'title' => 'p1.page_title',
+@@ -63,6 +63,10 @@ class ListredirectsPage extends QueryPage {
+ 					'p2.page_namespace=rd_namespace',
+ 					'p2.page_title=rd_title' ) ) )
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'p1', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	function getOrderFields() {
+@@ -124,6 +128,11 @@ class ListredirectsPage extends QueryPage {
  		# Find out where the redirect leads
  		$target = $this->getRedirectTarget( $result );
  		if ( $target ) {
@@ -1718,11 +1915,103 @@ index 2c8792f..de63d77 100644
  			# Make a link to the destination page
  			$lang = $this->getLanguage();
  			$arr = $lang->getArrow() . $lang->getDirMark();
+diff --git a/includes/specials/SpecialLonelypages.php b/includes/specials/SpecialLonelypages.php
+index 7c7771d..d65e80a 100644
+--- a/includes/specials/SpecialLonelypages.php
++++ b/includes/specials/SpecialLonelypages.php
+@@ -49,7 +49,7 @@ class LonelyPagesPage extends PageQueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array(
+ 				'page', 'pagelinks',
+ 				'templatelinks'
+@@ -80,6 +80,10 @@ class LonelyPagesPage extends PageQueryPage {
+ 				)
+ 			)
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	function getOrderFields() {
+diff --git a/includes/specials/SpecialMostcategories.php b/includes/specials/SpecialMostcategories.php
+index 9b67f34..aa89cf2 100644
+--- a/includes/specials/SpecialMostcategories.php
++++ b/includes/specials/SpecialMostcategories.php
+@@ -43,7 +43,7 @@ class MostcategoriesPage extends QueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array( 'categorylinks', 'page' ),
+ 			'fields' => array(
+ 				'namespace' => 'page_namespace',
+@@ -62,6 +62,10 @@ class MostcategoriesPage extends QueryPage {
+ 				)
+ 			)
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	/**
+diff --git a/includes/specials/SpecialMostimages.php b/includes/specials/SpecialMostimages.php
+index 98d8da3..586a72b 100644
+--- a/includes/specials/SpecialMostimages.php
++++ b/includes/specials/SpecialMostimages.php
+@@ -43,7 +43,7 @@ class MostimagesPage extends ImageQueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array( 'imagelinks' ),
+ 			'fields' => array(
+ 				'namespace' => NS_FILE,
+@@ -55,6 +55,10 @@ class MostimagesPage extends ImageQueryPage {
+ 				'HAVING' => 'COUNT(*) > 1'
+ 			)
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', array( 'page_title=il_to' ), NS_FILE ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	function getCellHtml( $row ) {
 diff --git a/includes/specials/SpecialMostinterwikis.php b/includes/specials/SpecialMostinterwikis.php
-index 98dd68e..ba0a4c2 100644
+index 98dd68e..baf5b76 100644
 --- a/includes/specials/SpecialMostinterwikis.php
 +++ b/includes/specials/SpecialMostinterwikis.php
-@@ -98,7 +98,9 @@ class MostinterwikisPage extends QueryPage {
+@@ -43,7 +43,7 @@ class MostinterwikisPage extends QueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array(
+ 				'langlinks',
+ 				'page'
+@@ -66,6 +66,10 @@ class MostinterwikisPage extends QueryPage {
+ 				)
+ 			)
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	/**
+@@ -98,7 +102,9 @@ class MostinterwikisPage extends QueryPage {
  	 */
  	function formatResult( $skin, $result ) {
  		$title = Title::makeTitleSafe( $result->namespace, $result->title );
@@ -1733,8 +2022,93 @@ index 98dd68e..ba0a4c2 100644
  			return Html::element(
  				'span',
  				array( 'class' => 'mw-invalidtitle' ),
+diff --git a/includes/specials/SpecialMostlinked.php b/includes/specials/SpecialMostlinked.php
+index 37593bf..ab58c8d 100644
+--- a/includes/specials/SpecialMostlinked.php
++++ b/includes/specials/SpecialMostlinked.php
+@@ -44,7 +44,7 @@ class MostlinkedPage extends QueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array( 'pagelinks', 'page' ),
+ 			'fields' => array(
+ 				'namespace' => 'pl_namespace',
+@@ -69,6 +69,10 @@ class MostlinkedPage extends QueryPage {
+ 				)
+ 			)
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	/**
+diff --git a/includes/specials/SpecialMostlinkedcategories.php b/includes/specials/SpecialMostlinkedcategories.php
+index 0d4641b..ef0578f 100644
+--- a/includes/specials/SpecialMostlinkedcategories.php
++++ b/includes/specials/SpecialMostlinkedcategories.php
+@@ -39,12 +39,16 @@ class MostlinkedCategoriesPage extends QueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array( 'category' ),
+ 			'fields' => array( 'title' => 'cat_title',
+ 				'namespace' => NS_CATEGORY,
+ 				'value' => 'cat_pages' ),
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', array( 'page_title=cat_title' ), NS_CATEGORY ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	function sortDescending() {
+diff --git a/includes/specials/SpecialMostlinkedtemplates.php b/includes/specials/SpecialMostlinkedtemplates.php
+index c90acb1..8a3b9c9 100644
+--- a/includes/specials/SpecialMostlinkedtemplates.php
++++ b/includes/specials/SpecialMostlinkedtemplates.php
+@@ -61,7 +61,7 @@ class MostlinkedTemplatesPage extends QueryPage {
+ 	}
+ 
+ 	public function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array( 'templatelinks' ),
+ 			'fields' => array(
+ 				'namespace' => 'tl_namespace',
+@@ -71,6 +71,10 @@ class MostlinkedTemplatesPage extends QueryPage {
+ 			'conds' => array( 'tl_namespace' => NS_TEMPLATE ),
+ 			'options' => array( 'GROUP BY' => array( 'tl_namespace', 'tl_title' ) )
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', array( 'page_title=tl_title', 'page_namespace=tl_namespace' ), NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	/**
+diff --git a/includes/specials/SpecialNewimages.php b/includes/specials/SpecialNewimages.php
+index 37d2973..7097f03 100644
+--- a/includes/specials/SpecialNewimages.php
++++ b/includes/specials/SpecialNewimages.php
+@@ -108,6 +108,10 @@ class NewFilesPager extends ReverseChronologicalPager {
+ 			'conds' => $conds
+ 		);
+ 
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', array( 'page_title=img_name' ), NS_FILE ) );
++		// </IntraACL>
++
+ 		return $query;
+ 	}
+ 
 diff --git a/includes/specials/SpecialNewpages.php b/includes/specials/SpecialNewpages.php
-index 43d4855..ec561fd 100644
+index 43d4855..c05b4be 100644
 --- a/includes/specials/SpecialNewpages.php
 +++ b/includes/specials/SpecialNewpages.php
 @@ -321,6 +321,12 @@ class SpecialNewpages extends IncludableSpecialPage {
@@ -1750,6 +2124,65 @@ index 43d4855..ec561fd 100644
  		$spanTime = Html::element( 'span', array( 'class' => 'mw-newpages-time' ),
  			$lang->userTimeAndDate( $result->rc_timestamp, $this->getUser() )
  		);
+@@ -590,6 +596,10 @@ class NewPagesPager extends ReverseChronologicalPager {
+ 			$this->opts['tagfilter']
+ 		);
+ 
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++
+ 		return $info;
+ 	}
+ 
+diff --git a/includes/specials/SpecialPagesWithProp.php b/includes/specials/SpecialPagesWithProp.php
+index e22b42a..7bb312e 100644
+--- a/includes/specials/SpecialPagesWithProp.php
++++ b/includes/specials/SpecialPagesWithProp.php
+@@ -97,7 +97,7 @@ class SpecialPagesWithProp extends QueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array( 'page_props', 'page' ),
+ 			'fields' => array(
+ 				'page_id' => 'pp_page',
+@@ -114,6 +114,10 @@ class SpecialPagesWithProp extends QueryPage {
+ 			),
+ 			'options' => array()
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	function getOrderFields() {
+diff --git a/includes/specials/SpecialPopularpages.php b/includes/specials/SpecialPopularpages.php
+index 2a80f65..5cd4898 100644
+--- a/includes/specials/SpecialPopularpages.php
++++ b/includes/specials/SpecialPopularpages.php
+@@ -41,7 +41,7 @@ class PopularPagesPage extends QueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array( 'page' ),
+ 			'fields' => array(
+ 				'namespace' => 'page_namespace',
+@@ -52,6 +52,10 @@ class PopularPagesPage extends QueryPage {
+ 				'page_namespace' => MWNamespace::getContentNamespaces()
+ 			)
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	/**
 diff --git a/includes/specials/SpecialPrefixindex.php b/includes/specials/SpecialPrefixindex.php
 index 28d07ff..eae033e 100644
 --- a/includes/specials/SpecialPrefixindex.php
@@ -1766,6 +2199,28 @@ index 28d07ff..eae033e 100644
  						$displayed = $t->getText();
  						// Try not to generate unclickable links
  						if ( $this->stripPrefix && $prefixLength !== strlen( $displayed ) ) {
+diff --git a/includes/specials/SpecialProtectedpages.php b/includes/specials/SpecialProtectedpages.php
+index 3de6ea2..79212f9 100644
+--- a/includes/specials/SpecialProtectedpages.php
++++ b/includes/specials/SpecialProtectedpages.php
+@@ -432,12 +432,16 @@ class ProtectedPagesPager extends AlphabeticPager {
+ 			$conds[] = 'page_namespace=' . $this->mDb->addQuotes( $this->namespace );
+ 		}
+ 
+-		return array(
++		$query = array(
+ 			'tables' => array( 'page_restrictions', 'page' ),
+ 			'fields' => array( 'pr_id', 'page_namespace', 'page_title', 'page_len',
+ 				'pr_type', 'pr_level', 'pr_expiry', 'pr_cascade' ),
+ 			'conds' => $conds
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	function getIndexField() {
 diff --git a/includes/specials/SpecialRandomInCategory.php b/includes/specials/SpecialRandomInCategory.php
 index 0e022bf..b0f01d9 100644
 --- a/includes/specials/SpecialRandomInCategory.php
@@ -1840,7 +2295,7 @@ index a42a217..5403ab5 100644
  			# Check if the page has been updated since the last visit
  			if ( $wgShowUpdatedMarker && !empty( $obj->wl_notificationtimestamp ) ) {
 diff --git a/includes/specials/SpecialRedirect.php b/includes/specials/SpecialRedirect.php
-index f05dacb..84b1ed9 100644
+index f05dacb..9b2c8ab 100644
 --- a/includes/specials/SpecialRedirect.php
 +++ b/includes/specials/SpecialRedirect.php
 @@ -78,6 +78,11 @@ class SpecialRedirect extends FormSpecialPage {
@@ -1855,19 +2310,17 @@ index f05dacb..84b1ed9 100644
  		return $userpage->getFullURL( '', false, PROTO_CURRENT );
  	}
  
-@@ -94,9 +99,11 @@ class SpecialRedirect extends FormSpecialPage {
- 		}
- 		$file = wfFindFile( $title );
+@@ -89,7 +94,9 @@ class SpecialRedirect extends FormSpecialPage {
+ 	function dispatchFile() {
+ 		$title = Title::makeTitleSafe( NS_FILE, $this->mValue );
  
--		if ( !$file || !$file->exists() ) {
+-		if ( ! $title instanceof Title ) {
 +		// <IntraACL>
-+		if ( !$file || !$file->exists() || !$file->userCan( 'read' ) ) {
++		if ( ! $title instanceof Title || $title->getNamespace() != NS_FILE || !$title->userCan( 'read' ) ) {
++		// </IntraACL>
  			return null;
  		}
-+		// </IntraACL>
- 		// Default behavior: Use the direct link to the file.
- 		$url = $file->getURL();
- 		$request = $this->getRequest();
+ 		$file = wfFindFile( $title );
 diff --git a/includes/specials/SpecialSearch.php b/includes/specials/SpecialSearch.php
 index 8609c74..63719fb 100644
 --- a/includes/specials/SpecialSearch.php
@@ -1885,6 +2338,181 @@ index 8609c74..63719fb 100644
  			$result = $matches->next();
  		}
  		$out .= "</ul>\n";
+diff --git a/includes/specials/SpecialShortpages.php b/includes/specials/SpecialShortpages.php
+index 9b50875..ff04a02 100644
+--- a/includes/specials/SpecialShortpages.php
++++ b/includes/specials/SpecialShortpages.php
+@@ -38,7 +38,7 @@ class ShortPagesPage extends QueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array( 'page' ),
+ 			'fields' => array( 'namespace' => 'page_namespace',
+ 					'title' => 'page_title',
+@@ -48,6 +48,10 @@ class ShortPagesPage extends QueryPage {
+ 					'page_is_redirect' => 0 ),
+ 			'options' => array( 'USE INDEX' => 'page_redirect_namespace_len' )
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	function getOrderFields() {
+diff --git a/includes/specials/SpecialSpecialpages.php b/includes/specials/SpecialSpecialpages.php
+index 47c89d0..f11c63f 100644
+--- a/includes/specials/SpecialSpecialpages.php
++++ b/includes/specials/SpecialSpecialpages.php
+@@ -62,7 +62,9 @@ class SpecialSpecialpages extends UnlistedSpecialPage {
+ 		$groups = array();
+ 		/** @var SpecialPage $page */
+ 		foreach ( $pages as $page ) {
+-			if ( $page->isListed() ) {
++			// <IntraACL>
++			if ( $page->isListed() && $page->getTitle()->userCan( 'read' ) ) {
++			// </IntraACL>
+ 				$group = $page->getFinalGroupName();
+ 				if ( !isset( $groups[$group] ) ) {
+ 					$groups[$group] = array();
+diff --git a/includes/specials/SpecialUncategorizedimages.php b/includes/specials/SpecialUncategorizedimages.php
+index 3bfcede..6a4cee7 100644
+--- a/includes/specials/SpecialUncategorizedimages.php
++++ b/includes/specials/SpecialUncategorizedimages.php
+@@ -47,7 +47,7 @@ class UncategorizedImagesPage extends ImageQueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array( 'page', 'categorylinks' ),
+ 			'fields' => array( 'namespace' => 'page_namespace',
+ 					'title' => 'page_title',
+@@ -58,6 +58,10 @@ class UncategorizedImagesPage extends ImageQueryPage {
+ 			'join_conds' => array( 'categorylinks' => array(
+ 					'LEFT JOIN', 'cl_from=page_id' ) )
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	protected function getGroupName() {
+diff --git a/includes/specials/SpecialUncategorizedpages.php b/includes/specials/SpecialUncategorizedpages.php
+index 8bc9e48..5ad5e04 100644
+--- a/includes/specials/SpecialUncategorizedpages.php
++++ b/includes/specials/SpecialUncategorizedpages.php
+@@ -47,7 +47,7 @@ class UncategorizedPagesPage extends PageQueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array( 'page', 'categorylinks' ),
+ 			'fields' => array( 'namespace' => 'page_namespace',
+ 					'title' => 'page_title',
+@@ -60,6 +60,10 @@ class UncategorizedPagesPage extends PageQueryPage {
+ 			'join_conds' => array( 'categorylinks' => array(
+ 					'LEFT JOIN', 'cl_from = page_id' ) )
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	function getOrderFields() {
+diff --git a/includes/specials/SpecialUnusedcategories.php b/includes/specials/SpecialUnusedcategories.php
+index b686a5b..80e7beb 100644
+--- a/includes/specials/SpecialUnusedcategories.php
++++ b/includes/specials/SpecialUnusedcategories.php
+@@ -39,7 +39,7 @@ class UnusedCategoriesPage extends QueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array( 'page', 'categorylinks' ),
+ 			'fields' => array( 'namespace' => 'page_namespace',
+ 					'title' => 'page_title',
+@@ -50,6 +50,10 @@ class UnusedCategoriesPage extends QueryPage {
+ 			'join_conds' => array( 'categorylinks' => array(
+ 					'LEFT JOIN', 'cl_to = page_title' ) )
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	/**
+diff --git a/includes/specials/SpecialUnusedimages.php b/includes/specials/SpecialUnusedimages.php
+index d332db7..0dbc69f 100644
+--- a/includes/specials/SpecialUnusedimages.php
++++ b/includes/specials/SpecialUnusedimages.php
+@@ -69,6 +69,11 @@ class UnusedimagesPage extends ImageQueryPage {
+ 			$retval['join_conds']['imagelinks'] = array(
+ 					'LEFT JOIN', 'il_to = page_title' );
+ 		}
++
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$retval, 'page', array( 'page_title=img_name' ), NS_FILE ) );
++		// </IntraACL>
++
+ 		return $retval;
+ 	}
+ 
+diff --git a/includes/specials/SpecialUnusedtemplates.php b/includes/specials/SpecialUnusedtemplates.php
+index 1dc9f42..9b90f75 100644
+--- a/includes/specials/SpecialUnusedtemplates.php
++++ b/includes/specials/SpecialUnusedtemplates.php
+@@ -48,7 +48,7 @@ class UnusedtemplatesPage extends QueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array( 'page', 'templatelinks' ),
+ 			'fields' => array( 'namespace' => 'page_namespace',
+ 					'title' => 'page_title',
+@@ -60,6 +60,10 @@ class UnusedtemplatesPage extends QueryPage {
+ 				'LEFT JOIN', array( 'tl_title = page_title',
+ 					'tl_namespace = page_namespace' ) ) )
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	/**
+diff --git a/includes/specials/SpecialUnwatchedpages.php b/includes/specials/SpecialUnwatchedpages.php
+index 954e3ff..61c0efa 100644
+--- a/includes/specials/SpecialUnwatchedpages.php
++++ b/includes/specials/SpecialUnwatchedpages.php
+@@ -44,7 +44,7 @@ class UnwatchedpagesPage extends QueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array( 'page', 'watchlist' ),
+ 			'fields' => array( 'namespace' => 'page_namespace',
+ 					'title' => 'page_title',
+@@ -57,6 +57,10 @@ class UnwatchedpagesPage extends QueryPage {
+ 				'LEFT JOIN', array( 'wl_title = page_title',
+ 					'wl_namespace = page_namespace' ) ) )
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	function sortDescending() {
 diff --git a/includes/specials/SpecialUserlogin.php b/includes/specials/SpecialUserlogin.php
 index 5ac3e65..37f7ef6 100644
 --- a/includes/specials/SpecialUserlogin.php
@@ -1900,6 +2528,92 @@ index 5ac3e65..37f7ef6 100644
  			$returnToTitle = Title::newMainPage();
  		}
  
+diff --git a/includes/specials/SpecialWantedcategories.php b/includes/specials/SpecialWantedcategories.php
+index d2ffdb9..1a86f17 100644
+--- a/includes/specials/SpecialWantedcategories.php
++++ b/includes/specials/SpecialWantedcategories.php
+@@ -35,7 +35,7 @@ class WantedCategoriesPage extends WantedQueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array( 'categorylinks', 'page' ),
+ 			'fields' => array( 'namespace' => NS_CATEGORY,
+ 					'title' => 'cl_to',
+@@ -46,6 +46,10 @@ class WantedCategoriesPage extends WantedQueryPage {
+ 				array( 'page_title = cl_to',
+ 					'page_namespace' => NS_CATEGORY ) ) )
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	/**
+diff --git a/includes/specials/SpecialWantedfiles.php b/includes/specials/SpecialWantedfiles.php
+index b5c1fdb..c510166 100644
+--- a/includes/specials/SpecialWantedfiles.php
++++ b/includes/specials/SpecialWantedfiles.php
+@@ -73,7 +73,7 @@ class WantedFilesPage extends WantedQueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array( 'imagelinks', 'image' ),
+ 			'fields' => array( 'namespace' => NS_FILE,
+ 					'title' => 'il_to',
+@@ -86,6 +86,10 @@ class WantedFilesPage extends WantedQueryPage {
+ 				)
+ 			)
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', array( 'page_title=img_name' ), NS_FILE ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	protected function getGroupName() {
+diff --git a/includes/specials/SpecialWantedpages.php b/includes/specials/SpecialWantedpages.php
+index acec4ea..77831fa 100644
+--- a/includes/specials/SpecialWantedpages.php
++++ b/includes/specials/SpecialWantedpages.php
+@@ -89,6 +89,9 @@ class WantedPagesPage extends WantedQueryPage {
+ 		);
+ 		// Replacement for the WantedPages::getSQL hook
+ 		wfRunHooks( 'WantedPages::getQueryInfo', array( &$this, &$query ) );
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'pg1', NULL, NULL ) );
++		// </IntraACL>
+ 		return $query;
+ 	}
+ 
+diff --git a/includes/specials/SpecialWantedtemplates.php b/includes/specials/SpecialWantedtemplates.php
+index d13fa03..b0bdb97 100644
+--- a/includes/specials/SpecialWantedtemplates.php
++++ b/includes/specials/SpecialWantedtemplates.php
+@@ -38,7 +38,7 @@ class WantedTemplatesPage extends WantedQueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return array(
++		$query = array(
+ 			'tables' => array( 'templatelinks', 'page' ),
+ 			'fields' => array( 'namespace' => 'tl_namespace',
+ 					'title' => 'tl_title',
+@@ -51,6 +51,10 @@ class WantedTemplatesPage extends WantedQueryPage {
+ 					array( 'page_namespace = tl_namespace',
+ 						'page_title = tl_title' ) ) )
+ 		);
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	protected function getGroupName() {
 diff --git a/includes/specials/SpecialWatchlist.php b/includes/specials/SpecialWatchlist.php
 index 4afa279..6f1ae75 100644
 --- a/includes/specials/SpecialWatchlist.php
@@ -1933,3 +2647,17 @@ index 05c7dd5..04a2c4a 100644
  			if ( $row->rd_from && $level < 2 ) {
  				$out->addHTML( $this->listItem( $row, $nt, true ) );
  				$this->showIndirectLinks( $level + 1, $nt, $wgMaxRedirectLinksRetrieved );
+diff --git a/includes/specials/SpecialWithoutinterwiki.php b/includes/specials/SpecialWithoutinterwiki.php
+index 9d23499..c310fb3 100644
+--- a/includes/specials/SpecialWithoutinterwiki.php
++++ b/includes/specials/SpecialWithoutinterwiki.php
+@@ -93,6 +93,9 @@ class WithoutInterwikiPage extends PageQueryPage {
+ 			$dbr = wfGetDB( DB_SLAVE );
+ 			$query['conds'][] = 'page_title ' . $dbr->buildLike( $this->prefix, $dbr->anyString() );
+ 		}
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
+ 		return $query;
+ 	}
+ 
