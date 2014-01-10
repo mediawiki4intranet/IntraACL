@@ -91,6 +91,10 @@ begin
   until n <= prev end repeat;
 end //
 
+drop table if exists category_closure //
+
+call create_category_closure() //
+
 DELIMITER ;
 
 --

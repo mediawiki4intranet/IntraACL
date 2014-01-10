@@ -515,27 +515,19 @@ function iaclfLoadExtensionSchemaUpdates($updater = NULL)
 {
     global $wgExtNewTables, $wgDBtype;
     $f1 = __DIR__.'/../storage/intraacl-tables.sql';
-    $f2 = __DIR__.'/../storage/intraacl-functions.sql';
-    $spNote = "Creating stored procedures for DBMS-side checking of IntraACL rights";
-    if ($updater && $updater->getDB()->getType() == 'mysql')
-    {
-        $updater->addExtensionUpdate(array('addTable', 'intraacl_rules', $f1, true));
-        $updater->addExtensionUpdate(array('applyPatch', $f2, true, $spNote));
-    }
-    elseif ($wgDBtype == 'mysql')
-    {
-        $wgExtNewTables[] = array('intraacl_rules', $f1);
-        $wgUpdates['mysql'][] = function() use($f2, $spNote)
-        {
-            $dbw = wfGetDB(DB_MASTER);
-            print "$spNote\n";
-            $dbw->sourceFile($f2);
-        };
-    }
-    else
+    if (($updater ? $updater->getDB()->getType() : $wgDBtype) != 'mysql')
     {
         die("IntraACL only supports MySQL at the moment");
     }
+    if ($updater)
+    {
+        $updater->addExtensionUpdate(array('addTable', 'intraacl_rules', $f1, true));
+    }
+    else
+    {
+        $wgExtNewTables[] = array('intraacl_rules', $f1);
+    }
+    IACLUpdateStoredFunctions::addUpdate($updater);
     // FIXME: Use $updater->addPostDatabaseUpdateMaintenance() (1.19+) instead of destructor hack
     // Defer creating 'Permission Denied' page until all schema updates are finished
     global $egDeferCreatePermissionDenied;
@@ -544,6 +536,37 @@ function iaclfLoadExtensionSchemaUpdates($updater = NULL)
     global $egDeferReparseSpecialPageRights;
     $egDeferReparseSpecialPageRights = new DeferReparsePageRights();
     return true;
+}
+
+class IACLUpdateStoredFunctions
+{
+    static $spVersion = 'IACL_SP_V1';
+
+    static function update()
+    {
+        $dbw = wfGetDB(DB_MASTER);
+        print "Creating stored procedures for DBMS-side checking of IntraACL rights\n";
+        $dbw->sourceFile(__DIR__.'/../storage/intraacl-functions.sql');
+        $dbw->query('ALTER TABLE '.$dbw->tableName('category_closure').' COMMENT='.$dbw->addQuotes(self::$spVersion));
+    }
+
+    static function addUpdate($updater)
+    {
+        $dbw = $updater ? $updater->getDB() : $wgDBtype;
+        $res = $dbw->query('SHOW TABLE STATUS LIKE \''.trim($dbw->tableName('category_closure'), '`').'\'');
+        $row = $res->fetchObject();
+        if (!$row || $row->Comment != self::$spVersion)
+        {
+            if ($updater)
+            {
+                $updater->addExtensionUpdate(array(__CLASS__.'::update'));
+            }
+            else
+            {
+                $wgUpdates['mysql'][] = __CLASS__.'::update';
+            }
+        }
+    }
 }
 
 // Creates 'Permission Denied' page during destruction
