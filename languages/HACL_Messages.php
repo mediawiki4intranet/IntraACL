@@ -230,6 +230,7 @@ If you want to protect some pages, ACL page must be named as one of: ACL:Page/*,
     'hacl_acllist_type_template'        => 'User templates',
 
     'hacl_acllist_page'                 => 'Rights for pages:',
+    'hacl_acllist_special'              => 'Rights for special pages:',
     'hacl_acllist_namespace'            => 'Rights for namespaces:',
     'hacl_acllist_category'             => 'Rights for categories:',
     'hacl_acllist_right'                => 'Predefined rights:',
@@ -553,6 +554,7 @@ $messages['ru'] = array(
     'hacl_acllist_type_right'           => 'Шаблоны прав',
 
     'hacl_acllist_page'                 => 'Права для страниц:',
+    'hacl_acllist_special'              => 'Права для спецстраниц:',
     'hacl_acllist_namespace'            => 'Права для пространств имён:',
     'hacl_acllist_category'             => 'Права для категорий:',
     'hacl_acllist_right'                => 'Шаблоны прав:',
