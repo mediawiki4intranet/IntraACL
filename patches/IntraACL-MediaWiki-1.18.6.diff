@@ -13,7 +13,8 @@ in various parts of MediaWiki.
 2013-12-06 - Use hook for parser cache key personalisation, disable title patch in LinkBatch
 2013-12-09 - Disable parser patch during wfIsBadImage check
 2013-12-12 - Check permissions in findBySha1() of file repo - fixes duplicate upload errors
-2014-01-14 - DBMS-side filtering of page lists based on read permissions
+2014-01-10 - DBMS-side filtering of page lists based on read permissions
+2014-01-13 - Re-enable normal MediaWiki permission checks
 
 diff --git a/includes/CategoryPage.php b/includes/CategoryPage.php
 index 6a0f613..53821d8 100644
@@ -224,7 +225,7 @@ index b3bb974..70e11d2 100644
  				if ( $line ) {
  					$attr = ( isset( $row->usepatrol ) && $row->usepatrol && $row->patrolled == 0 )
 diff --git a/includes/Title.php b/includes/Title.php
-index 0260749..dcec48f 100644
+index 0260749..b52fb69 100644
 --- a/includes/Title.php
 +++ b/includes/Title.php
 @@ -103,7 +103,9 @@ class Title {
@@ -284,7 +285,37 @@ index 0260749..dcec48f 100644
  		} else {
  			return null;
  		}
-@@ -4261,6 +4274,7 @@ class Title {
+@@ -1838,7 +1851,9 @@ class Title {
+ 
+ 		$result = null;
+ 		wfRunHooks( 'userCan', array( &$this, &$wgUser, 'read', &$result ) );
+-		if ( $result !== null ) {
++		// <IntraACL>
++		if ( $result !== NULL && !$result ) {
++		// </IntraACL>
+ 			return $result;
+ 		}
+ 
+@@ -1890,7 +1905,18 @@ class Title {
+ 					return false;
+ 				}
+ 
++				// <IntraACL>
++				// Disable title patch here to avoid infinite recursion
++				if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++					$hacl = haclfDisableTitlePatch();
++				}
++				// </IntraACL>
+ 				$pure = SpecialPage::getTitleFor( $name )->getPrefixedText();
++				// <IntraACL>
++				if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++					haclfRestoreTitlePatch( $hacl );
++				}
++				// </IntraACL>
+ 				if ( in_array( $pure, $wgWhitelistRead, true ) ) {
+ 					return true;
+ 				}
+@@ -4261,6 +4287,7 @@ class Title {
  
  		return $types;
  	}
@@ -292,7 +323,7 @@ index 0260749..dcec48f 100644
  	/**
  	 * Get a filtered list of all restriction types supported by this wiki.
  	 * @param bool $exists True to get all restriction types that apply to
-@@ -4341,4 +4355,104 @@ class Title {
+@@ -4341,4 +4368,104 @@ class Title {
  		wfRunHooks( 'PageContentLanguage', array( $this, &$pageLang, $wgLang ) );
  		return wfGetLangObj( $pageLang );
  	}
@@ -2158,7 +2189,7 @@ index 3b78501..77abf57 100644
  
  	function getOrderFields() {
 diff --git a/includes/specials/SpecialSpecialpages.php b/includes/specials/SpecialSpecialpages.php
-index 13bc4c2..eb65eb8 100644
+index 13bc4c2..2e684f7 100644
 --- a/includes/specials/SpecialSpecialpages.php
 +++ b/includes/specials/SpecialSpecialpages.php
 @@ -61,7 +61,9 @@ class SpecialSpecialpages extends UnlistedSpecialPage {
@@ -2167,7 +2198,7 @@ index 13bc4c2..eb65eb8 100644
  		foreach ( $pages as $page ) {
 -			if ( $page->isListed() ) {
 +			// <IntraACL>
-+			if ( $page->isListed() && $page->getTitle()->userCan( 'read' ) ) {
++			if ( $page->isListed() && $page->getTitle()->userCanRead() ) {
 +			// </IntraACL>
  				$group = SpecialPageFactory::getGroup( $page );
  				if( !isset( $groups[$group] ) ) {

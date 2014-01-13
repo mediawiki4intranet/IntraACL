@@ -13,7 +13,8 @@ in various parts of MediaWiki.
 2013-12-06 - Use hook for parser cache key personalisation, disable title patch in LinkBatch
 2013-12-09 - Disable parser patch during wfIsBadImage check
 2013-12-12 - Check permissions in findBySha1() of file repo - fixes duplicate upload errors
-2014-01-14 - DBMS-side filtering of page lists based on read permissions
+2014-01-10 - DBMS-side filtering of page lists based on read permissions
+2014-01-13 - Fix infinite recursion in case of special page whitelist with $wgGroupPermissions['*']['read'] == false
 
 diff --git a/includes/CategoryViewer.php b/includes/CategoryViewer.php
 index 970adb5..8257dfe 100644
@@ -221,7 +222,7 @@ index e1f24fa..2a27532 100644
  				if ( $line ) {
  					$attr = ( isset( $row->usepatrol ) && $row->usepatrol && $row->patrolled == 0 )
 diff --git a/includes/Title.php b/includes/Title.php
-index ca66aae..50940a0 100644
+index ca66aae..6c41ae4 100644
 --- a/includes/Title.php
 +++ b/includes/Title.php
 @@ -105,7 +105,9 @@ class Title {
@@ -278,7 +279,32 @@ index ca66aae..50940a0 100644
  		} else {
  			return null;
  		}
-@@ -4822,4 +4833,68 @@ class Title {
+@@ -2153,6 +2164,12 @@ class Title {
+ 					$whitelisted = true;
+ 				}
+ 			} elseif ( $this->isSpecialPage() ) {
++				// <IntraACL>
++				// Disable title patch here to avoid infinite recursion
++				if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++					$hacl = haclfDisableTitlePatch();
++				}
++				// </IntraACL>
+ 				# If it's a special page, ditch the subpage bit and check again
+ 				$name = $this->getDBkey();
+ 				list( $name, /* $subpage */ ) = SpecialPageFactory::resolveAlias( $name );
+@@ -2162,6 +2179,11 @@ class Title {
+ 						$whitelisted = true;
+ 					}
+ 				}
++				// <IntraACL>
++				if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++					haclfRestoreTitlePatch( $hacl );
++				}
++				// </IntraACL>
+ 			}
+ 		}
+ 
+@@ -4822,4 +4844,68 @@ class Title {
  		}
  		return $notices;
  	}
