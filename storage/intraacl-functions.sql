@@ -15,17 +15,17 @@ drop function if exists check_read_right //
 -- override_mode = (0:extend, 1:override, 2:shrink)
 --
 create function check_read_right(user_id int unsigned, page_id int unsigned, page_namespace int,
-  right_id int, override_mode int) returns tinyint reads sql data
+  right_id int, override_mode int, open_wiki int) returns tinyint reads sql data
 begin
   declare p int;
   declare n int;
   declare r int;
-  set r = 1;
+  set r = 0;
   set right_id = right_id | (right_id << 8);
   -- check page right
   select bit_or(actions), count(1) from /*$wgDBprefix*/intraacl_rules r where r.pe_type=4 and r.pe_id=page_id and
     (r.child_type=9 and r.child_id=user_id or r.child_type=6 and r.child_id=0 or r.child_type=7 and r.child_id=0) into p, n;
-  if n > 0 then set r = 0; end if;
+  if n > 0 then set r = 1; end if;
   if override_mode=1 and n > 0 or
     override_mode=0 and (p & right_id) or
     override_mode=2 and !(p & right_id) then
@@ -35,7 +35,7 @@ begin
   if page_namespace = 14 then
     select bit_or(actions), count(1) from /*$wgDBprefix*/intraacl_rules r where r.pe_type=2 and r.pe_id=page_id and
       (r.child_type=9 and r.child_id=user_id or r.child_type=6 and r.child_id=0 or r.child_type=7 and r.child_id=0) into p, n;
-    if n > 0 then set r = 0; end if;
+    if n > 0 then set r = 1; end if;
     if override_mode=1 and n > 0 or
       override_mode=0 and (p & right_id) or
       override_mode=2 and !(p & right_id) then
@@ -46,7 +46,7 @@ begin
   select bit_or(actions), count(1) from /*$wgDBprefix*/intraacl_rules r, /*$wgDBprefix*/category_closure c
     where r.pe_type=2 and c.page_id=page_id and r.pe_id=c.category_id and
     (r.child_type=9 and r.child_id=user_id or r.child_type=6 and r.child_id=0 or r.child_type=7 and r.child_id=0) into p, n;
-  if n > 0 then set r = 0; end if;
+  if n > 0 then set r = 1; end if;
   if override_mode=1 and n > 0 or
     override_mode=0 and (p & right_id) or
     override_mode=2 and !(p & right_id) then
@@ -55,13 +55,16 @@ begin
   -- check namespace right
   select bit_or(actions), count(1) from /*$wgDBprefix*/intraacl_rules r where r.pe_type=1 and r.pe_id=page_namespace and
     (r.child_type=9 and r.child_id=user_id or r.child_type=6 and r.child_id=0 or r.child_type=7 and r.child_id=0) into p, n;
-  if n > 0 then set r = 0; end if;
+  if n > 0 then set r = 1; end if;
   if override_mode=1 and n > 0 or
     override_mode=0 and (p & right_id) or
     override_mode=2 and !(p & right_id) then
     return (p & right_id);
   end if;
-  return r;
+  if r = 1 then
+    return override_mode = 2;
+  end if;
+  return open_wiki;
 end //
 
 DELIMITER ;

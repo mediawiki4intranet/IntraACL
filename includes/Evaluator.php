@@ -184,7 +184,7 @@ class IACLEvaluator
     );
     public static function FilterPageQuery(&$query, $page_alias = 'page', $page_join_conds = NULL, $override_namespace = NULL)
     {
-        global $wgUser, $haclgCombineMode, $haclgSuperGroups;
+        global $wgUser, $haclgCombineMode, $haclgSuperGroups, $haclgOpenWikiAccess;
         static $whitelist = NULL;
         $groups = $wgUser->getGroups();
         if ($groups && array_intersect($groups, $haclgSuperGroups))
@@ -208,19 +208,22 @@ class IACLEvaluator
         }
         $cond = 'check_read_right('.$wgUser->getId().
             ", $page_alias.page_id, $override_namespace, ".IACL::ACTION_READ.', '.
-            self::$combineId[$haclgCombineMode].")";
-        // Whitelist $wgWhitelistRead
+            self::$combineId[$haclgCombineMode].", ".($haclgOpenWikiAccess ? 1 : 0).")";
+        // Whitelist $wgWhitelistRead (excluding useless conditions for special pages)
         if ($whitelist === NULL)
         {
             global $wgWhitelistRead;
-            $whitelist = $wgWhitelistRead;
-            if ($whitelist)
+            if ($wgWhitelistRead)
             {
                 $dbr = wfGetDB(DB_SLAVE);
-                foreach ($whitelist as &$title)
+                $whitelist = array();
+                foreach ($wgWhitelistRead as $title)
                 {
                     $title = Title::newFromText($title);
-                    $title = '('.$title->getNamespace().', '.$dbr->quote($title->getDBkey()).')';
+                    if ($title->getNamespace() != NS_SPECIAL)
+                    {
+                        $whitelist[] = '('.$title->getNamespace().', '.$dbr->quote($title->getDBkey()).')';
+                    }
                 }
                 $whitelist = implode(', ', $whitelist);
             }
