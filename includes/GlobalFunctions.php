@@ -45,6 +45,8 @@ function enableIntraACL()
 {
     global $haclgIP;
 
+    haclfInitNamespaces();
+
     // Register messages
     global $wgExtensionFunctions, $wgExtensionMessagesFiles, $wgVersion;
     $wgExtensionFunctions[] = 'haclfSetupExtension';
