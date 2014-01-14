@@ -240,7 +240,7 @@ begin
   -- can normally happen only upon rename of a category page
   -- also treat as delete+insert
   if (OLD.page_namespace=14 or NEW.page_namespace=14) and
-     (OLD.page_namespace!=NEW.page_namespace or OLD.page_id!=NEW.page_id) then
+     (OLD.page_namespace!=NEW.page_namespace or OLD.page_id!=NEW.page_id OR OLD.page_title!=NEW.page_title) then
     if OLD.page_namespace=14 then
       call do_delete_category_closure_catlinks(NULL, OLD.page_id);
     end if;
