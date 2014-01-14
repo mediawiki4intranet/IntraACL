@@ -117,7 +117,7 @@ begin
     select changed_page_id, page_id
     from /*$wgDBprefix*/categorylinks c, /*$wgDBprefix*/page
     where cl_from=changed_page_id and cl_to=page_title and page_namespace=14
-    on duplicate key update page_id=changed_page_id;
+    on duplicate key update page_id=values(page_id);
   select count(*) from /*$wgDBprefix*/category_closure where page_id=changed_page_id into n;
   while n > prev do
     set prev = n;
@@ -125,7 +125,7 @@ begin
       select changed_page_id, c2.category_id
       from /*$wgDBprefix*/category_closure c1, /*$wgDBprefix*/category_closure c2
       where c1.page_id=changed_page_id and c1.category_id=c2.page_id
-      on duplicate key update page_id=changed_page_id;
+      on duplicate key update page_id=values(page_id);
     select count(*) from /*$wgDBprefix*/category_closure where page_id=changed_page_id into n;
   end while;
 end //
@@ -137,7 +137,8 @@ begin
   -- fill the "right side" of categorylinks graph (parent categories for cat_id)
   call fill_category_closure(cat_id);
   -- add the edge itself
-  insert into /*$wgDBprefix*/category_closure values (pg_id, cat_id);
+  insert into /*$wgDBprefix*/category_closure values (pg_id, cat_id)
+    on duplicate key update page_id=values(page_id);
   -- add the "right side" to pages on the "left side"
   insert into /*$wgDBprefix*/category_closure
     select c1.page_id, c2.category_id
