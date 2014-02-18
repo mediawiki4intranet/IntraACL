@@ -134,16 +134,26 @@ drop procedure if exists do_insert_category_closure_catlinks //
 create procedure do_insert_category_closure_catlinks(pg_id int unsigned, cat_id int unsigned)
 modifies sql data
 begin
-  -- fill the "right side" of categorylinks graph (parent categories for cat_id)
-  call fill_category_closure(cat_id);
-  -- add the edge itself
+  -- add the (pg_id -> cat_id) edge
   insert into /*$wgDBprefix*/category_closure values (pg_id, cat_id)
     on duplicate key update page_id=values(page_id);
-  -- add the "right side" to pages on the "left side"
+  -- add indirect edges: (pg_id -> cat_id) (cat_id -> *2) --> (pg_id -> *2)
+  insert into /*$wgDBprefix*/category_closure
+    select pg_id, c1.category_id
+    from /*$wgDBprefix*/category_closure c1
+    where c1.page_id=cat_id
+    on duplicate key update page_id=values(page_id);
+  -- add indirect edges: (*1 -> pg_id) (pg_id -> cat_id) --> (*1 -> cat_id)
+  insert into /*$wgDBprefix*/category_closure
+    select c1.page_id, cat_id
+    from /*$wgDBprefix*/category_closure c1
+    where c1.category_id=pg_id
+    on duplicate key update page_id=values(page_id);
+  -- add indirect edges: (*1 -> pg_id) (cat_id -> *2) --> (*1 -> *2)
   insert into /*$wgDBprefix*/category_closure
     select c1.page_id, c2.category_id
     from /*$wgDBprefix*/category_closure c1, /*$wgDBprefix*/category_closure c2
-    where c1.category_id=cat_id and c2.page_id=cat_id
+    where c1.category_id=pg_id and c2.page_id=cat_id
     on duplicate key update page_id=values(page_id);
 end //
 

@@ -932,7 +932,7 @@ class IACLParserFunctions
             }
             else
             {
-                // FIXME report about "permission denied to overwrite $to"
+                // FIXME report "permission denied to overwrite $to"
             }
             $oldSDTitle->moveTo($oldSDTitle, false, wfMsg('hacl_move_acl'), true);
             if ($oldTitle->exists())
@@ -942,8 +942,7 @@ class IACLParserFunctions
             }
             else
             {
-                // There's no need for PR inclusion if there's no redirect left
-                // FIXME But think about reviving the SD for a non-existing PE when that PE is recreated
+                // There's no need to include new SD for old title if there's no redirect left
             }
         }
 
