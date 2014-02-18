@@ -110,7 +110,7 @@ class IACLToolbar
             }
             else
             {
-                // Get categories which have SDs and to which belongs this article (for hint)
+                // Get protected categories this article belongs to (for hint)
                 $categories = IACLStorage::get('Util')->getParentCategoryIDs($title->getArticleId());
                 foreach ($categories as &$cat)
                 {
