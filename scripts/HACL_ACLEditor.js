@@ -472,14 +472,16 @@ HACLACLEditor.prototype.act_change = function(e)
             direct = direct && this.rights_direct[g_to] && this.rights_direct[g_to][i];
             grp = grp &&
                 (this.rights_indirect[g_to] && this.rights_indirect[g_to][i] ||
-                this.rights_direct['#'] && this.rights_direct['#'][i]);
+                g_to != '#' && g_to != '*' && this.rights_direct['#'] && this.rights_direct['#'][i] ||
+                g_to != '*' && this.rights_direct['*'] && this.rights_direct['*'][i]);
         }
     }
     else
     {
         direct = this.rights_direct[g_to] && this.rights_direct[g_to][a];
         grp = this.rights_indirect[g_to] && this.rights_indirect[g_to][a] ||
-            this.rights_direct['#'] && this.rights_direct['#'][a];
+            g_to != '#' && g_to != '*' && this.rights_direct['#'] && this.rights_direct['#'][a] ||
+            g_to != '*' && this.rights_direct['*'] && this.rights_direct['*'][a];
     }
     // this.grant if not yet
     if (e.checked && !direct && !grp)
@@ -534,10 +536,15 @@ HACLACLEditor.prototype.to_name_change = function()
                 else if (!grp && this.rights_direct['*'] && this.rights_direct['*'][a])
                     grp = mw.msg('hacl_indirect_grant_all');
             }
+            else if (!grp && g_to == '#')
+            {
+                if (this.rights_direct['*'] && this.rights_direct['*'][a])
+                    grp = mw.msg('hacl_indirect_grant_all');
+            }
         }
         if (a == 'all')
         {
-            // load saved all_direct and all_grp
+            // load all_direct and all_grp saved from previous loop iterations
             direct = all_direct;
             grp = all_grp;
         }
@@ -549,8 +556,10 @@ HACLACLEditor.prototype.to_name_change = function()
         }
         c.checked = direct || grp;
         // disable checkbox:
+        // - if no grant target selected
         // - if right is granted through some group
-        // - or if no grant target selected
+        // - if right is granted to a user through * or #
+        // - if right is granted to # through *
         c.disabled = !g_to || grp;
         l.className = c.disabled ? 'act_disabled' : '';
         c.title = l.title = (grp ? mw.msg('hacl_indirect_grant', grp) : mw.msg('hacl_edit_ahint_'+a));
