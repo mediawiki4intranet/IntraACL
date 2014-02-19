@@ -119,21 +119,23 @@ class IntraACL_SQL_Util
         {
             $cats[$c->getDBkey()] = $c;
         }
-        $categories = array_keys($cats);
         // Get subcategories
-        while ($categories)
+        $res = $dbr->select(
+            array('p' => 'page', 'cp' => 'page', 'c' => 'category_closure'), 'p.*',
+            array(
+                'p.page_id=c.page_id',
+                'c.category_id=cp.page_id',
+                'cp.page_namespace' => NS_CATEGORY,
+                'cp.page_title' => array_keys($cats),
+                'p.page_namespace' => NS_CATEGORY
+            ), __METHOD__
+        );
+        foreach ($res as $row)
         {
-            $res = $dbr->select(array('p' => 'page', 'categorylinks'), 'p.*',
-                array('cl_from=page_id', 'cl_to' => $categories, 'page_namespace' => NS_CATEGORY),
-                __METHOD__);
-            $categories = array();
-            foreach ($res as $row)
+            if (empty($cats[$row->page_title]))
             {
-                if (empty($cats[$row->page_title]))
-                {
-                    $categories[] = $row->page_title;
-                    $cats[$row->page_title] = Title::newFromRow($row);
-                }
+                $categories[] = $row->page_title;
+                $cats[$row->page_title] = Title::newFromRow($row);
             }
         }
         return array_values($cats);
