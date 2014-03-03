@@ -412,25 +412,27 @@ class IACLEvaluator
         if (!$userID)
         {
             // No access for anonymous users to ACL pages
-            return false;
+            return 0;
         }
 
         if ($actionID == IACL::ACTION_READ)
         {
             // Read access for all registered users
             // FIXME if not OpenWikiAccess, then return false for users who can't read the article
-            return true;
+            return 1;
         }
 
         $peId = IACLDefinition::nameOfPE($t);
         if (!$peId)
         {
-            return false;
+            // Don't care about invalid titles
+            return -1;
         }
         $peId[1] = IACLDefinition::peIDforName($peId[0], $peId[1]);
         if (IACLDefinition::userCan($userID, $peId[0], $peId[1], IACL::ACTION_MANAGE))
         {
-            return true;
+            // Explicitly granted
+            return 1;
         }
 
         // "protect page" right is a hole
@@ -449,9 +451,10 @@ class IACLEvaluator
         // Check for ACTION_PROTECT_PAGES inherited from namespaces and categories
         if ($peId[0] == IACL::PE_PAGE && self::checkProtectPageRight($peId[1], $userID))
         {
-            return true;
+            return 1;
         }
-        return false;
+
+        return 0;
     }
 
     protected static function checkProtectPageRight($pageID, $userID)

@@ -1081,7 +1081,7 @@ class IACLDefinition implements ArrayAccess
             }
         }
         // Add empty ALL_USERS grant if not yet
-        if ($rules && $this['pe_type'] != IACL::PE_GROUP && !isset($rules[IACL::PE_ALL_USERS][0]))
+        if ($rules && !isset($rules[IACL::PE_ALL_USERS][0]))
         {
             $rules[IACL::PE_ALL_USERS][0] = $thisId + array(
                 'child_type' => IACL::PE_ALL_USERS,
