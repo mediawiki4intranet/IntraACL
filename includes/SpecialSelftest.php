@@ -243,11 +243,18 @@ class IntraACLSelftestSpecial extends SpecialPage
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_MAXREDIRS => 10,
             CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
         ));
         $content = curl_exec($curl);
         $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $err = curl_error($curl);
         curl_close($curl);
-        if (intval($status / 100) == 4 || intval($status / 100) == 5)
+        if (!$status)
+        {
+            throw new Exception("Error requesting $url - $err");
+        }
+        elseif (intval($status / 100) == 4 || intval($status / 100) == 5)
         {
             throw new Exception("Error requesting $url - HTTP $status");
         }
