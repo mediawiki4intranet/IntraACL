@@ -149,6 +149,10 @@ class IntraACL_SQL_Util
      */
     public function getParentCategoryIDs($articleID)
     {
+        if (!$articleID)
+        {
+            return array();
+        }
         $dbr = wfGetDB(DB_SLAVE);
         $ids = array();
         $res = $dbr->select('category_closure', 'category_id', array('page_id' => $articleID), __METHOD__);
