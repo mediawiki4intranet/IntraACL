@@ -183,8 +183,7 @@ function iaclfCanonicalNsText($index)
     static $ns;
     if (!$ns)
     {
-        global $wgCanonicalNamespaceNames;
-        $ns = $wgCanonicalNamespaceNames;
+        $ns = MWNamespace::getCanonicalNamespaces();
         foreach ($ns as &$v)
         {
             $v = str_replace('_', ' ', $v);
