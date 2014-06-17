@@ -49,6 +49,7 @@ class IntraACL_ErrorCheck extends Maintenance
             $titles[] = Title::newFromRow($row);
         }
         $quiet = $this->hasOption('quiet');
+        $seen = array();
         foreach ($titles as $title)
         {
             $page = new WikiPage($title);
@@ -56,6 +57,14 @@ class IntraACL_ErrorCheck extends Maintenance
             IACLParserFunctions::parse($page->getText(), $title);
             $errors = $pf->consistencyCheckStatus(false);
             $errors = array_merge($errors, $pf->errors);
+            if ($pf->def)
+            {
+                if (isset($seen[$pf->def['key']]))
+                {
+                    $errors[] = "Duplicate definition! Previous one is ".$seen[$pf->def['key']];
+                }
+                $seen[$pf->def['key']] = "$title";
+            }
             IACLParserFunctions::destroyInstance($pf);
             if ($errors)
             {
