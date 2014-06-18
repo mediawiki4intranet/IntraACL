@@ -1,6 +1,6 @@
 Patch: intraacl-rights
 Type: feature
-MediaWiki: REL1_21 1.21.3 2d8ba0d30f2c17b23e21f925b7aea942114907fe
+MediaWiki: REL1_21 1.21.10 70c883090764dcd6b3b5829f9b988d5815d54116
 
 Patch needed for IntraACL extension. Enables read access checks
 in various parts of MediaWiki.
@@ -15,6 +15,7 @@ in various parts of MediaWiki.
 2013-12-12 - Check permissions in findBySha1() of file repo - fixes duplicate upload errors
 2014-01-10 - DBMS-side filtering of page lists based on read permissions
 2014-01-13 - Fix infinite recursion in case of special page whitelist with $wgGroupPermissions['*']['read'] == false
+2014-06-18 - Add hook to allow checking for non-readable uploads
 
 diff --git a/includes/CategoryViewer.php b/includes/CategoryViewer.php
 index 970adb5..8257dfe 100644
@@ -122,10 +123,10 @@ index 016736f..e9e14bc 100644
  		$name = $redirectTitle->getDbKey();
  	}
 diff --git a/includes/Linker.php b/includes/Linker.php
-index 972adfc..643fdc6 100644
+index deb8d82..2d39e01 100644
 --- a/includes/Linker.php
 +++ b/includes/Linker.php
-@@ -1983,6 +1983,10 @@ class Linker {
+@@ -1992,6 +1992,10 @@ class Linker {
  						array(),
  						array( 'action' => 'edit' )
  					);
@@ -222,10 +223,10 @@ index e1f24fa..2a27532 100644
  				if ( $line ) {
  					$attr = ( isset( $row->usepatrol ) && $row->usepatrol && $row->patrolled == 0 )
 diff --git a/includes/Title.php b/includes/Title.php
-index ca66aae..6c41ae4 100644
+index 1cd3e12..5571435 100644
 --- a/includes/Title.php
 +++ b/includes/Title.php
-@@ -105,7 +105,9 @@ class Title {
+@@ -106,7 +106,9 @@ class Title {
  		$t = new Title();
  		$t->mDbkeyform = $key;
  		if ( $t->secureAndSplit() ) {
@@ -236,7 +237,7 @@ index ca66aae..6c41ae4 100644
  		} else {
  			return null;
  		}
-@@ -159,7 +161,9 @@ class Title {
+@@ -160,7 +162,9 @@ class Title {
  				$cachedcount++;
  				Title::$titleCache[$text] =& $t;
  			}
@@ -247,7 +248,7 @@ index ca66aae..6c41ae4 100644
  		} else {
  			$ret = null;
  			return $ret;
-@@ -193,7 +197,9 @@ class Title {
+@@ -217,7 +221,9 @@ class Title {
  
  		$t->mDbkeyform = str_replace( ' ', '_', $url );
  		if ( $t->secureAndSplit() ) {
@@ -258,7 +259,7 @@ index ca66aae..6c41ae4 100644
  		} else {
  			return null;
  		}
-@@ -333,6 +339,9 @@ class Title {
+@@ -357,6 +363,9 @@ class Title {
  		$t->mUrlform = wfUrlencode( $t->mDbkeyform );
  		$t->mTextform = str_replace( '_', ' ', $title );
  		$t->mContentModel = false; # initialized lazily in getContentModel()
@@ -268,7 +269,7 @@ index ca66aae..6c41ae4 100644
  		return $t;
  	}
  
-@@ -355,7 +364,9 @@ class Title {
+@@ -379,7 +388,9 @@ class Title {
  		$t = new Title();
  		$t->mDbkeyform = Title::makeName( $ns, $title, $fragment, $interwiki );
  		if ( $t->secureAndSplit() ) {
@@ -279,7 +280,7 @@ index ca66aae..6c41ae4 100644
  		} else {
  			return null;
  		}
-@@ -2153,6 +2164,12 @@ class Title {
+@@ -2185,6 +2196,12 @@ class Title {
  					$whitelisted = true;
  				}
  			} elseif ( $this->isSpecialPage() ) {
@@ -292,7 +293,7 @@ index ca66aae..6c41ae4 100644
  				# If it's a special page, ditch the subpage bit and check again
  				$name = $this->getDBkey();
  				list( $name, /* $subpage */ ) = SpecialPageFactory::resolveAlias( $name );
-@@ -2162,6 +2179,11 @@ class Title {
+@@ -2194,6 +2211,11 @@ class Title {
  						$whitelisted = true;
  					}
  				}
@@ -304,7 +305,7 @@ index ca66aae..6c41ae4 100644
  			}
  		}
  
-@@ -4822,4 +4844,68 @@ class Title {
+@@ -4872,4 +4894,68 @@ class Title {
  		}
  		return $notices;
  	}
@@ -374,7 +375,7 @@ index ca66aae..6c41ae4 100644
 +// </IntraACL>
  }
 diff --git a/includes/User.php b/includes/User.php
-index 6b7348a..577afde 100644
+index 7a24fb4..d37eec0 100644
 --- a/includes/User.php
 +++ b/includes/User.php
 @@ -274,7 +274,13 @@ class User {
@@ -475,7 +476,7 @@ index 6b7348a..577afde 100644
  		return $name;
  	}
  
-@@ -3662,7 +3699,13 @@ class User {
+@@ -3682,7 +3719,13 @@ class User {
  	 */
  	protected function getTokenUrl( $page, $token ) {
  		// Hack to bypass localization of 'Special:'
@@ -490,10 +491,10 @@ index 6b7348a..577afde 100644
  	}
  
 diff --git a/includes/UserMailer.php b/includes/UserMailer.php
-index 6eb9917..f178f31 100644
+index bb4373b..02d9acf 100644
 --- a/includes/UserMailer.php
 +++ b/includes/UserMailer.php
-@@ -625,7 +625,10 @@ class EmailNotification {
+@@ -656,7 +656,10 @@ class EmailNotification {
  					if ( $watchingUser->getOption( 'enotifwatchlistpages' ) &&
  						( !$minorEdit || $watchingUser->getOption( 'enotifminoredits' ) ) &&
  						$watchingUser->isEmailConfirmed() &&
@@ -505,7 +506,7 @@ index 6eb9917..f178f31 100644
  					{
  						$this->compose( $watchingUser );
  					}
-@@ -640,7 +643,12 @@ class EmailNotification {
+@@ -671,7 +674,12 @@ class EmailNotification {
  				continue;
  			}
  			$user = User::newFromName( $name );
@@ -1056,7 +1057,7 @@ index 937f4f1..dfb9321 100644
  				if ( !$fit ) {
  					$this->setContinueEnumParameter( 'continue',
 diff --git a/includes/api/ApiQueryLogEvents.php b/includes/api/ApiQueryLogEvents.php
-index 73dcea4..ce7cc7b 100644
+index dcaa545..1f4b281 100644
 --- a/includes/api/ApiQueryLogEvents.php
 +++ b/includes/api/ApiQueryLogEvents.php
 @@ -129,7 +129,9 @@ class ApiQueryLogEvents extends ApiQueryBase {
@@ -1070,8 +1071,8 @@ index 73dcea4..ce7cc7b 100644
  				$this->dieUsage( "Bad title value '$title'", 'param_title' );
  			}
  			$this->addWhereFld( 'log_namespace', $titleObj->getNamespace() );
-@@ -293,9 +295,12 @@ class ApiQueryLogEvents extends ApiQueryBase {
- 			$vals['pageid'] = intval( $row->page_id );
+@@ -292,9 +294,12 @@ class ApiQueryLogEvents extends ApiQueryBase {
+ 			$vals['logid'] = intval( $row->log_id );
  		}
  
 -		if ( $this->fld_title || $this->fld_parsedcomment ) {
@@ -1083,7 +1084,7 @@ index 73dcea4..ce7cc7b 100644
  		}
 +		// </IntraACL>
  
- 		if ( $this->fld_title ) {
+ 		if ( $this->fld_title || $this->fld_ids ) {
  			if ( LogEventsList::isDeleted( $row, LogPage::DELETED_ACTION ) ) {
 diff --git a/includes/api/ApiQueryPagesWithProp.php b/includes/api/ApiQueryPagesWithProp.php
 index 0132fc3..5ffaa34 100644
@@ -1466,7 +1467,7 @@ index 49b2d33..74d9730 100644
  
  	/**
 diff --git a/includes/parser/Parser.php b/includes/parser/Parser.php
-index 5ef0bc7..9c2b7de 100644
+index e36a02e..cbe2a3e 100644
 --- a/includes/parser/Parser.php
 +++ b/includes/parser/Parser.php
 @@ -1898,7 +1898,18 @@ class Parser {
@@ -2263,10 +2264,10 @@ index b59f834..19d87b8 100644
  		$query = array_merge( $this->getRequest()->getValues(), $redirectParam );
  		unset( $query['title'] );
 diff --git a/includes/specials/SpecialRecentchanges.php b/includes/specials/SpecialRecentchanges.php
-index 008678f..3ffeb1e 100644
+index fab80ce..5dcb3fb 100644
 --- a/includes/specials/SpecialRecentchanges.php
 +++ b/includes/specials/SpecialRecentchanges.php
-@@ -503,10 +503,15 @@ class SpecialRecentChanges extends IncludableSpecialPage {
+@@ -526,10 +526,15 @@ class SpecialRecentChanges extends IncludableSpecialPage {
  
  		$s = $list->beginRecentChangesList();
  		foreach( $rows as $obj ) {
@@ -2284,7 +2285,7 @@ index 008678f..3ffeb1e 100644
  			# Check if the page has been updated since the last visit
  			if( $wgShowUpdatedMarker && !empty( $obj->wl_notificationtimestamp ) ) {
 diff --git a/includes/specials/SpecialSearch.php b/includes/specials/SpecialSearch.php
-index 6c40148..28b9732 100644
+index acfa260..4f36c2e 100644
 --- a/includes/specials/SpecialSearch.php
 +++ b/includes/specials/SpecialSearch.php
 @@ -521,7 +521,11 @@ class SpecialSearch extends SpecialPage {
@@ -2475,8 +2476,21 @@ index 05ec6b0..bcc4889 100644
  	}
  
  	function sortDescending() {
+diff --git a/includes/specials/SpecialUpload.php b/includes/specials/SpecialUpload.php
+index 89c06b2..22e63a7 100644
+--- a/includes/specials/SpecialUpload.php
++++ b/includes/specials/SpecialUpload.php
+@@ -318,6 +318,8 @@ class SpecialUpload extends SpecialPage {
+ 	 *         warnings and it should continue processing
+ 	 */
+ 	protected function showUploadWarning( $warnings ) {
++		wfRunHooks( 'SpecialUploadCheckWarnings', array( $this, &$warnings ) );
++
+ 		# If there are no warnings, or warnings we can ignore, return early.
+ 		# mDestWarningAck is set when some javascript has shown the warning
+ 		# to the user. mForReUpload is set when the user clicks the "upload a
 diff --git a/includes/specials/SpecialUserlogin.php b/includes/specials/SpecialUserlogin.php
-index eef6691..13a4097 100644
+index ee6ffd1..b9f6549 100644
 --- a/includes/specials/SpecialUserlogin.php
 +++ b/includes/specials/SpecialUserlogin.php
 @@ -1000,7 +1000,9 @@ class LoginForm extends SpecialPage {
@@ -2577,10 +2591,10 @@ index f5539c1..0c5b42d 100644
  
  	protected function getGroupName() {
 diff --git a/includes/specials/SpecialWatchlist.php b/includes/specials/SpecialWatchlist.php
-index c7f122b..221259f 100644
+index ea84e86..7ae73a0 100644
 --- a/includes/specials/SpecialWatchlist.php
 +++ b/includes/specials/SpecialWatchlist.php
-@@ -406,6 +406,11 @@ class SpecialWatchlist extends SpecialPage {
+@@ -423,6 +423,11 @@ class SpecialWatchlist extends SpecialPage {
  		foreach ( $res as $obj ) {
  			# Make RC entry
  			$rc = RecentChange::newFromRow( $obj );

@@ -231,6 +231,7 @@ function haclfSetupExtension()
         // UI hooks - useless in console mode
         $wgHooks['EditPage::showEditForm:initial'][] = 'IACLToolbar::warnNonReadableCreate';
         $wgHooks['UploadForm:initial'][] = 'IACLToolbar::warnNonReadableUpload';
+        $wgHooks['SpecialUploadCheckWarnings'][] = 'IACLToolbar::attemptNonReadableUpload';
         $wgHooks['EditPage::attemptSave'][] = 'IACLToolbar::attemptNonReadableCreate';
         $wgHooks['EditPage::showEditForm:fields'][] = 'haclfAddToolbarForEditPage';
         $wgHooks['SkinTemplateContentActions'][] = 'IACLToolbar::SkinTemplateContentActions';

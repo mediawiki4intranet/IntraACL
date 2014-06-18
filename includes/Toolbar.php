@@ -303,15 +303,7 @@ class IACLToolbar
         }
         if (!empty($editpage->eNonReadable))
         {
-            $sel = self::getReadableCategoriesSelectBox();
-            if ($sel)
-            {
-                $wgOut->addHTML(wfMsgNoTrans('hacl_nonreadable_create', $sel));
-            }
-            else
-            {
-                $wgOut->addHTML(wfMsgNoTrans('hacl_nonreadable_create_nocat'));
-            }
+            $wgOut->addHTML(self::getReadableCategoriesSelectBox());
         }
         return true;
     }
@@ -358,7 +350,12 @@ class IACLToolbar
         $pe = self::getReadableCategories();
         if (!$pe)
         {
-            return '';
+            return wfMsgNoTrans($for_upload ? 'hacl_nonreadable_upload_nocat' : 'hacl_nonreadable_create_nocat');
+        }
+        if ($for_upload)
+        {
+            global $wgOut;
+            self::addToolbarLinks($wgOut);
         }
         $for_upload = $for_upload ? ', 1' : '';
         $select = array();
@@ -369,7 +366,7 @@ class IACLToolbar
                 '\''.$for_upload.')">'.
                 htmlspecialchars($cat->getText()).'</a>';
         }
-        return implode(', ', $select);
+        return wfMsgNoTrans($for_upload ? 'hacl_nonreadable_upload' : 'hacl_nonreadable_create', implode(', ', $select));
     }
 
     /**
@@ -400,17 +397,7 @@ class IACLToolbar
                     $r = IACLDefinition::userCan($wgUser->getId(), IACL::PE_NAMESPACE, NS_FILE, IACL::ACTION_READ);
                     if ($r == 0 || $r == -1 && !$haclgOpenWikiAccess)
                     {
-                        $sel = self::getReadableCategoriesSelectBox(true);
-                        if ($sel)
-                        {
-                            self::addToolbarLinks($wgOut);
-                            $t = wfMsgNoTrans('hacl_nonreadable_upload', $sel);
-                        }
-                        else
-                        {
-                            $t = wfMsgNoTrans('hacl_nonreadable_upload_nocat');
-                        }
-                        $upload->uploadFormTextTop .= $t;
+                        $upload->uploadFormTextTop .= self::getReadableCategoriesSelectBox(true);
                     }
                 }
             }
@@ -425,12 +412,39 @@ class IACLToolbar
     }
 
     /**
+     * Check if any of categories mentioned in $text gives $wgUser read access to $title
+     */
+    protected static function checkForReadableCategories($text, $title)
+    {
+        global $wgUser, $wgParser;
+        $options = ParserOptions::newFromUser($wgUser);
+        // clearState = true when not cleared yet
+        $text = $wgParser->preSaveTransform($text, $title, $wgUser, $options, !$wgParser->mStripState);
+        $parserOutput = $wgParser->parse($text, $title, $options);
+        $catIds = array();
+        foreach ($parserOutput->getCategoryLinks() as $cat)
+        {
+            // FIXME Resolve multiple title IDs at once
+            $cat = Title::makeTitle(NS_CATEGORY, $cat);
+            if (($id = $cat->getArticleId()))
+            {
+                $catIds[$id] = true;
+            }
+        }
+        $catIds = array_keys($catIds + IACLStorage::get('Util')->getParentCategoryIDs(array_keys($catIds)));
+        $r = IACLDefinition::userCan(
+            $wgUser->getId(), IACL::PE_CATEGORY, $catIds, IACL::ACTION_READ
+        );
+        return $r == 1;
+    }
+
+    /**
      * Related to warnNonReadableCreate, checks if the user is creating
      * a non-readable page without checking the "force" checkbox
      */
     public static function attemptNonReadableCreate($editpage)
     {
-        global $haclgOpenWikiAccess, $wgUser, $wgParser, $wgRequest, $wgOut, $haclgSuperGroups;
+        global $wgUser, $wgRequest, $wgOut, $haclgSuperGroups;
         $g = $wgUser->getGroups();
         if (!$editpage->mTitle->getArticleId() && (!$g || !array_intersect($g, $haclgSuperGroups)))
         {
@@ -440,29 +454,39 @@ class IACLToolbar
             if ($r == 0 || $r == -1 && !$haclgOpenWikiAccess)
             {
                 $editpage->eNonReadable = true;
-                $options = ParserOptions::newFromUser($wgUser);
-                // clearState = true when not cleared yet
-                $text = $wgParser->preSaveTransform($editpage->textbox1, $editpage->mTitle, $wgUser, $options, !$wgParser->mStripState);
-                $parserOutput = $wgParser->parse($text, $editpage->mTitle, $options);
-                $catIds = array();
-                foreach ($parserOutput->getCategoryLinks() as $cat)
-                {
-                    // FIXME Resolve multiple title IDs at once
-                    $cat = Title::makeTitle(NS_CATEGORY, $cat);
-                    if (($id = $cat->getArticleId()))
-                    {
-                        $catIds[$id] = true;
-                    }
-                }
-                $catIds = array_keys($catIds + IACLStorage::get('Util')->getParentCategoryIDs(array_keys($catIds)));
-                $r = IACLDefinition::userCan(
-                    $wgUser->getId(), IACL::PE_CATEGORY, $catIds, IACL::ACTION_READ
-                );
-                if (($r == 0 || $r == -1 && !$haclgOpenWikiAccess) &&
-                    !$wgRequest->getBool('hacl_nonreadable_create'))
+                $cats = self::checkForReadableCategories($editpage->textbox1, $editpage->mTitle);
+                if (!$cats && !$wgRequest->getBool('hacl_nonreadable_create'))
                 {
                     $editpage->showEditForm();
                     return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Similar to attemptNonReadableCreate, but for uploads
+     */
+    public static function attemptNonReadableUpload($special, &$warnings)
+    {
+        global $haclgOpenWikiAccess, $wgUser, $wgOut, $haclgSuperGroups;
+        $g = $wgUser->getGroups();
+        if (!$g || !array_intersect($g, $haclgSuperGroups))
+        {
+            $file = $special->mUpload->getLocalFile();
+            if (!$file->exists())
+            {
+                // Only check for new files
+                $r = IACLDefinition::userCan($wgUser->getId(), IACL::PE_NAMESPACE, NS_FILE, IACL::ACTION_READ);
+                if ($r == 0 || $r == -1 && !$haclgOpenWikiAccess)
+                {
+                    $cats = self::checkForReadableCategories($special->mComment, $file->getTitle());
+                    if (!$cats)
+                    {
+                        $special->uploadFormTextAfterSummary .= self::getReadableCategoriesSelectBox(true);
+                        $warnings['hacl_nonreadable_upload_warning'] = array();
+                    }
                 }
             }
         }
