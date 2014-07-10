@@ -444,7 +444,7 @@ class IACLToolbar
      */
     public static function attemptNonReadableCreate($editpage)
     {
-        global $wgUser, $wgRequest, $wgOut, $haclgSuperGroups;
+        global $wgUser, $wgRequest, $wgOut, $haclgSuperGroups, $haclgOpenWikiAccess;
         $g = $wgUser->getGroups();
         if (!$editpage->mTitle->getArticleId() && (!$g || !array_intersect($g, $haclgSuperGroups)))
         {
