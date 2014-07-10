@@ -1,6 +1,6 @@
 Patch: intraacl-rights
 Type: feature
-MediaWiki: REL1_19 1.19.9 8ef8f932efcf5b21299fd01dd67a8a0b63957830
+MediaWiki: REL1_19 1.19.16 e9c4a374f48c7180e02fab10d3bc5988ec33e5f7
 
 Patch needed for IntraACL extension. Enables read access checks
 in various parts of MediaWiki.
@@ -15,6 +15,7 @@ in various parts of MediaWiki.
 2013-12-12 - Check permissions in findBySha1() of file repo - fixes duplicate upload errors
 2014-01-10 - DBMS-side filtering of page lists based on read permissions
 2014-01-13 - Fix infinite recursion in case of special page whitelist with $wgGroupPermissions['*']['read'] == false
+2014-06-18 - Add hook to allow checking for non-readable uploads
 
 diff --git a/includes/CategoryViewer.php b/includes/CategoryViewer.php
 index e8e9142..44fa7ec 100644
@@ -374,7 +375,7 @@ index f3cf79d..2cd1b18 100644
 +// </IntraACL>
  }
 diff --git a/includes/User.php b/includes/User.php
-index 1529da1..5262e49 100644
+index 8625910..366acf3 100644
 --- a/includes/User.php
 +++ b/includes/User.php
 @@ -254,7 +254,13 @@ class User {
@@ -475,7 +476,7 @@ index 1529da1..5262e49 100644
  		return $name;
  	}
  
-@@ -3363,7 +3400,13 @@ class User {
+@@ -3386,7 +3423,13 @@ class User {
  	 */
  	protected function getTokenUrl( $page, $token ) {
  		// Hack to bypass localization of 'Special:'
@@ -1041,7 +1042,7 @@ index 0377edd..583f10a 100644
  				if ( !$fit ) {
  					$this->setContinueEnumParameter( 'continue',
 diff --git a/includes/api/ApiQueryLogEvents.php b/includes/api/ApiQueryLogEvents.php
-index 0d07a25..1e1c126 100644
+index 9c73b3b..0409c54 100644
 --- a/includes/api/ApiQueryLogEvents.php
 +++ b/includes/api/ApiQueryLogEvents.php
 @@ -129,7 +129,9 @@ class ApiQueryLogEvents extends ApiQueryBase {
@@ -1055,8 +1056,8 @@ index 0d07a25..1e1c126 100644
  				$this->dieUsage( "Bad title value '$title'", 'param_title' );
  			}
  			$this->addWhereFld( 'log_namespace', $titleObj->getNamespace() );
-@@ -276,9 +278,12 @@ class ApiQueryLogEvents extends ApiQueryBase {
- 			$vals['pageid'] = intval( $row->page_id );
+@@ -275,9 +277,12 @@ class ApiQueryLogEvents extends ApiQueryBase {
+ 			$vals['logid'] = intval( $row->log_id );
  		}
  
 -		if ( $this->fld_title || $this->fld_parsedcomment ) {
@@ -1068,7 +1069,7 @@ index 0d07a25..1e1c126 100644
  		}
 +		// </IntraACL>
  
- 		if ( $this->fld_title ) {
+ 		if ( $this->fld_title || $this->fld_ids ) {
  			if ( LogEventsList::isDeleted( $row, LogPage::DELETED_ACTION ) ) {
 diff --git a/includes/api/ApiQueryProtectedTitles.php b/includes/api/ApiQueryProtectedTitles.php
 index 44cc1d3..9e22299 100644
@@ -2351,6 +2352,19 @@ index 22c6485..2f32afd 100644
  	}
  
  	function sortDescending() { return false; }
+diff --git a/includes/specials/SpecialUpload.php b/includes/specials/SpecialUpload.php
+index d6a76d0..49fe054 100644
+--- a/includes/specials/SpecialUpload.php
++++ b/includes/specials/SpecialUpload.php
+@@ -322,6 +322,8 @@ class SpecialUpload extends SpecialPage {
+ 	 * 	warnings and the should continue processing like there was no warning
+ 	 */
+ 	protected function showUploadWarning( $warnings ) {
++		wfRunHooks( 'SpecialUploadCheckWarnings', array( $this, &$warnings ) );
++
+ 		# If there are no warnings, or warnings we can ignore, return early.
+ 		# mDestWarningAck is set when some javascript has shown the warning
+ 		# to the user. mForReUpload is set when the user clicks the "upload a
 diff --git a/includes/specials/SpecialUserlogin.php b/includes/specials/SpecialUserlogin.php
 index 4c5a237..9399783 100644
 --- a/includes/specials/SpecialUserlogin.php
@@ -2451,10 +2465,10 @@ index ab9d604..e6dbf32 100644
  	}
  }
 diff --git a/includes/specials/SpecialWatchlist.php b/includes/specials/SpecialWatchlist.php
-index fef5491..9a0f27b 100644
+index 492e5ab..8124917 100644
 --- a/includes/specials/SpecialWatchlist.php
 +++ b/includes/specials/SpecialWatchlist.php
-@@ -371,6 +371,11 @@ class SpecialWatchlist extends SpecialPage {
+@@ -388,6 +388,11 @@ class SpecialWatchlist extends SpecialPage {
  		foreach ( $res as $obj ) {
  			# Make RC entry
  			$rc = RecentChange::newFromRow( $obj );

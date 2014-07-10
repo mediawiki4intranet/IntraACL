@@ -1,6 +1,6 @@
 Patch: intraacl-rights
 Type: feature
-MediaWiki: REL1_22 1.21.0 164a58a3d3a9e7411103e10e1c4ca6a2b43f29cb
+MediaWiki: REL1_22 1.22.7 fda04d0b0c8034f8aebbbb39fe079f60c214f18f
 
 Patch needed for IntraACL extension. Enables read access checks
 in various parts of MediaWiki.
@@ -15,6 +15,7 @@ in various parts of MediaWiki.
 2013-12-12 - Check permissions in findBySha1() of file repo - fixes duplicate upload errors
 2014-01-10 - DBMS-side filtering of page lists based on read permissions
 2014-01-13 - Fix infinite recursion in case of special page whitelist with $wgGroupPermissions['*']['read'] == false
+2014-06-18 - Add hook to allow checking for non-readable uploads
 
 diff --git a/includes/CategoryViewer.php b/includes/CategoryViewer.php
 index 55d9c1e..9cfe63e 100644
@@ -374,7 +375,7 @@ index 21872e4..172bdd2 100644
 +// </IntraACL>
  }
 diff --git a/includes/User.php b/includes/User.php
-index 12912e1..9b405e2 100644
+index 6232404..6118d24 100644
 --- a/includes/User.php
 +++ b/includes/User.php
 @@ -282,7 +282,13 @@ class User {
@@ -489,7 +490,7 @@ index 12912e1..9b405e2 100644
  		return $name;
  	}
  
-@@ -3876,8 +3920,18 @@ class User {
+@@ -3896,8 +3940,18 @@ class User {
  	 * @return string Formatted URL
  	 */
  	protected function getTokenUrl( $page, $token ) {
@@ -509,7 +510,7 @@ index 12912e1..9b405e2 100644
  	}
  
 diff --git a/includes/UserMailer.php b/includes/UserMailer.php
-index 8ab10b2..e4a194b 100644
+index 163f836..ad50e9e 100644
 --- a/includes/UserMailer.php
 +++ b/includes/UserMailer.php
 @@ -628,7 +628,10 @@ class EmailNotification {
@@ -1075,7 +1076,7 @@ index 937f4f1..0212443 100644
  				if ( !$fit ) {
  					$this->setContinueEnumParameter( 'continue',
 diff --git a/includes/api/ApiQueryLogEvents.php b/includes/api/ApiQueryLogEvents.php
-index 1a2719e..5130259 100644
+index 26774ef..d4a1b33 100644
 --- a/includes/api/ApiQueryLogEvents.php
 +++ b/includes/api/ApiQueryLogEvents.php
 @@ -128,7 +128,9 @@ class ApiQueryLogEvents extends ApiQueryBase {
@@ -1089,8 +1090,8 @@ index 1a2719e..5130259 100644
  				$this->dieUsage( "Bad title value '$title'", 'param_title' );
  			}
  			$this->addWhereFld( 'log_namespace', $titleObj->getNamespace() );
-@@ -297,9 +299,12 @@ class ApiQueryLogEvents extends ApiQueryBase {
- 			$vals['pageid'] = intval( $row->page_id );
+@@ -296,9 +298,12 @@ class ApiQueryLogEvents extends ApiQueryBase {
+ 			$vals['logid'] = intval( $row->log_id );
  		}
  
 -		if ( $this->fld_title || $this->fld_parsedcomment ) {
@@ -1102,7 +1103,7 @@ index 1a2719e..5130259 100644
  		}
 +		// </IntraACL>
  
- 		if ( $this->fld_title ) {
+ 		if ( $this->fld_title || $this->fld_ids ) {
  			if ( LogEventsList::isDeleted( $row, LogPage::DELETED_ACTION ) ) {
 diff --git a/includes/api/ApiQueryPagesWithProp.php b/includes/api/ApiQueryPagesWithProp.php
 index 6f2f02e..f0221c9 100644
@@ -1430,7 +1431,7 @@ index c27b57a..30b2487 100644
  		$formatter->setContext( $this->getContext() );
  		$formatter->setShowUserToolLinks( !( $this->flags & self::NO_EXTRA_USER_LINKS ) );
 diff --git a/includes/parser/LinkHolderArray.php b/includes/parser/LinkHolderArray.php
-index 27ff9e7..2c21bd5 100644
+index f1a0b25..5d76133 100644
 --- a/includes/parser/LinkHolderArray.php
 +++ b/includes/parser/LinkHolderArray.php
 @@ -72,6 +72,12 @@ class LinkHolderArray {
@@ -1469,7 +1470,7 @@ index 27ff9e7..2c21bd5 100644
 +		}
 +		// </IntraACL>
 +
- 		if( $linkCache->useDatabase() ) {
+ 		if ( $linkCache->useDatabase() ) {
  			wfProfileIn( __METHOD__ . '-check' );
  			$dbr = wfGetDB( DB_SLAVE );
 @@ -417,6 +435,11 @@ class LinkHolderArray {
@@ -2210,7 +2211,7 @@ index 2a80f65..5cd4898 100644
  
  	/**
 diff --git a/includes/specials/SpecialPrefixindex.php b/includes/specials/SpecialPrefixindex.php
-index 28d07ff..eae033e 100644
+index 0d065b0..5e77494 100644
 --- a/includes/specials/SpecialPrefixindex.php
 +++ b/includes/specials/SpecialPrefixindex.php
 @@ -209,6 +209,11 @@ class SpecialPrefixindex extends SpecialAllpages {
@@ -2539,6 +2540,19 @@ index 954e3ff..61c0efa 100644
  	}
  
  	function sortDescending() {
+diff --git a/includes/specials/SpecialUpload.php b/includes/specials/SpecialUpload.php
+index 09facf4..25f0073 100644
+--- a/includes/specials/SpecialUpload.php
++++ b/includes/specials/SpecialUpload.php
+@@ -326,6 +326,8 @@ class SpecialUpload extends SpecialPage {
+ 	 *         warnings and it should continue processing
+ 	 */
+ 	protected function showUploadWarning( $warnings ) {
++		wfRunHooks( 'SpecialUploadCheckWarnings', array( $this, &$warnings ) );
++
+ 		# If there are no warnings, or warnings we can ignore, return early.
+ 		# mDestWarningAck is set when some javascript has shown the warning
+ 		# to the user. mForReUpload is set when the user clicks the "upload a
 diff --git a/includes/specials/SpecialUserlogin.php b/includes/specials/SpecialUserlogin.php
 index 5ac3e65..37f7ef6 100644
 --- a/includes/specials/SpecialUserlogin.php
@@ -2641,10 +2655,10 @@ index d13fa03..b0bdb97 100644
  
  	protected function getGroupName() {
 diff --git a/includes/specials/SpecialWatchlist.php b/includes/specials/SpecialWatchlist.php
-index 4afa279..6f1ae75 100644
+index 55dc6ef..81579f0 100644
 --- a/includes/specials/SpecialWatchlist.php
 +++ b/includes/specials/SpecialWatchlist.php
-@@ -414,6 +414,11 @@ class SpecialWatchlist extends SpecialPage {
+@@ -430,6 +430,11 @@ class SpecialWatchlist extends SpecialPage {
  		foreach ( $res as $obj ) {
  			# Make RC entry
  			$rc = RecentChange::newFromRow( $obj );
