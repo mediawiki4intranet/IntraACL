@@ -45,6 +45,8 @@ function enableIntraACL()
 {
     global $haclgIP;
 
+    haclfInitNamespaces();
+
     // Register messages
     global $wgExtensionFunctions, $wgExtensionMessagesFiles, $wgVersion;
     $wgExtensionFunctions[] = 'haclfSetupExtension';
@@ -181,8 +183,7 @@ function iaclfCanonicalNsText($index)
     static $ns;
     if (!$ns)
     {
-        global $wgCanonicalNamespaceNames;
-        $ns = $wgCanonicalNamespaceNames;
+        $ns = MWNamespace::getCanonicalNamespaces();
         foreach ($ns as &$v)
         {
             $v = str_replace('_', ' ', $v);
@@ -230,6 +231,7 @@ function haclfSetupExtension()
         // UI hooks - useless in console mode
         $wgHooks['EditPage::showEditForm:initial'][] = 'IACLToolbar::warnNonReadableCreate';
         $wgHooks['UploadForm:initial'][] = 'IACLToolbar::warnNonReadableUpload';
+        $wgHooks['SpecialUploadCheckWarnings'][] = 'IACLToolbar::attemptNonReadableUpload';
         $wgHooks['EditPage::attemptSave'][] = 'IACLToolbar::attemptNonReadableCreate';
         $wgHooks['EditPage::showEditForm:fields'][] = 'haclfAddToolbarForEditPage';
         $wgHooks['SkinTemplateContentActions'][] = 'IACLToolbar::SkinTemplateContentActions';
@@ -243,6 +245,7 @@ function haclfSetupExtension()
         $wgHooks['userCan'][] = 'IACLEvaluator::userCan';
         $wgHooks['IsFileCacheable'][] = 'haclfIsFileCacheable';
         $wgHooks['ParserOutputRenderKey'][] = 'IACLEvaluator::ParserOutputRenderKey';
+        $wgHooks['FilterPageQuery'][] = 'IACLEvaluator::FilterPageQuery';
     }
     else
     {
@@ -287,7 +290,7 @@ function haclfSetupExtension()
     //--- credits (see "Special:Version") ---
     $wgExtensionCredits['other'][] = array(
         'name'        => 'IntraACL',
-        'version'     => '2.0.6',
+        'version'     => '2.1.6',
         'author'      => "Vitaliy Filippov, Stas Fomin, Thomas Schweitzer",
         'url'         => 'http://wiki.4intra.net/IntraACL',
         'description' => 'The best MediaWiki rights extension, loosely based on HaloACL');
@@ -513,19 +516,20 @@ function haclfAddToolbarForEditPage($editpage, $out)
 function iaclfLoadExtensionSchemaUpdates($updater = NULL)
 {
     global $wgExtNewTables, $wgDBtype;
-    $file = dirname(__FILE__).'/../storage/intraacl-tables.sql';
-    if ($updater && $updater->getDB()->getType() == 'mysql')
-    {
-        $updater->addExtensionUpdate(array('addTable', 'intraacl_rules', $file, true));
-    }
-    elseif ($wgDBtype == 'mysql')
-    {
-        $wgExtNewTables[] = array('addTable', 'intraacl_rules', $file);
-    }
-    else
+    $f1 = __DIR__.'/../storage/intraacl-tables.sql';
+    if (($updater ? $updater->getDB()->getType() : $wgDBtype) != 'mysql')
     {
         die("IntraACL only supports MySQL at the moment");
     }
+    if ($updater)
+    {
+        $updater->addExtensionUpdate(array('addTable', 'intraacl_rules', $f1, true));
+    }
+    else
+    {
+        $wgExtNewTables[] = array('intraacl_rules', $f1);
+    }
+    IACLUpdateStoredFunctions::addUpdate($updater);
     // FIXME: Use $updater->addPostDatabaseUpdateMaintenance() (1.19+) instead of destructor hack
     // Defer creating 'Permission Denied' page until all schema updates are finished
     global $egDeferCreatePermissionDenied;
@@ -534,6 +538,37 @@ function iaclfLoadExtensionSchemaUpdates($updater = NULL)
     global $egDeferReparseSpecialPageRights;
     $egDeferReparseSpecialPageRights = new DeferReparsePageRights();
     return true;
+}
+
+class IACLUpdateStoredFunctions
+{
+    static $spVersion = 'IACL_SP_V5';
+
+    static function update()
+    {
+        $dbw = wfGetDB(DB_MASTER);
+        print "Creating stored procedures for DBMS-side checking of IntraACL rights\n";
+        $dbw->sourceFile(__DIR__.'/../storage/intraacl-functions.sql');
+        $dbw->query('ALTER TABLE '.$dbw->tableName('category_closure').' COMMENT='.$dbw->addQuotes(self::$spVersion));
+    }
+
+    static function addUpdate($updater)
+    {
+        $dbw = $updater ? $updater->getDB() : $wgDBtype;
+        $res = $dbw->query('SHOW TABLE STATUS LIKE \''.trim($dbw->tableName('category_closure'), '`').'\'');
+        $row = $res->fetchObject();
+        if (!$row || $row->Comment != self::$spVersion)
+        {
+            if ($updater)
+            {
+                $updater->addExtensionUpdate(array(__CLASS__.'::update'));
+            }
+            else
+            {
+                $wgUpdates['mysql'][] = __CLASS__.'::update';
+            }
+        }
+    }
 }
 
 // Creates 'Permission Denied' page during destruction

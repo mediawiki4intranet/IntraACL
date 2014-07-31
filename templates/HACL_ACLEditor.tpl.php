@@ -72,7 +72,7 @@
 
 <script language="JavaScript">
 var AE;
-mw.loader.using('ext.intraacl.acleditor', function()
+mw.loader.using([ 'jquery.async', 'ext.intraacl.acleditor' ], function()
 {
     var petPrefixes = {
     <?php

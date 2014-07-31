@@ -68,6 +68,7 @@ $messages['en'] = array(
     'hacl_errors_in_definition'         => 'The definitions in this article have errors. Please refer to the details above!',
     'hacl_non_canonical_acl_new'        => 'Please use ACL with a canonical name: <b><a href="$1">$2</a></b>. Usage of localized name <b>$3</b> is deprecated and will break in new versions.',
     'hacl_non_canonical_acl'            => 'Please rename this ACL to a canonical name: <a href="$1">rename page to <b>$2</b></a>. Usage of localized name <b>$3</b> is deprecated and will break in new versions.',
+    'hacl_non_canonical_acl_short'      => 'Please rename this ACL to a canonical name: $1',
     'hacl_all_users'                    => 'all users',
     'hacl_registered_users'             => 'registered users',
     'hacl_acl_element_inconsistent'     => 'This article contains an inconsistent definition. Please re-save it.',
@@ -104,6 +105,8 @@ Please, add one of the following categories to the description, or you will <b>n
 <span style="color: red; font-weight: bold">Warning!</span>
 You have no read access to the <tt>File</tt> namespace. You will <b>not</b> be able to view the file after uploading!
 </div>',
+
+    'hacl_nonreadable_upload_warning'   => 'You will not be able to view the file after uploading.',
 
     'hacl_upload_forbidden'             => 'File uploads forbidden',
     'hacl_upload_forbidden_text'        => 'File uploads are forbidden because you have no IntraACL right to create articles within File namespace. Contact the site administrator.',
@@ -230,6 +233,7 @@ If you want to protect some pages, ACL page must be named as one of: ACL:Page/*,
     'hacl_acllist_type_template'        => 'User templates',
 
     'hacl_acllist_page'                 => 'Rights for pages:',
+    'hacl_acllist_special'              => 'Rights for special pages:',
     'hacl_acllist_namespace'            => 'Rights for namespaces:',
     'hacl_acllist_category'             => 'Rights for categories:',
     'hacl_acllist_right'                => 'Predefined rights:',
@@ -393,6 +397,7 @@ $messages['ru'] = array(
     'hacl_errors_in_definition'         => 'Определение на данной странице содержит ошибки, обратите внимание на подробности ниже!',
     'hacl_non_canonical_acl_new'        => 'Используйте определение с каноническим именем: <b><a href="$1">$2</a></b>. Имя <b>$3</b> &mdash; локализованное и перестанет работать в будущих версиях.',
     'hacl_non_canonical_acl'            => 'Пожалуйста, смените имя этого определения на каноническое: <a href="$1">переименовать в <b>$2</b></a>. Имя <b>$3</b> &mdash; локализованное и перестанет работать в будущих версиях.',
+    'hacl_non_canonical_acl_short'      => 'Пожалуйста, смените имя этого определения на каноническое: $1',
     'hacl_all_users'                    => 'все пользователи',
     'hacl_registered_users'             => 'зарегистрированные пользователи',
     'hacl_acl_element_inconsistent'     => 'Это определение в БД не соответствует определению на странице. Пожалуйста, пересохраните страницу.',
@@ -429,6 +434,8 @@ $messages['ru'] = array(
 <span style="color: red; font-weight: bold">Внимание!</span>
 У вас доступа на чтение пространства имён Файл. Вы <b>не сможете</b> просмотреть файл после загрузки!
 </div>',
+
+    'hacl_nonreadable_upload_warning'   => 'Вы не сможете просмотреть файл после загрузки.',
 
     'hacl_upload_forbidden'             => 'Загрузка файлов запрещена',
     'hacl_upload_forbidden_text'        => 'Вы не можете загружать файлы, так как у вас нет IntraACL-прав на создание статей в пространстве имён Файл. Свяжитесь с администратором проекта.',
@@ -553,6 +560,7 @@ $messages['ru'] = array(
     'hacl_acllist_type_right'           => 'Шаблоны прав',
 
     'hacl_acllist_page'                 => 'Права для страниц:',
+    'hacl_acllist_special'              => 'Права для спецстраниц:',
     'hacl_acllist_namespace'            => 'Права для пространств имён:',
     'hacl_acllist_category'             => 'Права для категорий:',
     'hacl_acllist_right'                => 'Шаблоны прав:',

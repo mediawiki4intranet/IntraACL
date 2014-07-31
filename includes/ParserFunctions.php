@@ -566,6 +566,11 @@ class IACLParserFunctions
      */
     protected static function getCanonicalDefTitle($title)
     {
+        static $cache = array();
+        if (array_key_exists("$title", $cache))
+        {
+            return $cache["$title"];
+        }
         $pe = IACLDefinition::nameOfPE($title);
         if ($pe)
         {
@@ -578,7 +583,7 @@ class IACLParserFunctions
                 if ($t->getInterwiki())
                 {
                     // No protection can be applied to interwiki links!
-                    return NULL;
+                    return $cache["$title"] = NULL;
                 }
                 if ($t)
                 {
@@ -595,10 +600,10 @@ class IACLParserFunctions
             }
             if ($peName)
             {
-                return IACLDefinition::nameOfSD($pe[0], $peName);
+                return $cache["$title"] = IACLDefinition::nameOfSD($pe[0], $peName);
             }
         }
-        return NULL;
+        return $cache["$title"] = NULL;
     }
 
     /**
@@ -735,6 +740,7 @@ class IACLParserFunctions
         // Overwrite rules
         if ($this->def)
         {
+            $this->def = $this->def->dirty();
             if ($this->isUnprotectable())
             {
                 // This namespace can not be protected
@@ -932,7 +938,7 @@ class IACLParserFunctions
             }
             else
             {
-                // FIXME report about "permission denied to overwrite $to"
+                // FIXME report "permission denied to overwrite $to"
             }
             $oldSDTitle->moveTo($oldSDTitle, false, wfMsg('hacl_move_acl'), true);
             if ($oldTitle->exists())
@@ -942,8 +948,7 @@ class IACLParserFunctions
             }
             else
             {
-                // There's no need for PR inclusion if there's no redirect left
-                // FIXME But think about reviving the SD for a non-existing PE when that PE is recreated
+                // There's no need to include new SD for old title if there's no redirect left
             }
         }
 
@@ -975,6 +980,11 @@ class IACLParserFunctions
         if ($this->errors)
         {
             $msg[] = wfMsgForContent('hacl_errors_in_definition');
+        }
+        $sdName = self::getCanonicalDefTitle($this->title);
+        if ($sdName !== NULL && $sdName != $this->title->getPrefixedText())
+        {
+            $msg[] = wfMsgForContent('hacl_non_canonical_acl_short', $sdName);
         }
         if ($this->isUnprotectable())
         {

@@ -37,7 +37,7 @@ class IntraACLEvaluationTester extends Maintenance
     var $acls = array();
     var $aclUsers = array();
     var $anonUser;
-    var $queue = array('categoryACL', 'namespaceACL', 'pageACL');
+    var $queue;
     var $numOk, $numFailed;
 
     var $pfx = '', $newline = "\n";
@@ -114,13 +114,17 @@ class IntraACLEvaluationTester extends Maintenance
         $this->makeUser(":0");
         // AclTestUser1 is specified in every ACL so we can test the shrink mode
         $u1 = $this->makeUser(":shrink")->getName();
+        $u2 = $this->makeUser(":gm")->getName();
         $g = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/G_$u1"));
-        $this->doEdit($g, "{{#member: members = User:$u1}}");
+        $this->doEdit($g, "{{#member: members = User:$u1}} {{#manage group: assigned to = User:$u2}}");
         $gg = new WikiPage(Title::makeTitle(HACL_NS_ACL, "Group/GG_$u1"));
-        $this->doEdit($gg, "{{#member: members = Group/G_$u1}}");
+        $this->doEdit($gg, "{{#member: members = Group/G_$u1}} {{#manage group: assigned to = User:$u2}}");
         // Run tests
+        $this->stack = array('groupManagers');
         $this->test();
-        // Remove users
+        $this->stack = array('checkAccess', 'categoryACL', 'namespaceACL', 'pageACL');
+        $this->test();
+        // Remove users and groups
         $this->doDelete(Title::makeTitle(HACL_NS_ACL, "Group/G_$u1"));
         $this->doDelete(Title::makeTitle(HACL_NS_ACL, "Group/GG_$u1"));
         $this->cleanupUsers();
@@ -128,20 +132,34 @@ class IntraACLEvaluationTester extends Maintenance
     }
 
     /**
-     * Continue to the next loop of tests, or just to checkAccess when no more loops is available
+     * Continue to the next loop of tests, or a no-op when no inner loops are pending
      */
     protected function test()
     {
-        if ($this->queue)
+        if ($this->stack)
         {
-            $loop = array_pop($this->queue);
+            $loop = array_pop($this->stack);
             $this->$loop();
-            $this->queue[] = $loop;
+            $this->stack[] = $loop;
         }
-        else
-        {
-            $this->checkAccess();
-        }
+    }
+
+    /**
+     * Run group manager checks
+     */
+    protected function groupManagers()
+    {
+        $oldTitle = $this->title;
+        $u1 = $this->makeUser(":shrink")->getName();
+        $this->title = Title::makeTitle(HACL_NS_ACL, "Group/G_$u1");
+        $this->assertCan($this->makeUser(':gm'), true, 'edit');
+        $this->assertCan($this->makeUser(':shrink'), false, 'edit');
+        $this->assertCan($this->makeUser(':0'), false, 'edit');
+        $this->title = Title::makeTitle(HACL_NS_ACL, "Group/GG_$u1");
+        $this->assertCan($this->makeUser(':gm'), true, 'edit');
+        $this->assertCan($this->makeUser(':shrink'), false, 'edit');
+        $this->assertCan($this->makeUser(':0'), false, 'edit');
+        $this->title = $oldTitle;
     }
 
     /**
@@ -220,7 +238,7 @@ class IntraACLEvaluationTester extends Maintenance
     protected function categoryACL()
     {
         $this->test();
-        $this->queue[] = 'category2ACL';
+        $this->stack[] = 'category2ACL';
         $art = new WikiPage($this->title);
         $this->doEdit($art, preg_replace('/\[\[Category:[^\]]*\]\]/is', '', $art->getText())." [[Category:C1]]");
         $cat1 = new WikiPage(Title::makeTitle(NS_CATEGORY, "C1"));
@@ -236,7 +254,7 @@ class IntraACLEvaluationTester extends Maintenance
         $this->doEdit($art, preg_replace('/\[\[Category:[^\]]*\]\]/is', '', $art->getText()));
         $this->doDelete($cat1);
         $this->doDelete($subc1);
-        array_pop($this->queue);
+        array_pop($this->stack);
     }
 
     /**
@@ -417,11 +435,16 @@ class IntraACLEvaluationTester extends Maintenance
         }
     }
 
+    protected function assertReadable($user, $readable)
+    {
+        $this->assertCan($user, $readable, 'read');
+    }
+
     /**
-     * Run a single test - assert $this->title is/isn't readable (depending on $readable)
+     * Run a single test - assert $user can/cannot do $action on (depending on $can)
      * by $user, report status and failure details, if any.
      */
-    protected function assertReadable($user, $readable)
+    protected function assertCan($user, $can, $action)
     {
         global $haclgCombineMode, $haclgOpenWikiAccess;
         $info = array_merge(array(
@@ -430,13 +453,13 @@ class IntraACLEvaluationTester extends Maintenance
         $result = false;
         if (class_exists('IACLEvaluator'))
         {
-            IACLEvaluator::userCan($this->title, $user, 'read', $result);
+            IACLEvaluator::userCan($this->title, $user, $action, $result);
         }
         else
         {
-            HACLEvaluator::userCan($this->title, $user, 'read', $result);
+            HACLEvaluator::userCan($this->title, $user, $action, $result);
         }
-        $ok = ($readable == $result);
+        $ok = ($can == $result);
         if ($ok)
         {
             $str = "[OK] ";
@@ -448,7 +471,7 @@ class IntraACLEvaluationTester extends Maintenance
             $this->numFailed++;
         }
         $str = $this->pfx.sprintf("%5d ", $this->numFailed+$this->numOk).$str.'['.implode(' ', $info).'] '.
-            $user->getName().($readable ? " can read " : " cannot read ").$this->title.($ok ? $this->newline : "\n");
+            $user->getName().($can ? " can " : " cannot ").$action.' '.$this->title.($ok ? $this->newline : "\n");
         if (!$ok || !$this->onlyFailures)
         {
             print $str;

@@ -55,7 +55,7 @@
 
 <script language="JavaScript">
 var GE;
-mw.loader.using('ext.intraacl.groupeditor', function()
+mw.loader.using([ 'jquery.async', 'ext.intraacl.groupeditor' ], function()
 {
     GE = new HACLGroupEditor(
         '<?= $wgContLang->getNsText(HACL_NS_ACL) ?>',

@@ -13,10 +13,10 @@
   <ul>
   <?php foreach($l as $k => $true) { ?>
    <li><input type="checkbox" id="at_<?= $k ?>" <?= $types[$k] ? ' checked="checked"' : '' ?> onclick="change_filter(this)" onchange="change_filter(this)" /> <label for="at_<?= $k ?>"><?= wfMsg('hacl_acllist_type_'.$k) ?></label></li>
-  <? } ?>
+  <?php } ?>
   </ul>
  </li>
-<? } ?>
+<?php } ?>
 </ul>
 
 <p><b><?= wfMsg('hacl_acllist_perpage') ?></b> <input type="text" id="perPage" value="<?= $limit ?>" onchange="change_filter()" /></p>

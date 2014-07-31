@@ -170,9 +170,15 @@ class IntraACLSpecial extends SpecialPage
         }
         $cattitles = IACLStorage::get('Util')->getAllChildrenCategories($cats);
         $catkeys = array();
+        // Fetch article IDs massively using LinkBatch
+        $batch = new LinkBatch();
         foreach ($cattitles as $t)
         {
-            // FIXME Mass-fetch article IDs using LinkBatch
+            $batch->addObj($t);
+        }
+        $batch->execute();
+        foreach ($cattitles as $t)
+        {
             $titles[$t->getArticleId()] = $t;
             $catkeys[$t->getDBkey()] = $t->getArticleId();
         }

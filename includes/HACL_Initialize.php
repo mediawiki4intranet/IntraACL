@@ -119,5 +119,3 @@ $iaclPreloadLimit = 1000;
 
 // load global functions
 require_once(dirname(__FILE__).'/GlobalFunctions.php');
-
-haclfInitNamespaces();
