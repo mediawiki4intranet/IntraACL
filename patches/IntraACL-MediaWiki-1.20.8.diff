@@ -1146,7 +1146,7 @@ index 7ae4f37..bf61d1c 100644
  		$title = Title::makeTitle( $row->rc_namespace, $row->rc_title );
 +		// <IntraACL>
 +		if ( !$title->userCan('read') ) {
-+			continue;
++			return false;
 +		}
 +		// </IntraACL>
  
