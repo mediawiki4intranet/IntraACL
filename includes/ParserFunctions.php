@@ -825,11 +825,16 @@ class IACLParserFunctions
             $badLinks = array();
             foreach ($def['parents'] as $p)
             {
-                $badLinks[] = array(
-                    'bl_from' => $p['def_title']->getArticleId(),
-                    'bl_namespace' => $title->getNamespace(),
-                    'bl_title' => $title->getDBkey(),
-                );
+                $def_title = $p['def_title'];
+                // FIXME NULL may happen here for SDs whose articles were already deleted...
+                if ($def_title)
+                {
+                    $badLinks[] = array(
+                        'bl_from' => $def_title->getArticleId(),
+                        'bl_namespace' => $title->getNamespace(),
+                        'bl_title' => $title->getDBkey(),
+                    );
+                }
             }
             if ($badLinks)
             {
