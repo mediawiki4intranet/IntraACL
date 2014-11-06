@@ -24,7 +24,7 @@ based on HaloACL, correcting its endless bugs and inconveniences.
 * You can also add custom configuration options before enableIntraACL() call. For the option list, see extensions/IntraACL/includes/HACL_Initialize.php or http://wiki.4intra.net/IntraACL
 * Apply patches for appropriate version of MediaWiki:
   cd YOUR_WIKI_INSTALLATION_DIR
-  patch -p1 < patches/IntraACL-MediaWiki-<YOUR_VERSION>.diff
+  patch -p1 < extensions/IntraACL/patches/IntraACL-MediaWiki-<YOUR_VERSION>.diff
 * Run MediaWiki database update tool:
   php maintenance/update.php
 
