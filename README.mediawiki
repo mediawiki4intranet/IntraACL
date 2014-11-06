@@ -31,9 +31,6 @@ based on HaloACL, correcting its endless bugs and inconveniences.
 The method of IntraACL installation via the super-duper-installer
 of Halo MediaWiki bundle is now removed as very non-standard.
 
-The protection of semantic properties via encrypting them is also removed.
-IntraACL is thus incompatible with SemanticMediaWiki.
-
 == WARNING ==
 
 ANY installed extension MAY lead to SECURITY BREACHES.
@@ -47,6 +44,20 @@ using <tt>$title->userCan('read')</tt> before displaying $title content.
 When showing page listings from the DB, you can use a stored procedure
 for permission checks using the FilterPageQuery hook to modify your query
 (for details see FilterPageQuery in includes/Evaluator.php)
+
+== SemanticMediaWiki ==
+
+The original feature of HaloACL (protection of semantic properties
+via encrypting them) is also removed. IntraACL is thus incompatible
+with the original SemanticMediaWiki.
+
+You may however try the version from Mediawiki4Intranet:
+https://github.com/mediawiki4intranet/SemanticMediaWiki - it is slightly outdated
+(only 1.8), but it contains a patch which enables read permission checks
+in every place that displays information.
+
+If you have experience in PHP you may also try to rebase that patch for newer
+SMW versions and send it to us :)
 
 == MediaWiki 4 Intranet ==
 
