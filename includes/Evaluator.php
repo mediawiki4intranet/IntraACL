@@ -184,7 +184,12 @@ class IACLEvaluator
     );
     public static function FilterPageQuery(&$query, $page_alias = 'page', $page_join_conds = NULL, $override_namespace = NULL)
     {
-        global $wgUser, $haclgCombineMode, $haclgSuperGroups, $haclgOpenWikiAccess;
+        global $wgUser, $haclgCombineMode, $haclgSuperGroups, $haclgOpenWikiAccess, $iaclUseStoredProcedure;
+        if (!$iaclUseStoredProcedure)
+        {
+            // stored procedure disabled
+            return true;
+        }
         static $whitelist = NULL;
         $groups = $wgUser->getGroups();
         if ($groups && array_intersect($groups, $haclgSuperGroups))

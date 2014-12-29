@@ -515,7 +515,7 @@ function haclfAddToolbarForEditPage($editpage, $out)
 // Hook into maintenance/update.php
 function iaclfLoadExtensionSchemaUpdates($updater = NULL)
 {
-    global $wgExtNewTables, $wgDBtype;
+    global $wgExtNewTables, $wgDBtype, $iaclUseStoredProcedure;
     $f1 = __DIR__.'/../storage/intraacl-tables.sql';
     if (($updater ? $updater->getDB()->getType() : $wgDBtype) != 'mysql')
     {
@@ -529,7 +529,10 @@ function iaclfLoadExtensionSchemaUpdates($updater = NULL)
     {
         $wgExtNewTables[] = array('intraacl_rules', $f1);
     }
-    IACLUpdateStoredFunctions::addUpdate($updater);
+    if ($iaclUseStoredProcedure)
+    {
+        IACLUpdateStoredFunctions::addUpdate($updater);
+    }
     // FIXME: Use $updater->addPostDatabaseUpdateMaintenance() (1.19+) instead of destructor hack
     // Defer creating 'Permission Denied' page until all schema updates are finished
     global $egDeferCreatePermissionDenied;

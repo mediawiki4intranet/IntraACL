@@ -115,6 +115,15 @@ $haclgSuperGroups = array('bureaucrat', 'sysop');
 # make individual DB queries for the access check of each separate page.
 $iaclPreloadLimit = 1000;
 
+# Use stored procedure for correct list paging. With stored procedure enabled, page lists
+# run slower, but don't look weird because permissions are checked inside MySQL and it can
+# return correct count of readable pages. Otherwise MediaWiki may show 100 pages, but some
+# of them may contain 5 items, 1 item or even no items at all.
+#
+# Turn off (by setting this variable to false) if you don't care of if your MySQL installation
+# doesn't have stored procedure support available.
+$iaclUseStoredProcedure = true;
+
 # See also $wgWhitelistRead - IntraACL opens whitelisted pages for reading
 
 // load global functions
