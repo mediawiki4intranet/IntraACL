@@ -1870,7 +1870,7 @@ index 04a83c8..5b8a05d 100644
 +		// <IntraACL>
 +		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
 +			$filePage = Title::makeTitleSafe( NS_FILE, $row->img_name );
-+			if ( $filePage && !$filePage->userCanRead() ) {
++			if ( $filePage && !$filePage->userCan('read') ) {
 +				return '';
 +			}
 +		}
