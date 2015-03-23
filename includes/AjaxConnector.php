@@ -106,7 +106,7 @@ function haclAutocomplete($t, $n, $limit = 11, $add_checkboxes = false, $item_pr
         {
             $title = Title::newFromText($row[0], $row[1]);
             // Filter unreadable
-            if ($title->userCanRead())
+            if ($title->userCan('read'))
             {
                 // Use canonical titles
                 $t = ($title->getNamespace() ? iaclfCanonicalNsText($title->getNamespace()).':' : '') . $title->getText();
@@ -161,7 +161,7 @@ function haclAutocomplete($t, $n, $limit = 11, $add_checkboxes = false, $item_pr
         {
             $title = Title::newFromText($row[0], NS_CATEGORY);
             // Filter unreadable
-            if ($title->userCanRead())
+            if ($title->userCan('read'))
             {
                 $title = $title->getText();
                 $a[] = array($title, $title);
