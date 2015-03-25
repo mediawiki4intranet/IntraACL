@@ -227,7 +227,7 @@ class IACLEvaluator
                     $title = Title::newFromText($title);
                     if ($title->getNamespace() != NS_SPECIAL)
                     {
-                        $whitelist[] = '('.$title->getNamespace().', '.$dbr->quote($title->getDBkey()).')';
+                        $whitelist[] = '('.$title->getNamespace().', '.$dbr->addQuotes($title->getDBkey()).')';
                     }
                 }
                 $whitelist = implode(', ', $whitelist);

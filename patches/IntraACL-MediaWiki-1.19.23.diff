@@ -1,6 +1,6 @@
 Patch: intraacl-rights
 Type: feature
-MediaWiki: REL1_19 1.19.16 e9c4a374f48c7180e02fab10d3bc5988ec33e5f7
+MediaWiki: REL1_19 1.19.23 55bf66da3e4baecf7d197f75f7cac3b8d55aa255
 
 Patch needed for IntraACL extension. Enables read access checks
 in various parts of MediaWiki.
@@ -16,6 +16,7 @@ in various parts of MediaWiki.
 2014-01-10 - DBMS-side filtering of page lists based on read permissions
 2014-01-13 - Fix infinite recursion in case of special page whitelist with $wgGroupPermissions['*']['read'] == false
 2014-06-18 - Add hook to allow checking for non-readable uploads
+2015-03-25 - Fix DB error on Special:Disambiguations, Special:DoubleRedirects and etc (only in MW 1.19)
 
 diff --git a/includes/CategoryViewer.php b/includes/CategoryViewer.php
 index e8e9142..44fa7ec 100644
@@ -138,10 +139,10 @@ index 575f284..2539f5b 100644
  					$editLink = self::link(
  						$titleObj,
 diff --git a/includes/OutputPage.php b/includes/OutputPage.php
-index a91d546..aa6f86e 100644
+index e658c0e..96c61ae 100644
 --- a/includes/OutputPage.php
 +++ b/includes/OutputPage.php
-@@ -1146,6 +1146,12 @@ class OutputPage extends ContextSource {
+@@ -1149,6 +1149,12 @@ class OutputPage extends ContextSource {
  
  		# Add the remaining categories to the skin
  		if ( wfRunHooks( 'OutputPageMakeCategoryLinks', array( &$this, $categories, &$this->mCategoryLinks ) ) ) {
@@ -154,7 +155,7 @@ index a91d546..aa6f86e 100644
  			foreach ( $categories as $category => $type ) {
  				$origcategory = $category;
  				$title = Title::makeTitleSafe( NS_CATEGORY, $category );
-@@ -1159,6 +1165,11 @@ class OutputPage extends ContextSource {
+@@ -1162,6 +1168,11 @@ class OutputPage extends ContextSource {
  				$this->mCategories[] = $title->getText();
  				$this->mCategoryLinks[$type][] = Linker::link( $title, $text );
  			}
@@ -166,7 +167,7 @@ index a91d546..aa6f86e 100644
  		}
  	}
  
-@@ -2081,7 +2092,14 @@ class OutputPage extends ContextSource {
+@@ -2123,7 +2134,14 @@ class OutputPage extends ContextSource {
  			# not especially useful as a returnto parameter. Use the title
  			# from the request instead, if there was one.
  			$request = $this->getRequest();
@@ -181,7 +182,7 @@ index a91d546..aa6f86e 100644
  			if ( $action == 'edit' ) {
  				$msg = 'whitelistedittext';
  				$displayReturnto = $returnto;
-@@ -2366,7 +2384,9 @@ $templates
+@@ -2408,7 +2426,9 @@ $templates
  		} else {
  			$titleObj = Title::newFromText( $returnto );
  		}
@@ -193,7 +194,7 @@ index a91d546..aa6f86e 100644
  		}
  
 diff --git a/includes/QueryPage.php b/includes/QueryPage.php
-index 69912cb..2883302 100644
+index 69912cb..58f613e 100644
 --- a/includes/QueryPage.php
 +++ b/includes/QueryPage.php
 @@ -354,6 +354,12 @@ abstract class QueryPage extends SpecialPage {
@@ -201,9 +202,9 @@ index 69912cb..2883302 100644
  			$tables = isset( $query['tables'] ) ? (array)$query['tables'] : array();
  			$fields = isset( $query['fields'] ) ? (array)$query['fields'] : array();
 +			// <IntraACL>
-+			if ( in_array( 'page', $tables ) && !isset( $fields['namespace'] ) ) {
-+				$fields['namespace'] = 'page_namespace';
-+				$fields['title'] = 'page_title';
++			if ( in_array( 'page', $tables ) && !preg_match( '#\snamespace\s*($|,)#', implode(', ', $fields) ) ) {
++				$fields[] = 'page_namespace namespace';
++				$fields[] = 'page_title title';
 +			}
 +			// </IntraACL>
  			$conds = isset( $query['conds'] ) ? (array)$query['conds'] : array();
@@ -1042,10 +1043,10 @@ index 0377edd..583f10a 100644
  				if ( !$fit ) {
  					$this->setContinueEnumParameter( 'continue',
 diff --git a/includes/api/ApiQueryLogEvents.php b/includes/api/ApiQueryLogEvents.php
-index 9c73b3b..0409c54 100644
+index b605a98..8807bbb 100644
 --- a/includes/api/ApiQueryLogEvents.php
 +++ b/includes/api/ApiQueryLogEvents.php
-@@ -129,7 +129,9 @@ class ApiQueryLogEvents extends ApiQueryBase {
+@@ -128,7 +128,9 @@ class ApiQueryLogEvents extends ApiQueryBase {
  		$title = $params['title'];
  		if ( !is_null( $title ) ) {
  			$titleObj = Title::newFromText( $title );
@@ -1056,7 +1057,7 @@ index 9c73b3b..0409c54 100644
  				$this->dieUsage( "Bad title value '$title'", 'param_title' );
  			}
  			$this->addWhereFld( 'log_namespace', $titleObj->getNamespace() );
-@@ -275,9 +277,12 @@ class ApiQueryLogEvents extends ApiQueryBase {
+@@ -274,9 +276,12 @@ class ApiQueryLogEvents extends ApiQueryBase {
  			$vals['logid'] = intval( $row->log_id );
  		}
  
@@ -1135,7 +1136,7 @@ index 2e9e2dd..b5a6bff 100644
  		$vals['id'] = intval( $row->page_id );
  		ApiQueryBase::addTitleInfo( $vals, $title );
 diff --git a/includes/api/ApiQueryRecentChanges.php b/includes/api/ApiQueryRecentChanges.php
-index bf5bbd9..7dc8910 100644
+index bf5bbd9..1a1f378 100644
 --- a/includes/api/ApiQueryRecentChanges.php
 +++ b/includes/api/ApiQueryRecentChanges.php
 @@ -316,6 +316,11 @@ class ApiQueryRecentChanges extends ApiQueryGeneratorBase {
