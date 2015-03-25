@@ -1,3 +1,22 @@
+Patch: intraacl-rights
+Type: feature
+MediaWiki: REL1_24 1.24.1+ c766b32961ac26eab8a541c6de0f21d040fda8d0
+
+Patch needed for IntraACL extension. Enables read access checks
+in various parts of MediaWiki.
+
+2013-03-25 - Do not cloak page and category links in article content
+2013-03-29 - Still register dependencies for unreadable images and templates
+2013-07-31 - Check permissions for email notifications
+2013-08-27 - Check permissions in API
+2013-09-25 - Support parser cache key personalisation
+2013-12-06 - Use hook for parser cache key personalisation, disable title patch in LinkBatch
+2013-12-09 - Disable parser patch during wfIsBadImage check
+2013-12-12 - Check permissions in findBySha1() of file repo - fixes duplicate upload errors
+2014-01-10 - DBMS-side filtering of page lists based on read permissions
+2014-01-13 - Fix infinite recursion in case of special page whitelist with $wgGroupPermissions['*']['read'] == false
+2014-06-18 - Add hook to allow checking for non-readable uploads
+
 diff --git a/includes/CategoryViewer.php b/includes/CategoryViewer.php
 index 7581ae4..c955108 100644
 --- a/includes/CategoryViewer.php
@@ -71,7 +90,7 @@ index be850d0..c3e3b9d 100644
  					$editLink = self::link(
  						$titleObj,
 diff --git a/includes/OutputPage.php b/includes/OutputPage.php
-index 2f8094a..52d22d3 100644
+index 3568c31..62638b8 100644
 --- a/includes/OutputPage.php
 +++ b/includes/OutputPage.php
 @@ -1314,6 +1314,12 @@ class OutputPage extends ContextSource {
@@ -735,7 +754,7 @@ index c141246..6fa1d3e 100644
  			$a['redirect'] = '';
  		}
 diff --git a/includes/api/ApiQueryCategories.php b/includes/api/ApiQueryCategories.php
-index 1926dd0..045901a 100644
+index 1926dd09..045901a 100644
 --- a/includes/api/ApiQueryCategories.php
 +++ b/includes/api/ApiQueryCategories.php
 @@ -73,7 +73,7 @@ class ApiQueryCategories extends ApiQueryGeneratorBase {
@@ -803,7 +822,7 @@ index 9042696..db81203 100644
  				$pageID = $pageMap[$row->ar_namespace][$row->ar_title];
  				$fit = $result->addValue(
 diff --git a/includes/api/ApiQueryExtLinksUsage.php b/includes/api/ApiQueryExtLinksUsage.php
-index faabb92..e5262f8 100644
+index faabb92..e5262f85 100644
 --- a/includes/api/ApiQueryExtLinksUsage.php
 +++ b/includes/api/ApiQueryExtLinksUsage.php
 @@ -116,8 +116,13 @@ class ApiQueryExtLinksUsage extends ApiQueryGeneratorBase {
@@ -1072,7 +1091,7 @@ index 530557e..1fe4829 100644
  		$vals['id'] = intval( $row->page_id );
  		ApiQueryBase::addTitleInfo( $vals, $title );
 diff --git a/includes/api/ApiQueryRecentChanges.php b/includes/api/ApiQueryRecentChanges.php
-index 6f0c5d3..6049e9c 100644
+index 6f0c5d3..6049e9ca 100644
 --- a/includes/api/ApiQueryRecentChanges.php
 +++ b/includes/api/ApiQueryRecentChanges.php
 @@ -414,6 +414,11 @@ class ApiQueryRecentChanges extends ApiQueryGeneratorBase {
@@ -1840,7 +1859,7 @@ index dc9d57c..93b1eea 100644
  
  	function sortDescending() {
 diff --git a/includes/specials/SpecialListfiles.php b/includes/specials/SpecialListfiles.php
-index 04a83c8..5b8a05d 100644
+index 04a83c8..50415a2 100644
 --- a/includes/specials/SpecialListfiles.php
 +++ b/includes/specials/SpecialListfiles.php
 @@ -281,13 +281,17 @@ class ImageListPager extends TablePager {
@@ -2138,6 +2157,23 @@ index 0b70bb7..42c636f 100644
  		return $info;
  	}
  
+diff --git a/includes/specials/SpecialPageLanguage.php b/includes/specials/SpecialPageLanguage.php
+index 2acf23c..9654647 100644
+--- a/includes/specials/SpecialPageLanguage.php
++++ b/includes/specials/SpecialPageLanguage.php
+@@ -105,9 +105,11 @@ class SpecialPageLanguage extends FormSpecialPage {
+ 		$title = Title::newFromText( $data['pagename'] );
+ 
+ 		// Check if title is valid
+-		if ( !$title ) {
++		// <IntraACL>
++		if ( !$title || !$title->userCan( 'edit' ) ) {
+ 			return false;
+ 		}
++		// </IntraACL>
+ 
+ 		// Get the default language for the wiki
+ 		// Returns the default since the page is not loaded from DB
 diff --git a/includes/specials/SpecialPagesWithProp.php b/includes/specials/SpecialPagesWithProp.php
 index f5b19cc..9d81d93 100644
 --- a/includes/specials/SpecialPagesWithProp.php
