@@ -321,6 +321,28 @@ class IACLEvaluator
             }
             return array('Checked namespace access right', $r);
         }
+        if ($articleID && $title->isRedirect())
+        {
+            // Redirects are treated like symlinks in Unix: their permissions are always equal to target
+            // (at least if target exists...)
+            $dbr = wfGetDB(DB_SLAVE);
+            $id = $articleID;
+            do
+            {
+                $row = $dbr->selectRow(
+                    array('page', 'redirect'), 'page.*',
+                    array('rd_from' => $id, 'page_namespace=rd_namespace', 'page_title=rd_title'),
+                    __METHOD__
+                );
+                $id = $row ? $row->page_id : NULL;
+            } while ($row && $row->page_is_redirect);
+            if ($row)
+            {
+                $title = Title::newFromRow($row);
+                $articleID = $row->page_id;
+                self::log("Page is a live redirect to ".$title->getFullText().", checking permissions for target");
+            }
+        }
 
         return self::hasSD($title, $articleID, $userID, $actionID);
     }

@@ -946,15 +946,6 @@ class IACLParserFunctions
                 // FIXME report "permission denied to overwrite $to"
             }
             $oldSDTitle->moveTo($oldSDTitle, false, wfMsg('hacl_move_acl'), true);
-            if ($oldTitle->exists())
-            {
-                $fromA = new WikiPage($oldTitle);
-                $fromA->doEdit('{{#predefined right: '.$newSDTitle->getPrefixedText().'}}', wfMsg('hacl_move_acl_include'));
-            }
-            else
-            {
-                // There's no need to include new SD for old title if there's no redirect left
-            }
         }
 
         return true;
