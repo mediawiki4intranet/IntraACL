@@ -327,15 +327,17 @@ class IACLEvaluator
             // (at least if target exists...)
             $dbr = wfGetDB(DB_SLAVE);
             $id = $articleID;
+            $seen = array();
             do
             {
+                $seen[$id] = true;
                 $row = $dbr->selectRow(
                     array('page', 'redirect'), 'page.*',
                     array('rd_from' => $id, 'page_namespace=rd_namespace', 'page_title=rd_title'),
                     __METHOD__
                 );
                 $id = $row ? $row->page_id : NULL;
-            } while ($row && $row->page_is_redirect);
+            } while ($row && $row->page_is_redirect && !$seen[$row->page_id]);
             if ($row)
             {
                 $title = Title::newFromRow($row);
