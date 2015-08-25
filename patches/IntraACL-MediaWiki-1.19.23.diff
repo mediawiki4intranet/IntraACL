@@ -807,7 +807,7 @@ index 381ef55..a25f060 100644
  		$t = Title::makeTitle( $row->page_namespace, $row->page_title );
 +		// <IntraACL>
 +		if ( !$t->userCan('read') ) {
-+			continue;
++			return;
 +		}
 +		// </IntraACL>
  		$a = array( 'pageid' => intval( $row->page_id ) );
@@ -821,7 +821,7 @@ index 381ef55..a25f060 100644
 +		$t = Title::makeTitle( $row->page_namespace, $row->page_title );
 +		// <IntraACL>
 +		if ( !$t->userCan('read') ) {
-+			continue;
++			return;
 +		}
 +		// </IntraACL>
 +		ApiQueryBase::addTitleInfo( $a, $t );
