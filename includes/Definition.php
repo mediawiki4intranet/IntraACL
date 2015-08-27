@@ -679,13 +679,13 @@ class IACLDefinition implements ArrayAccess
      *  ACL:Namespace/<Namespace name>      PE_NAMESPACE
      *  ACL:Namespace/Main                  PE_NAMESPACE
      *  ACL:Group/<Group name>              PE_GROUP
-     *  ACL:<Right template name>           PE_RIGHT
+     *  ACL:Right/<Right template name>     PE_RIGHT
      *
      * @param string/Title $defTitle
      *     Definition title, with or without ACL: namespace.
      * @return array(int $type, string $name)
      *     Name of the protected element and its type, or NULL if title belongs
-     *     to an incorrect namespace.
+     *     to an incorrect namespace or has incorrect prefix.
      */
     public static function nameOfPE($defTitle)
     {
@@ -710,11 +710,11 @@ class IACLDefinition implements ArrayAccess
         $p = strpos($defTitle, '/');
         if (!$p)
         {
-            return array(IACL::PE_RIGHT, $defTitle);
+            return NULL;
         }
         $prefix = substr($defTitle, 0, $p);
         $type = $haclgContLang->getPetAlias($prefix);
-        if ($type && $type != IACL::PE_RIGHT && strlen($defTitle) > $p+1)
+        if ($type && strlen($defTitle) > $p+1)
         {
             $peName = substr($defTitle, $p+1);
             if ($type == IACL::PE_PAGE)
@@ -728,7 +728,6 @@ class IACLDefinition implements ArrayAccess
             }
             return array($type, $peName);
         }
-        // Right by default
         return array(IACL::PE_RIGHT, $defTitle);
     }
 
@@ -773,7 +772,7 @@ class IACLDefinition implements ArrayAccess
         {
             $defTitle .= $haclgContLang->getPetPrefix(IACL::PE_PAGE).'/Special:';
         }
-        elseif ($peType != IACL::PE_RIGHT)
+        else
         {
             $prefix = $haclgContLang->getPetPrefix($peType);
             if ($prefix)

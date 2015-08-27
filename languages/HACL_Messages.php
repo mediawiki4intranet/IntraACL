@@ -116,10 +116,6 @@ You have no read access to the <tt>File</tt> namespace. You will <b>not</b> be a
     'tog-showacltab'                    => 'Always show ACL tab (page access rights)',
 
     // General
-    'hacl_invalid_prefix'               =>
-'This page does not protect anything, create any rights or right templates.
-Either it is supposed to be included into other ACL definitions, or is created incorrectly.
-If you want to protect some pages, ACL page must be named as one of: ACL:Page/*, ACL:Category/*, ACL:Namespace/*, ACL:Right/*.',
     'hacl_pe_not_exists'                => 'The element supposed to be protected with this ACL does not exist.',
     'hacl_pe_is_interwiki'              => 'The element supposed to be protected with this ACL is an interwiki link, and protection cannot apply to interwiki links.',
     'hacl_edit_with_special'            => '<p><a href="$1"><img src="$2" width="16" height="16" alt="Edit" /> Edit this definition with IntraACL editor.</a></p><hr />',
@@ -445,9 +441,6 @@ $messages['ru'] = array(
     'tog-showacltab'                    => 'Всегда показывать вкладку ACL (права доступа к странице)',
 
     // General
-    'hacl_invalid_prefix'               =>
-'Эта страница ничего не защищает и не задаёт группы. Либо так и задумано, либо она некорректно создана.
-Если вы хотите что-то защитить, создавайте статьи с именами: ACL:Page/*, ACL:Category/*, ACL:Namespace/*, ACL:Right/*.',
     'hacl_pe_not_exists'                => 'То, что должна защищать эта статья, не существует.',
     'hacl_pe_is_interwiki'              => 'То, что должна защищать эта статья, является ссылкой в другую Wiki (интервики-ссылкой). Защиту нельзя применять к интервики-ссылкам.',
     'hacl_edit_with_special'            => '<p><a href="$1"><img src="$2" width="16" height="16" alt="Править" /> Править это определение редактором IntraACL.</a></p><hr />',
@@ -746,14 +739,13 @@ $messages['de'] = array(
     'tog-showacltab'                    => '"Rechte" Tab immer anzeigen',
 
     // General
-    'hacl_invalid_prefix'               => 'Diese Seite selbst schützt keine Artikel, bitte erstellen Sie neue Rechte oder Rechtevorlagen. Entweder soll diese Seite in eine andere Rechtedefinition eingebunden werden oder sie wurde falsch erstellt. Wenn Artikel geschützt werden sollen, muss die Rechteseite wie folgt heißen: ACL:Page/*, ACL:Category/*, ACL:Namespace/*, ACL:Right/*.',
     'hacl_pe_not_exists'                => 'Das Element, das mit diesen Rechten geschützt werden soll, existiert nicht.',
     'hacl_edit_with_special'            => '<p><a href="$1"><img src="$2" width="16" height="16" alt="Ändern" /> Diese Rechtedefinition mit IntraACL Editor ändern.</a></p><hr />',
     'hacl_create_with_special'          => '<p><a href="$1"><img src="$2" width="16" height="16" alt="Erstellen" /> Diese Rechtedefinition mit IntraACL Editor erstellen.</a></p><hr />',
     'hacl_tab_acl'                      => 'Rechte',
     'hacl_tab_page'                     => 'Seite',
     'hacl_tab_category'                 => 'Kategorie',
- 
+
     // Special:IntraACL actions
     'hacl_action_acllist'               => 'Rechte verwalten',
     'hacl_action_acl'                   => 'Neue Rechtedefinition erstellen',
