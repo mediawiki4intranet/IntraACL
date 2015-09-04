@@ -431,7 +431,7 @@ class IACLToolbar
                 $catIds[$id] = true;
             }
         }
-        $catIds = array_keys($catIds + IACLStorage::get('Util')->getParentCategoryIDs(array_keys($catIds)));
+        $catIds = array_keys($catIds + array_flip(IACLStorage::get('Util')->getParentCategoryIDs(array_keys($catIds))));
         $r = IACLDefinition::userCan(
             $wgUser->getId(), IACL::PE_CATEGORY, $catIds, IACL::ACTION_READ
         );
