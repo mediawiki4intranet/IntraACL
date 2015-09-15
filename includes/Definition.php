@@ -593,10 +593,10 @@ class IACLDefinition implements ArrayAccess
                 break;
             // Groups and rights are in ACL namespace
             case IACL::PE_GROUP:
-                global $haclgContLang;
-                $peName = $haclgContLang->getPetPrefix(IACL::PE_GROUP).'/'.$peName;
             case IACL::PE_RIGHT:
+                global $haclgContLang;
                 $ns = HACL_NS_ACL;
+                $peName = $haclgContLang->getPetPrefix($peType).'/'.$peName;
                 break;
         }
         // Return the page id
@@ -624,7 +624,19 @@ class IACLDefinition implements ArrayAccess
         {
             $res = iaclfCanonicalNsText($peID);
         }
-        elseif ($peType == IACL::PE_RIGHT || $peType == IACL::PE_CATEGORY)
+        elseif ($peType == IACL::PE_RIGHT)
+        {
+            global $haclgContLang;
+            $t = Title::newFromId($peID);
+            $p = $haclgContLang->getPetPrefix($peType);
+            if ($t)
+            {
+                $res = $t->getText();
+                if (substr($res, 0, strlen($p)+1) == "$p/")
+                    $res = substr($res, strlen($p)+1);
+            }
+        }
+        elseif ($peType == IACL::PE_CATEGORY)
         {
             $t = Title::newFromId($peID);
             $res = $t ? $t->getText() : NULL;

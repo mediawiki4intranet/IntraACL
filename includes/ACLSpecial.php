@@ -743,7 +743,7 @@ class IntraACLSpecial extends SpecialPage
                 $name = IACLDefinition::peNameForID($s[0], $s[1]);
                 $d['single'] = Title::newFromText(IACLDefinition::nameOfSD($s[0], $name));
                 $d['singletype'] = IACL::$typeToName[$s[0]];
-                $d['singlename'] = $name;
+                $d['singlename'] = $d['single']->getText();
                 $d['singlelink'] = $d['single']->getLocalUrl();
                 $d['singletip'] = wfMsg('hacl_acllist_hint_single', $d['real'], $d['single']->getPrefixedText());
             }
