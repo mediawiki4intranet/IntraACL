@@ -49,13 +49,13 @@ HACLGroupEditor.prototype.name_change = function(total_change)
         var pn = document.getElementById('grp_pn');
         var t = this.NS_ACL+':'+this.group_prefix+'/'+name;
         pn.innerHTML = t;
-        pn.href = wgScript+'/'+t;
+        pn.href = mw.config.get('wgScript')+'/'+t;
         document.getElementById('wpTitle').value = t;
-        document.getElementById('grp_delete_link').href = wgScript + '?title=' + encodeURI(t) + '&action=delete';
+        document.getElementById('grp_delete_link').href = mw.config.get('wgScript') + '?title=' + encodeURI(t) + '&action=delete';
         if (total_change)
         {
             var ge = this;
-            sajax_do_call('haclGroupExists', [ name ], function(request) { ge.exists_ajax(request) });
+            haclt_ajax('haclGroupExists', [ name ], function(result) { ge.exists_ajax(result) });
         }
     }
     if (!name.length || !total_change)
@@ -66,11 +66,8 @@ HACLGroupEditor.prototype.name_change = function(total_change)
 };
 
 // react to group existence check
-HACLGroupEditor.prototype.exists_ajax = function(request)
+HACLGroupEditor.prototype.exists_ajax = function(exists)
 {
-    if (request.status != 200)
-        return;
-    var exists = eval('('+request.responseText+')'); // json parse
     if (exists)
         document.getElementById('grp_exists_hint').style.display = '';
     else
@@ -146,11 +143,8 @@ HACLGroupEditor.prototype.check_errors = function()
 };
 
 // fill group closure cache with AJAX data
-HACLGroupEditor.prototype.get_ajax_groups = function(request)
+HACLGroupEditor.prototype.get_ajax_groups = function(d)
 {
-    if (request.status != 200)
-        return;
-    var d = eval('('+request.responseText+')'); // JSON parse
     if (d && d['groups'])
         for (var g in d['groups'])
             this.group_cache[g] = d['groups'][g];
@@ -181,16 +175,8 @@ HACLGroupEditor.prototype.refresh_hints = function(what)
     var x = [ ['member', 'user'], ['member', 'group'], ['manager', 'user'], ['manager', 'group'] ];
     var hint;
     for (var i in x)
-    {
         if (what === true || what == x[i][1])
-        {
-            hint = this['hint_'+x[i][0]+'_'+x[i][1]+'s'];
-            if (!hint.element.value.trim().length)
-                hint.change_ajax(this.get_empty_hint(x[i][0], x[i][1]));
-            else
-                this.find_set(x[i][0], x[i][1] == 'group' ? 'Group/' : 'User:', hint, hint.tip_div);
-        }
-    }
+            this['hint_'+x[i][0]+'_'+x[i][1]+'s'].onChange(true);
 };
 
 // parse ACL and re-fill closure
@@ -201,7 +187,7 @@ HACLGroupEditor.prototype.parse_fill_indirect = function()
 };
 
 // re-fill group closure
-HACLGroupEditor.prototype.reload_indirect = function(refresh_hints)
+HACLGroupEditor.prototype.reload_indirect = function(refresh_hints_what)
 {
     var fetch = [];
     // members
@@ -232,16 +218,14 @@ HACLGroupEditor.prototype.reload_indirect = function(refresh_hints)
     this.ind_managers = {};
     if (fetch.length)
     {
-        var ge = this;
-        sajax_do_call(
-            'haclGroupClosure',
-            [ fetch.join(','), '' ],
-            function(request)
+        var self = this;
+        haclt_ajax(
+            'haclGroupClosure', [ fetch.join(','), '' ], function(result)
             {
-                ge.get_ajax_groups(request);
-                var chg = ge.fill_indirect({ 'members' : g, 'managers' : mg });
-                if (chg && refresh_hints)
-                    ge.refresh_hints(refresh_hints);
+                self.get_ajax_groups(result);
+                var chg = self.fill_indirect({ 'members' : g, 'managers' : mg });
+                if (chg && refresh_hints_what)
+                    self.refresh_hints(refresh_hints_what);
             }
         );
     }
@@ -249,8 +233,8 @@ HACLGroupEditor.prototype.reload_indirect = function(refresh_hints)
     {
         if (g.length || mg.length)
             this.fill_indirect({ 'members' : g, 'managers' : mg });
-        if (refresh_hints)
-            this.refresh_hints(refresh_hints);
+        if (refresh_hints_what)
+            this.refresh_hints(refresh_hints_what);
     }
 };
 
@@ -279,7 +263,7 @@ HACLGroupEditor.prototype.save = function()
     this.check_errors();
 };
 
-// get autocomplete html code for the case when to_name is empty
+// show current members/groups when user has not yet entered anything to autocomplete
 HACLGroupEditor.prototype.get_empty_hint = function(who, what)
 {
     var pref = who[1]+what[0];
@@ -316,7 +300,6 @@ HACLGroupEditor.prototype.get_empty_hint = function(who, what)
         cur_names.push('*');
         cur_names.push('#');
     }
-    var j = 0;
     var current = [];
     for (var i in cur_names)
     {
@@ -330,98 +313,82 @@ HACLGroupEditor.prototype.get_empty_hint = function(who, what)
                 rn = '#: '+mw.msg('hacl_edit_reg');
             else
                 rn = n = htmlspecialchars(i.replace(/^User:|^Group\//, ''));
-            current.push(
-                '<div id="'+pref+'_'+j+'" class="hacl_ti'+(current_hash[i] ? ' hacl_dis' : '')+'" title="'+n+
-                '"><input style="cursor: pointer" type="checkbox" id="c'+pref+'_'+j+
-                '"'+(current_hash[i] ? ' disabled="disabled"' : '')+
-                (current_hash[i] !== undefined ? ' checked="checked"' : '')+' /> '+
-                rn+' <span id="t'+pref+'_'+j+'">'+(current_hash[i] ? mw.msg('hacl_indirect_through', current_hash[i]) : '')+'</span></div>');
-            j++;
+            current.push([
+                n + ' ' + (current_hash[i] ? mw.msg('hacl_indirect_through', current_hash[i]) : ''), n,
+                current_hash[i] && true, current_hash[i] !== undefined
+            ]);
         }
     }
-    var ht = '<div class="hacl_tt">'+(current.length == 0
+    var prompt = (current.length == 0
         ? mw.msg('hacl_no_'+who+'_'+what)+' '+mw.msg('hacl_start_typing_'+what)
-        : mw.msg('hacl_current_'+who+'_'+what))+'</div>'+current.join('');
-    return ht;
+        : mw.msg('hacl_current_'+who+'_'+what));
+    return [ prompt, current ];
 };
 
 // autocomplete load handler for all autocompleters
-HACLGroupEditor.prototype.load_handler = function(ge, h, v)
+HACLGroupEditor.prototype.load_handler = function(h, v)
 {
-    var what = h.element.id == 'member_groups' || h.element.id == 'manager_groups' ? 'group' : 'user';
-    var who = h.element.id == 'member_groups' || h.element.id == 'member_users' ? 'member' : 'manager';
+    var what = h.input.id == 'member_groups' || h.input.id == 'manager_groups' ? 'group' : 'user';
+    var who = h.input.id == 'member_groups' || h.input.id == 'member_users' ? 'member' : 'manager';
     if (!v.length)
-        h.change_ajax(ge.get_empty_hint(who, what));
+    {
+        var o = this.get_empty_hint(who, what);
+        h.prompt = h.emptyText = o[0];
+        h.replaceItems(o[1]);
+    }
     else
-        sajax_do_call('haclAutocomplete', [ what, v, ge.limit, 1, who[1]+what[0] ],
-            function (request)
-            {
-                if (request.status == 200)
-                {
-                    h.change_ajax(request.responseText);
-                    ge.find_set(who, what == 'group' ? 'Group/' : 'User:', h, h.tip_div);
-                }
-            });
+    {
+        h.prompt = '';
+        h.emptyText = mw.msg('hacl_autocomplete_no_'+what+'s');
+        var self = this;
+        haclt_ajax('haclAutocomplete', [ what, v, self.limit ], function(result)
+        {
+            self.set_item_status(who, what == 'group' ? 'Group/' : 'User:', result);
+            h.replaceItems(result);
+        });
+    }
 };
 
 // called after loading AJAX autocomplete data, sets checked and disabled status for all checkboxes
-HACLGroupEditor.prototype.find_set = function(who, prefix, h, e)
+HACLGroupEditor.prototype.set_item_status = function(who, prefix, items)
 {
     var c, g;
-    for (var i in e.childNodes)
+    for (var i in items)
     {
-        c = e.childNodes[i];
-        if (c.className && c.className.indexOf(h.style_prefix+'_ti') >= 0)
+        c = items[i];
+        if ((g = this['ind_'+who+'s'][prefix+c[1]]) ||
+            (g = this[who+'s']['*'] && '*') ||
+            (g = this[who+'s']['#'] && '#'))
         {
-            var chk = document.getElementById('c'+c.id);
-            if ((g = this['ind_'+who+'s'][prefix+c.title]) ||
-                (g = this[who+'s']['*'] && '*') ||
-                (g = this[who+'s']['#'] && '#'))
-            {
-                chk.checked = true;
-                chk.disabled = true;
-                c.className = 'hacl_ti hacl_dis';
-                document.getElementById('t'+c.id).innerHTML =
-                    mw.msg('hacl_indirect_through', g);
-            }
-            else if (this[who+'s'][prefix+c.title])
-            {
-                chk.checked = true;
-                chk.disabled = false;
-                c.className = 'hacl_ti';
-            }
-            else
-            {
-                chk.checked = false;
-                chk.disabled = false;
-                c.className = 'hacl_ti';
-            }
+            c[0] = c[1] + ' ' + mw.msg('hacl_indirect_through', g);
+            c[2] = c[3] = true;
+        }
+        else if (this[who+'s'][prefix+c[1]])
+        {
+            c[2] = false;
+            c[3] = true;
         }
         else
-            this.find_set(who, prefix, h, c);
+        {
+            c[2] = c[3] = false;
+        }
     }
 };
 
 // handler for selection of autocomplete item
-HACLGroupEditor.prototype.set_handler = function(ge, hint, ev, e)
+HACLGroupEditor.prototype.set_handler = function(hint, index, item)
 {
-    var old_target = ev ? ev.target || ev.srcElement : null;
-    var chk = document.getElementById('c'+e.id);
-    if (chk.disabled)
-        return;
-    if (chk != old_target)
-        chk.checked = !chk.checked;
-    var grp = hint.element.id == 'member_groups' || hint.element.id == 'manager_groups';
-    var hash = hint.element.id == 'member_groups' || hint.element.id == 'member_users'
+    var grp = hint.input.id == 'member_groups' || hint.input.id == 'manager_groups';
+    var hash = hint.input.id == 'member_groups' || hint.input.id == 'member_users'
         ? this.members : this.managers;
-    to = e.title == '*' || e.title == '#' ? e.title : (grp ? 'Group/' : 'User:')+e.title;
-    if (chk.checked)
+    var to = item[1] == '*' || item[1] == '#' ? item[1] : (grp ? 'Group/' : 'User:')+item[1];
+    if (item[3])
         hash[to] = true;
     else
         delete hash[to];
-    ge.save();
+    this.save();
     if (grp || to == '*' || to == '#')
-        ge.reload_indirect('user');
+        this.reload_indirect('user');
 };
 
 // Initialize group editor
@@ -430,24 +397,17 @@ HACLGroupEditor.prototype.set_handler = function(ge, hint, ev, e)
 // id="grp_def" onchange="GE.parse_fill_indirect()"
 HACLGroupEditor.prototype.init = function(initial_group)
 {
-    // use ge.XX instead of this.XX because methods are often called in element or SHint context
-    var ge = this;
+    var self = this;
     // create autocompleters
-    ge.hint_member_users = new SHint('member_users', 'hacl', function(h, v) { ge.load_handler(ge, h, v) });
-    ge.hint_member_groups = new SHint('member_groups', 'hacl', function(h, v) { ge.load_handler(ge, h, v) });
-    ge.hint_manager_users = new SHint('manager_users', 'hacl', function(h, v) { ge.load_handler(ge, h, v) });
-    ge.hint_manager_groups = new SHint('manager_groups', 'hacl', function(h, v) { ge.load_handler(ge, h, v) });
-    ge.hint_member_users.set = function(ev, e) { ge.set_handler(ge, ge.hint_member_users, ev, e) };
-    ge.hint_member_groups.set = function(ev, e) { ge.set_handler(ge, ge.hint_member_groups, ev, e) };
-    ge.hint_manager_users.set = function(ev, e) { ge.set_handler(ge, ge.hint_manager_users, ev, e) };
-    ge.hint_manager_groups.set = function(ev, e) { ge.set_handler(ge, ge.hint_manager_groups, ev, e) };
-    ge.hint_member_users.init();
-    ge.hint_member_groups.init();
-    ge.hint_manager_users.init();
-    ge.hint_manager_groups.init();
+    var set = function(hint, index, item) { self.set_handler(hint, index, item) };
+    var load = function(h, v) { self.load_handler(h, v) };
+    self.hint_member_users = new SimpleAutocomplete('member_users', load, { multipleListener: set });
+    self.hint_member_groups = new SimpleAutocomplete('member_groups', load, { multipleListener: set });
+    self.hint_manager_users = new SimpleAutocomplete('manager_users', load, { multipleListener: set });
+    self.hint_manager_groups = new SimpleAutocomplete('manager_groups', load, { multipleListener: set });
     // init group name
     document.getElementById('grp_name').value = initial_group;
-    ge.name_change(false);
+    self.name_change(false);
     // parse definition
-    ge.parse_fill_indirect();
+    self.parse_fill_indirect();
 };

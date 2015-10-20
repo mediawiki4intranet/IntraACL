@@ -1,4 +1,3 @@
-if (!String.prototype.trim)
     String.prototype.trim = function() { return this.replace(/^\s*/, '').replace(/\s*$/, ''); };
 
 // escape &<>"'
@@ -33,7 +32,7 @@ window.HACLACLEditor = function(params)
     this.last_target_names = {};
     this.last_target_type = '';
 
-    // Autocompleters (SHint's)
+    // SimpleAutocompletes
     this.user_hint = null;
     this.target_hint = null;
     this.inc_hint = null;
@@ -67,19 +66,18 @@ HACLACLEditor.prototype.target_change = function(total_change)
     if (this.last_target_type != what)
     {
         total_change = true;
-        if (this.last_target_type)
+        var old = this.last_target_type;
+        this.last_target_type = what;
+        if (old)
         {
             // remember name for each type separately
-            this.last_target_names[this.last_target_type] = an.value;
+            this.last_target_names[old] = an.value;
             if (this.last_target_names[what])
                 an.value = this.last_target_names[what];
             else
                 an.value = '';
-            this.target_hint.curValue = null; // force SHint refill
-            this.last_target_type = what; // prevent recursion
-            this.target_hint.change_old();
+            this.target_hint.onChange(true); // force SimpleAutocomplete refill
         }
-        this.last_target_type = what;
     }
     var name = an.value.trim();
     if (this.last_target_names[this.last_target_type] &&
@@ -94,14 +92,14 @@ HACLACLEditor.prototype.target_change = function(total_change)
         var pn = document.getElementById('acl_pn');
         t = this.NS_ACL+':'+this.pet_prefixes[what]+'/'+name;
         pn.innerHTML = t;
-        pn.href = wgArticlePath.replace('$1', encodeURI(t));
+        pn.href = mw.config.get('wgArticlePath').replace('$1', encodeURI(t));
         document.getElementById('wpTitle').value = t;
-        document.getElementById('acl_delete_link').href = wgScript + '?title=' + encodeURI(t) + '&action=delete';
+        document.getElementById('acl_delete_link').href = mw.config.get('wgScript') + '?title=' + encodeURI(t) + '&action=delete';
         var ae = this;
         if (total_change)
         {
             // Retrieve SD status and embedded content list
-            sajax_do_call('haclSDExists_GetEmbedded', [ what, name ], function(request) { ae.ajax_sd_exists(request) });
+            haclt_ajax('haclSDExists_GetEmbedded', [ what, name ], function(result) { ae.ajax_sd_exists(result) });
         }
     }
     else
@@ -120,11 +118,8 @@ HACLACLEditor.prototype.target_change = function(total_change)
 };
 
 // haclSDExists_GetEmbedded callback
-HACLACLEditor.prototype.ajax_sd_exists = function(request)
+HACLACLEditor.prototype.ajax_sd_exists = function(data)
 {
-    if (request.status != 200)
-        return;
-    var data = eval('('+request.responseText+')'); // json parse
     // Check if the SD exists
     document.getElementById('acl_exists_hint').style.display = data.exists ? '' : 'none';
     document.getElementById('acl_delete_link').style.display = data.exists ? '' : 'none';
@@ -135,7 +130,7 @@ HACLACLEditor.prototype.ajax_sd_exists = function(request)
     if (data.canon && data.canon != cur)
     {
         nc.style.display = '';
-        nc.innerHTML = mw.msg('hacl_non_canonical_acl', wgArticlePath.replace('$1',
+        nc.innerHTML = mw.msg('hacl_non_canonical_acl', mw.config.get('wgArticlePath').replace('$1',
             'Special:MovePage/'+cur+'?wpLeaveRedirect=0&wpNewTitle='+encodeURIComponent(data.canon)), data.canon, cur);
     }
     else
@@ -259,7 +254,7 @@ HACLACLEditor.prototype.check_errors = function()
     var has_managers = false, has_rights = false;
     var merge = [ this.rights_direct, this.rights_indirect ];
     var dontlose = false;
-    var curUser = 'User:'+mediaWiki.config.get('wgUserName');
+    var curUser = 'User:'+mw.config.get('wgUserName');
     for (var h in merge)
     {
         h = merge[h];
@@ -296,11 +291,8 @@ HACLACLEditor.prototype.check_errors = function()
 };
 
 // fill in this.rights_direct with closure data
-HACLACLEditor.prototype.closure_ajax = function(request)
+HACLACLEditor.prototype.closure_ajax = function(d)
 {
-    if (request.status != 200)
-        return;
-    var d = eval('('+request.responseText+')'); // JSON parse
     if (d && d['groups'])
         for (var g in d['groups'])
             this.group_cache[g] = d['groups'][g];
@@ -385,10 +377,10 @@ HACLACLEditor.prototype.fill_closure = function()
     }
     if (fetch.length || fetch_sd.length)
     {
-        sajax_do_call(
+        haclt_ajax(
             'haclGroupClosure',
             [ fetch.join(','), fetch_sd.join('[') ],
-            function(request) { ge.closure_ajax(request); ge.closure_groups_sd(g, sd); ge.check_errors(); }
+            function(result) { ge.closure_ajax(result); ge.closure_groups_sd(g, sd); ge.check_errors(); }
         );
     }
     else
@@ -496,7 +488,7 @@ HACLACLEditor.prototype.to_type_change = function()
     document.getElementById('to_name').value = '';
     this.to_name_change();
     // force refresh hint (for the case when value didn't change)
-    this.user_hint.fill_handler(this.user_hint, '');
+    this.user_hint.onChange(true);
 };
 
 // additional onchange for to_name - load to_name's rights from this.rights_indirect
@@ -506,7 +498,7 @@ HACLACLEditor.prototype.to_name_change = function()
     var goto_link = document.getElementById('hacl_to_goto');
     if (g_to && g_to.substr(0, 6) == 'Group/')
     {
-        goto_link.href = wgArticlePath.replace('$1', this.NS_ACL+':'+this.group_prefix+'/'+encodeURI(g_to.substr(6)));
+        goto_link.href = mw.config.get('wgArticlePath').replace('$1', this.NS_ACL+':'+this.group_prefix+'/'+encodeURI(g_to.substr(6)));
         goto_link.title = mw.msg('hacl_edit_goto_group', g_to.substr(6));
         goto_link.style.display = '';
     }
@@ -617,8 +609,8 @@ HACLACLEditor.prototype.grant = function(g_to, g_act, g_yes)
         this.fill_closure();
 };
 
-// get autocomplete html code for the case when to_name is empty
-HACLACLEditor.prototype.get_empty_hint = function()
+// show involved users/groups when user has not yet entered anything to autocomplete
+HACLACLEditor.prototype.get_involved = function()
 {
     var tt = document.getElementById('to_type').value;
     var involved = [], n, j = 0;
@@ -643,63 +635,59 @@ HACLACLEditor.prototype.get_empty_hint = function()
             if (n != '*' && n != '#' &&
                 (tt == 'group') == (n.substr(0, 6) == 'Group/'))
             {
-                n = htmlspecialchars(n.replace(/^User:|^Group\//, ''));
-                involved.push('<div id="hi_'+(++j)+'" class="hacl_ti" title="'+n+'">'+n+'</div>');
+                n = n.replace(/^User:|^Group\//, '');
+                involved.push([ htmlspecialchars(n), n ]);
             }
         }
     }
+    var prompt;
     if (!involved.length)
-        return '<div class="hacl_tt">'+mw.msg('hacl_edit_no_'+tt+'s_affected')+' '+mw.msg('hacl_start_typing_'+tt)+'</div>';
-    return '<div class="hacl_tt">'+mw.msg('hacl_edit_'+tt+'s_affected')+'</div>'+involved.join('');
+        prompt = mw.msg('hacl_edit_no_'+tt+'s_affected')+' '+mw.msg('hacl_start_typing_'+tt);
+    else
+        prompt = mw.msg('hacl_edit_'+tt+'s_affected');
+    return [ prompt, involved ];
 };
 
 HACLACLEditor.prototype.user_hint_fill = function(h, v)
 {
     if (!v.length)
-        h.change_ajax(this.get_empty_hint());
+    {
+        var o = this.get_involved();
+        h.prompt = h.emptyText = o[0];
+        h.replaceItems(o[1]);
+    }
     else
-        sajax_do_call('haclAutocomplete', [ document.getElementById('to_type').value, v, 11, 0, 'userhintitem' ],
-            function (request) { if (request.status == 200) h.change_ajax(request.responseText) })
-};
-
-HACLACLEditor.prototype.user_hint_change = function(h)
-{
-    // onchange for to_name
-    if (!this.user_hint.element.value.trim())
-        this.user_hint.msg_hint = this.get_empty_hint();
-    var wv = document.getElementById('to_type').value;
-    this.user_hint.element.style.display = wv == '*' || wv == '#' ? 'none' : '';
-    if (wv == '*' || wv == '#')
-        this.user_hint.focus(false);
-    else
-        this.user_hint.change_old();
+    {
+        h.prompt = '';
+        h.emptyText = mw.msg('hacl_autocomplete_no_users');
+        haclt_ajax(
+            'haclAutocomplete', [ document.getElementById('to_type').value, v, 11 ],
+            function(result) { h.replaceItems(result); }
+        );
+    }
 };
 
 HACLACLEditor.prototype.target_hint_fill = function (h, v)
 {
     var wv = document.getElementById('acl_what').value;
     if (wv == 'right')
+    {
+        // do not hint template targets
+        h.emptyText = '';
+        h.replaceItems([]);
         return;
+    }
+    h.emptyText = mw.msg('hacl_start_typing_'+wv);
     // Always show autocomplete for namespaces
     if (wv != 'namespace' && !v.length)
-        h.tip_div.innerHTML = '<div class="hacl_tt">'+mw.msg('hacl_start_typing_'+wv)+'</div>';
+        h.replaceItems([]);
     else
-        sajax_do_call('haclAutocomplete', [ wv, v, 11, 0, 'targethintitem' ],
-            function (request) { if (request.status == 200) h.change_ajax(request.responseText) })
-};
-
-HACLACLEditor.prototype.target_hint_focus = function(f)
-{
-    this.target_hint.tip_div.style.display =
-        this.last_target_type != 'right'
-        && (f || this.target_hint.nodefocus) ? '' : 'none';
-    this.target_hint.nodefocus = undefined;
+        haclt_ajax('haclAutocomplete', [ wv, v, 11 ], function(result) { h.replaceItems(result) });
 };
 
 HACLACLEditor.prototype.inc_hint_fill = function(h, v)
 {
-    sajax_do_call('haclAutocomplete', [ 'sd', v, 11, 0, 'inchintitem' ],
-        function (request) { if (request.status == 200) h.change_ajax(request.responseText) })
+    haclt_ajax('haclAutocomplete', [ 'sd', v, 11 ], function(result) { h.replaceItems(result) });
 };
 
 // Initialize ACL editor
@@ -716,31 +704,22 @@ HACLACLEditor.prototype.init = function(aclTitle, aclType, aclExists)
         else
             document.getElementById('acl_what_right').selected = true;
     }
-    // use ge.XX instead of this.XX because methods are often called in element or SHint context
-    var ge = this;
+    var self = this;
     // create autocompleter for user/group name
-    this.user_hint = new SHint('to_name', 'hacl', function(h, v) { ge.user_hint_fill(h, v) });
-    this.user_hint.change_old = this.user_hint.change;
-    this.user_hint.change = function(ev) { ge.user_hint_change() };
-    this.user_hint.onset = function(ev, e) { ge.to_name_change() };
-    this.user_hint.init();
-    exAttach('to_name', 'change', function(ev, e) { ge.to_name_change() });
+    this.user_hint = new SimpleAutocomplete('to_name', function(h, v) { self.user_hint_fill(h, v) }, {
+        onChangeListener: function() { self.to_name_change() }
+    });
+    addListener(document.getElementById('to_name'), 'change', function(ev, e) { self.to_name_change() });
     // init protection target
     this.target_change();
     this.parse_make_closure();
     // create autocompleter for protection target
-    this.target_hint = new SHint('acl_name', 'hacl', function(h, v) { ge.target_hint_fill(h, v) });
-    this.target_hint.change_old = this.target_hint.change;
-    this.target_hint.change = function(ev) { ge.target_change(!ev); ge.target_hint.change_old(); };
-    this.target_hint.h_blur = function(ev) { ge.target_change(true); ge.target_hint.focus(false); return 1; };
-    // do not hint template targets
-    this.target_hint.focus = function(f) { ge.target_hint_focus(f) };
-    this.target_hint.onset = function(ev, e) { ge.target_change(ev, e) };
-    this.target_hint.max_height = 400;
-    this.target_hint.init();
+    this.target_hint = new SimpleAutocomplete('acl_name', function(h, v) { self.target_hint_fill(h, v) }, {
+        onChangeListener: function() { self.target_change(true) }
+    });
+    addListener(document.getElementById('acl_name'), 'change', function(ev) { self.target_change(true) });
     // create autocompleter for ACL inclusion
-    this.inc_hint = new SHint('inc_acl', 'hacl', function(h, v) { ge.inc_hint_fill(h, v) });
-    this.inc_hint.init();
+    this.inc_hint = new SimpleAutocomplete('inc_acl', function(h, v) { self.inc_hint_fill(h, v) });
     document.getElementById('acl_exists_hint').style.display = aclExists ? '' : 'none';
     document.getElementById('acl_delete_link').style.display = aclExists ? '' : 'none';
     this.check_errors();

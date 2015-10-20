@@ -71,7 +71,6 @@
 </form>
 
 <script language="JavaScript">
-var AE;
 mw.loader.using([ 'jquery.async', 'ext.intraacl.acleditor' ], function()
 {
     var petPrefixes = {
@@ -90,7 +89,7 @@ mw.loader.using([ 'jquery.async', 'ext.intraacl.acleditor' ], function()
     }
     ?>
     };
-    AE = new HACLACLEditor({
+    window.AE = new HACLACLEditor({
         NS_ACL: '<?= $wgContLang->getNsText(HACL_NS_ACL) ?>',
         group_prefix: 'Group',
         petPrefixes: petPrefixes,
@@ -99,5 +98,5 @@ mw.loader.using([ 'jquery.async', 'ext.intraacl.acleditor' ], function()
         initialType: '<?= $aclPEType ? IACL::$typeToName[$aclPEType] : NULL ?>',
         initialExists: <?= $aclArticle ? 1 : 0 ?>
     });
-});
+}, function(error) { console.log(error); });
 </script>

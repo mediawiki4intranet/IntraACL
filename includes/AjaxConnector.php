@@ -38,7 +38,7 @@ $wgAjaxExportList[] = 'haclSDExists_GetEmbedded';
 $wgAjaxExportList[] = 'haclGrouplist';
 $wgAjaxExportList[] = 'haclGroupExists';
 
-function haclAutocomplete($t, $n, $limit = 11, $add_checkboxes = false, $item_prefix = false)
+function haclAutocomplete($t, $n, $limit = 11)
 {
     global $haclgContLang;
     if (!$limit)
@@ -187,48 +187,11 @@ function haclAutocomplete($t, $n, $limit = 11, $add_checkboxes = false, $item_pr
             $a[] = array($n, $n);
         }
     }
-    // No items
-    if (!$a)
-    {
-        return '<div class="hacl_tt">'.wfMsg('hacl_autocomplete_no_'.$t.'s').'</div>';
-    }
-    // More than (limit-1) items => add '...' at the end of list
-    $max = false;
-    if (count($a) >= $limit)
-    {
-        array_pop($a);
-        $max = true;
-    }
-    $i = 0;
-    $html = '';
-    $ip = $item_prefix ? $item_prefix . '_' : 'item';
-    if ($add_checkboxes)
-    {
-        // This is used by Group Editor: display autocomplete list with checkboxes
-        foreach ($a as $item)
-        {
-            $i++;
-            $html .= '<div id="'.$ip.$i.'" class="hacl_ti" title="'.
-                htmlspecialchars($item[1]).'"><input style="cursor: pointer" type="checkbox" id="c'.$ip.$i.
-                '" /> '.htmlspecialchars($item[0]).' <span id="t'.$ip.$i.'"></span></div>';
-        }
-    }
-    else
-    {
-        // This is used by ACL Editor: simple autocomplete lists for editboxes
-        foreach ($a as $item)
-        {
-            $i++;
-            $html .= '<div id="'.$ip.$i.'" class="hacl_ti" title="'.
-                htmlspecialchars($item[1]).'">'.
-                htmlspecialchars($item[0]).'</div>';
-        }
-    }
-    if ($max)
-    {
-        $html .= '<div class="hacl_tt">...</div>';
-    }
-    return $html;
+    foreach ($a as &$row)
+        $row[0] = htmlspecialchars($row[0]);
+    header("Content-Type: application/json; charset=utf-8");
+    print json_encode($a, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+    exit;
 }
 
 function haclAcllist()

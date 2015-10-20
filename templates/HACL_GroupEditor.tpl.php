@@ -54,13 +54,12 @@
 <p id="grp_define_manager" class="acl_error" style="display: none"><?= wfMsg('hacl_grp_define_managers') ?></p>
 
 <script language="JavaScript">
-var GE;
 mw.loader.using([ 'jquery.async', 'ext.intraacl.groupeditor' ], function()
 {
-    GE = new HACLGroupEditor(
+    window.GE = new HACLGroupEditor(
         '<?= $wgContLang->getNsText(HACL_NS_ACL) ?>',
         'Group',
         "<?= addslashes($grpName) ?>"
     );
-});
+}, function(error) { console.log(error); });
 </script>

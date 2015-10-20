@@ -72,10 +72,11 @@ function enableIntraACL()
         ),
     );
     $wgResourceModules['ext.intraacl.acleditor'] = $mod + array(
+        'styles' => array(
+            'hinter.css',
+        ),
         'scripts' => array(
-            'exAttach.js',
-            'offsetRect.js',
-            'SHint.js',
+            'hinter.js',
             'HACL_ACLEditor.js',
             'HACL_Toolbar.js',
         ),
@@ -114,11 +115,13 @@ function enableIntraACL()
         ),
     );
     $wgResourceModules['ext.intraacl.groupeditor'] = $mod + array(
+        'styles' => array(
+            'hinter.css',
+        ),
         'scripts' => array(
-            'exAttach.js',
-            'offsetRect.js',
-            'SHint.js',
+            'hinter.js',
             'HACL_GroupEditor.js',
+            'HACL_Toolbar.js',
         ),
         'messages' => array(
             'hacl_grp_save',

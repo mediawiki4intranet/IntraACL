@@ -10,7 +10,8 @@
 <script language="JavaScript">
 function change_filter(chk)
 {
-    sajax_do_call('haclGrouplist', [ document.getElementById('acl_filter').value, document.getElementById('acl_not_filter').value ],
+    sajax_do_call('haclGrouplist',
+        [ document.getElementById('acl_filter').value, document.getElementById('acl_not_filter').value ],
         function(request) { document.getElementById('acl_list').innerHTML = request.responseText; }
     );
 }
