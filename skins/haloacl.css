@@ -1,5 +1,5 @@
 /* styles used by IntraACL special page */
-.acle select { vertical-align: baseline; }
+.acle select, .acle input.txt { vertical-align: middle; height: 25px; padding: 0; box-sizing: border-box; font-size: 100%; }
 .acle p { margin: 0 0 8px 0; text-align: left; }
 div#content .acle p { margin: 0 0 8px 0; text-align: left; }
 p.inactive, p.inactive input, p.inactive select { color: gray; }

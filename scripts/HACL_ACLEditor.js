@@ -1,4 +1,4 @@
-    String.prototype.trim = function() { return this.replace(/^\s*/, '').replace(/\s*$/, ''); };
+String.prototype.trim = function() { return this.replace(/^\s*/, '').replace(/\s*$/, ''); };
 
 // escape &<>"'
 var htmlspecialchars = function(s)
@@ -709,7 +709,7 @@ HACLACLEditor.prototype.init = function(aclTitle, aclType, aclExists)
     this.user_hint = new SimpleAutocomplete('to_name', function(h, v) { self.user_hint_fill(h, v) }, {
         onChangeListener: function() { self.to_name_change() }
     });
-    addListener(document.getElementById('to_name'), 'change', function(ev, e) { self.to_name_change() });
+    addListener(this.user_hint.input, 'change', function(ev, e) { self.to_name_change() });
     // init protection target
     this.target_change();
     this.parse_make_closure();
@@ -717,10 +717,12 @@ HACLACLEditor.prototype.init = function(aclTitle, aclType, aclExists)
     this.target_hint = new SimpleAutocomplete('acl_name', function(h, v) { self.target_hint_fill(h, v) }, {
         onChangeListener: function() { self.target_change(true) }
     });
-    addListener(document.getElementById('acl_name'), 'change', function(ev) { self.target_change(true) });
+    addListener(this.target_hint.input, 'change', function(ev) { self.target_change(true) });
     // create autocompleter for ACL inclusion
     this.inc_hint = new SimpleAutocomplete('inc_acl', function(h, v) { self.inc_hint_fill(h, v) });
     document.getElementById('acl_exists_hint').style.display = aclExists ? '' : 'none';
     document.getElementById('acl_delete_link').style.display = aclExists ? '' : 'none';
     this.check_errors();
 }
+
+window.AE = new HACLACLEditor(mw.config.get('aclEditor'));

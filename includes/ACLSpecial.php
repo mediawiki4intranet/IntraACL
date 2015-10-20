@@ -517,7 +517,18 @@ class IntraACLSpecial extends SpecialPage
         $html = ob_get_contents();
         ob_end_clean();
         $wgOut->setPageTitle(wfMsg('hacl_acllist'));
+        $wgOut->addModules('ext.intraacl.acllist');
         $wgOut->addHTML($html);
+        $cfg = array();
+        foreach ($this->aclTargetTypes as $t => $a)
+        {
+            foreach ($a as $k => $v)
+            {
+                $cfg['aclTypeGroups'][$t][$k] = true;
+                $cfg['aclTypeGroups']['all'][$k] = true;
+            }
+        }
+        $wgOut->addHTML(Skin::makeVariablesScript($cfg));
     }
 
     /**
@@ -554,20 +565,25 @@ class IntraACLSpecial extends SpecialPage
         $html = ob_get_contents();
         ob_end_clean();
         if ($aclArticle)
-        {
             $msg = 'hacl_acl_edit';
-        }
         elseif ($aclTitle)
-        {
             $msg = 'hacl_acl_create_title';
-        }
         else
-        {
             $msg = 'hacl_acl_create';
-        }
-        $wgOut->addModules('ext.intraacl.acleditor');
         $wgOut->setPageTitle(wfMsg($msg, $aclTitle ? $aclTitle->getText() : ''));
+        $wgOut->addModules('ext.intraacl.acleditor');
         $wgOut->addHTML($html);
+        $cfg = array(
+            'NS_ACL' => $wgContLang->getNsText(HACL_NS_ACL),
+            'group_prefix' => 'Group',
+            'isSysop' => $this->isAdmin && true,
+            'initialTitle' => $aclTitle ? $aclTitle->getText() : '',
+            'initialType' => ($aclPEType == IACL::PE_SPECIAL ? IACL::$typeToName[IACL::PE_PAGE] : ($aclPEType ? IACL::$typeToName[$aclPEType] : NULL)),
+            'initialExists' => $aclArticle && true,
+        );
+        foreach ($haclgContLang->getPetPrefixes() as $k => $v)
+            $cfg['petPrefixes'][IACL::$typeToName[$k]] = $v;
+        $wgOut->addHTML(Skin::makeVariablesScript(array('aclEditor' => $cfg)));
     }
 
     /**
@@ -675,6 +691,7 @@ class IntraACLSpecial extends SpecialPage
         $html = ob_get_contents();
         ob_end_clean();
         $wgOut->setPageTitle(wfMsg('hacl_grouplist'));
+        $wgOut->addModules('ext.intraacl.grouplist');
         $wgOut->addHTML($html);
     }
 
@@ -709,6 +726,11 @@ class IntraACLSpecial extends SpecialPage
         $wgOut->addModules('ext.intraacl.groupeditor');
         $wgOut->setPageTitle($grpTitle ? wfMsg('hacl_grp_editing', $grpTitle->getText()) : wfMsg('hacl_grp_creating'));
         $wgOut->addHTML($html);
+        $cfg = array(
+            'NS_ACL' => $wgContLang->getNsText(HACL_NS_ACL),
+            'grpName' => $grpName,
+        );
+        $wgOut->addHTML(Skin::makeVariablesScript(array('aclGroupEditor' => $cfg)));
     }
 
     /**

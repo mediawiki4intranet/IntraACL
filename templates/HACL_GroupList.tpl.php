@@ -6,14 +6,3 @@
 <div id="acl_list" style="border: 1px solid gray; width: 500px; height: 500px; padding: 5px; overflow-y: scroll; overflow: -moz-scrollbars-vertical; float: left"></div>
 
 <div style="clear: both"></div>
-
-<script language="JavaScript">
-function change_filter(chk)
-{
-    sajax_do_call('haclGrouplist',
-        [ document.getElementById('acl_filter').value, document.getElementById('acl_not_filter').value ],
-        function(request) { document.getElementById('acl_list').innerHTML = request.responseText; }
-    );
-}
-$(document).ready(function() { change_filter() });
-</script>

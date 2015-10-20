@@ -1,5 +1,5 @@
-/* json ajax shim for IntraACL (shared with HACL_ACLEditor.js and HACL_GroupEditor.js) */
-window.haclt_ajax = function(action, params, callback)
+/* json ajax shim for IntraACL (shared with all other scripts) */
+window.haclt_ajax = function(action, params, callback, dataType)
 {
 	$.ajax({
 		type: "POST",
@@ -9,7 +9,7 @@ window.haclt_ajax = function(action, params, callback)
 			rs: action,
 			rsargs: params
 		},
-		dataType: 'json',
+		dataType: (dataType||'json'),
 		success: callback
 	});
 };

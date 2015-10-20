@@ -63,22 +63,42 @@ function enableIntraACL()
     // Register resource modules
     global $wgResourceModules;
     $mod = array(
-        'localBasePath' => dirname(__DIR__) . '/scripts',
-        'remoteExtPath' => 'IntraACL/scripts',
+        'localBasePath' => dirname(__DIR__),
+        'remoteExtPath' => 'IntraACL',
         'group' => 'ext.intraacl',
-        'dependencies' => array(
-            'mediawiki.legacy.wikibits',
-            'mediawiki.legacy.ajax',
+        'dependencies' => array('ext.intraacl.common'),
+    );
+    $wgResourceModules['ext.intraacl.common'] = array(
+        'dependencies' => array(),
+        'scripts' => array(
+            'scripts/HACL_Toolbar.js',
+        ),
+    ) + $mod;
+    $wgResourceModules['ext.intraacl.toolbar'] = $mod + array(
+        'styles' => array(
+            'skins/haloacl_toolbar.css',
+        ),
+        'position' => 'top',
+    );
+    $wgResourceModules['ext.intraacl.acllist'] = $mod + array(
+        'scripts' => array(
+            'scripts/HACL_ACLList.js',
+        ),
+    );
+    $wgResourceModules['ext.intraacl.grouplist'] = $mod + array(
+        'scripts' => array(
+            'scripts/HACL_Toolbar.js',
+            'scripts/HACL_GroupList.js',
         ),
     );
     $wgResourceModules['ext.intraacl.acleditor'] = $mod + array(
         'styles' => array(
-            'hinter.css',
+            'skins/hinter.css',
         ),
         'scripts' => array(
-            'hinter.js',
-            'HACL_ACLEditor.js',
-            'HACL_Toolbar.js',
+            'scripts/hinter.js',
+            'scripts/HACL_Toolbar.js',
+            'scripts/HACL_ACLEditor.js',
         ),
         'messages' => array(
             'hacl_edit_save',
@@ -116,12 +136,12 @@ function enableIntraACL()
     );
     $wgResourceModules['ext.intraacl.groupeditor'] = $mod + array(
         'styles' => array(
-            'hinter.css',
+            'skins/hinter.css',
         ),
         'scripts' => array(
-            'hinter.js',
-            'HACL_GroupEditor.js',
-            'HACL_Toolbar.js',
+            'scripts/hinter.js',
+            'scripts/HACL_Toolbar.js',
+            'scripts/HACL_GroupEditor.js',
         ),
         'messages' => array(
             'hacl_grp_save',

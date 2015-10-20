@@ -9,7 +9,7 @@
    <input type="hidden" name="wpSave" value="Save" />
    <p>
     <b><?= wfMsg('hacl_grp_name') ?></b>
-    <input type="text" id="grp_name" style="width: 200px" onchange="GE.name_change(true)" onkeyup="GE.name_change()"  />
+    <input type="text" class="txt" id="grp_name" style="width: 200px" onchange="GE.name_change(true)" onkeyup="GE.name_change()"  />
    </p>
    <p><b><?= wfMsg('hacl_grp_definition_text') ?></b></p>
    <p><textarea id="grp_def" name="wpTextbox1" rows="6" style="width: 500px" onchange="GE.parse_fill_indirect()"><?= $grpTitle ? htmlspecialchars($grpArticle->getText()) : '' ?></textarea></p>
@@ -22,22 +22,22 @@
    </tr>
    <tr>
     <th><?= wfMsg('hacl_grp_users') ?></th>
-    <td><input type="text" id="member_users" style="width: 200px" autocomplete="off" /></td>
+    <td><input type="text" class="txt" id="member_users" style="width: 200px" autocomplete="off" /></td>
    </tr>
    <tr>
     <th><?= wfMsg('hacl_grp_groups') ?></th>
-    <td><input type="text" id="member_groups" style="width: 200px" autocomplete="off" /></td>
+    <td><input type="text" class="txt" id="member_groups" style="width: 200px" autocomplete="off" /></td>
    </tr>
    <tr>
     <th colspan="2"><?= wfMsg('hacl_grp_managers') ?></th>
    </tr>
    <tr>
     <th><?= wfMsg('hacl_grp_users') ?></th>
-    <td><input type="text" id="manager_users" style="width: 200px" autocomplete="off" /></td>
+    <td><input type="text" class="txt" id="manager_users" style="width: 200px" autocomplete="off" /></td>
    </tr>
    <tr>
     <th><?= wfMsg('hacl_grp_groups') ?></th>
-    <td><input type="text" id="manager_groups" style="width: 200px" autocomplete="off" /></td>
+    <td><input type="text" class="txt" id="manager_groups" style="width: 200px" autocomplete="off" /></td>
    </tr>
   </table>
  </td>
@@ -52,14 +52,3 @@
 <p id="grp_exists_hint" class="acl_info" style="display: none"><?= wfMsg('hacl_grp_exists') ?></p>
 <p id="grp_define_member" class="acl_error" style="display: none"><?= wfMsg('hacl_grp_define_members') ?></p>
 <p id="grp_define_manager" class="acl_error" style="display: none"><?= wfMsg('hacl_grp_define_managers') ?></p>
-
-<script language="JavaScript">
-mw.loader.using([ 'jquery.async', 'ext.intraacl.groupeditor' ], function()
-{
-    window.GE = new HACLGroupEditor(
-        '<?= $wgContLang->getNsText(HACL_NS_ACL) ?>',
-        'Group',
-        "<?= addslashes($grpName) ?>"
-    );
-}, function(error) { console.log(error); });
-</script>

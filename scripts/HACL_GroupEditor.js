@@ -411,3 +411,5 @@ HACLGroupEditor.prototype.init = function(initial_group)
     // parse definition
     self.parse_fill_indirect();
 };
+
+window.GE = new HACLGroupEditor(mw.config.get('aclGroupEditor').NS_ACL, 'Group', mw.config.get('aclGroupEditor').grpName);

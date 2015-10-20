@@ -271,13 +271,10 @@ class IACLToolbar
 
     /**
      * Add toolbar head-items to $out
-     * FIXME: Use ResourceLoader
      */
     public static function addToolbarLinks($out)
     {
-        global $haclgHaloScriptPath;
-        $out->addHeadItem('hacl_toolbar_js', '<script type="text/javascript" src="' . $haclgHaloScriptPath . '/scripts/HACL_Toolbar.js"></script>');
-        $out->addHeadItem('hacl_toolbar_css', '<link rel="stylesheet" type="text/css" media="screen, projection" href="'.$haclgHaloScriptPath.'/skins/haloacl_toolbar.css" />');
+        $out->addModules('ext.intraacl.toolbar');
     }
 
     /**

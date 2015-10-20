@@ -197,13 +197,15 @@ function haclAutocomplete($t, $n, $limit = 11)
 function haclAcllist()
 {
     $a = func_get_args();
-    return call_user_func_array(array('IntraACLSpecial', 'haclAcllist'), $a);
+    print call_user_func_array(array('IntraACLSpecial', 'haclAcllist'), $a);
+    exit;
 }
 
 function haclGrouplist()
 {
     $a = func_get_args();
-    return call_user_func_array(array('IntraACLSpecial', 'haclGrouplist'), $a);
+    print call_user_func_array(array('IntraACLSpecial', 'haclGrouplist'), $a);
+    exit;
 }
 
 /**

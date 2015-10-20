@@ -12,7 +12,7 @@ based on HaloACL, correcting its endless bugs and inconveniences.
 
 == REQUIREMENTS ==
 
-* MediaWiki 1.19-1.25
+* MediaWiki 1.19-1.26 (and also maybe later versions)
 * PHP >= 5.3
 * MySQL/MariaDB >= 5.1
 

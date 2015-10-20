@@ -19,7 +19,7 @@
      </optgroup>
     <?php } ?>
    </select>
-   <input type="text" autocomplete="off" id="acl_name" style="width: 290px" />
+   <input type="text" class="txt" autocomplete="off" id="acl_name" style="width: 290px" />
   </p>
  </td>
  <td style="vertical-align: top">
@@ -31,7 +31,7 @@
     <option value="*"><?= wfMsg('hacl_edit_all') ?></option>
     <option value="#"><?= wfMsg('hacl_edit_reg') ?></option>
    </select>
-   <input type="text" id="to_name" style="width: 200px" autocomplete="off" />
+   <input type="text" class="txt" id="to_name" style="width: 200px" autocomplete="off" />
    <a id="hacl_to_goto" href="#" target="_blank" style="display: none" title="">
     <img src="<?= $wgScriptPath ?>/skins/monobook/external-ltr.png" width="10" height="10" alt="&rarr;" />
    </a>
@@ -52,7 +52,7 @@
   </p>
   <p>
    <label for="inc_acl"><?= wfMsg('hacl_edit_include_right') ?></label>
-   <input type="text" id="inc_acl" />
+   <input type="text" class="txt" id="inc_acl" />
    <input type="button" value="<?= wfMsg('hacl_edit_include_do') ?>" onclick="AE.include_acl()" />
   </p>
   <div id="acl_embed" style="display: none"></div>
@@ -69,34 +69,3 @@
 <p id="acl_define_manager" class="acl_error"></p>
 <p id="acl_non_canonical" class="acl_error"></p>
 </form>
-
-<script language="JavaScript">
-mw.loader.using([ 'jquery.async', 'ext.intraacl.acleditor' ], function()
-{
-    var petPrefixes = {
-    <?php
-    $i = 0;
-    foreach($haclgContLang->getPetPrefixes() as $k => $v)
-    {
-        if ($i++) print ",";
-        $k = IACL::$typeToName[$k];
-        $v = addslashes($v);
-        print "'$k' : '$v'\n";
-    }
-    if ($aclPEType == IACL::PE_SPECIAL)
-    {
-        $aclPEType = IACL::PE_PAGE;
-    }
-    ?>
-    };
-    window.AE = new HACLACLEditor({
-        NS_ACL: '<?= $wgContLang->getNsText(HACL_NS_ACL) ?>',
-        group_prefix: 'Group',
-        petPrefixes: petPrefixes,
-        isSysop: <?= $this->isAdmin ? 1 : 0 ?>,
-        initialTitle: "<?= $aclTitle ? addslashes($aclTitle->getText()) : '' ?>",
-        initialType: '<?= $aclPEType ? IACL::$typeToName[$aclPEType] : NULL ?>',
-        initialExists: <?= $aclArticle ? 1 : 0 ?>
-    });
-}, function(error) { console.log(error); });
-</script>
