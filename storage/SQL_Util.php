@@ -119,23 +119,45 @@ class IntraACL_SQL_Util
         {
             $cats[$c->getDBkey()] = $c;
         }
-        // Get subcategories
-        $res = $dbr->select(
-            array('p' => 'page', 'cp' => 'page', 'c' => 'category_closure'), 'p.*',
-            array(
-                'p.page_id=c.page_id',
-                'c.category_id=cp.page_id',
-                'cp.page_namespace' => NS_CATEGORY,
-                'cp.page_title' => array_keys($cats),
-                'p.page_namespace' => NS_CATEGORY
-            ), __METHOD__
-        );
-        foreach ($res as $row)
+        if ($dbr instanceof DatabaseMysql)
         {
-            if (empty($cats[$row->page_title]))
+            // Get subcategories
+            $res = $dbr->select(
+                array('p' => 'page', 'cp' => 'page', 'c' => 'category_closure'), 'p.*',
+                array(
+                    'p.page_id=c.page_id',
+                    'c.category_id=cp.page_id',
+                    'cp.page_namespace' => NS_CATEGORY,
+                    'cp.page_title' => array_keys($cats),
+                    'p.page_namespace' => NS_CATEGORY
+                ), __METHOD__
+            );
+            foreach ($res as $row)
             {
-                $categories[] = $row->page_title;
-                $cats[$row->page_title] = Title::newFromRow($row);
+                if (empty($cats[$row->page_title]))
+                {
+                    $cats[$row->page_title] = Title::newFromRow($row);
+                }
+            }
+        }
+        else
+        {
+            $categories = array_keys($cats);
+            // Get subcategories
+            while ($categories)
+            {
+                $res = $dbr->select(array('p' => 'page', 'categorylinks'), 'p.*',
+                    array('cl_from=page_id', 'cl_to' => $categories, 'page_namespace' => NS_CATEGORY),
+                    __METHOD__);
+                $categories = array();
+                foreach ($res as $row)
+                {
+                    if (empty($cats[$row->page_title]))
+                    {
+                        $categories[] = $row->page_title;
+                        $cats[$row->page_title] = Title::newFromRow($row);
+                    }
+                }
             }
         }
         return array_values($cats);
@@ -155,6 +177,28 @@ class IntraACL_SQL_Util
         }
         $dbr = wfGetDB(DB_SLAVE);
         $ids = array();
+        if (!($dbr instanceof DatabaseMysql))
+        {
+            $new = is_array($articleID) ? $articleID : array($articleID);
+            while ($new)
+            {
+                $res = $dbr->select(
+                    array('categorylinks', 'page'), 'page_id',
+                    array('cl_from' => $new, 'cl_to=page_title', 'page_namespace' => NS_CATEGORY),
+                    __METHOD__
+                );
+                $new = array();
+                foreach ($res as $row)
+                {
+                    if (!isset($ids[$row->page_id]))
+                    {
+                        $ids[$row->page_id] = true;
+                        $new[] = $row->page_id;
+                    }
+                }
+            }
+            return array_keys($ids);
+        }
         $res = $dbr->select('category_closure', 'category_id', array('page_id' => $articleID), __METHOD__);
         foreach ($res as $row)
         {

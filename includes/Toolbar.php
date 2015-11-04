@@ -317,7 +317,7 @@ class IACLToolbar
             'pe_type' => IACL::PE_CATEGORY,
             'child_type' => IACL::PE_USER,
             'child_id' => $uid,
-            '(actions & '.(IACL::ACTION_READ | (IACL::ACTION_READ << IACL::INDIRECT_OFFSET)).')',
+            '(actions & '.(IACL::ACTION_READ | (IACL::ACTION_READ << IACL::INDIRECT_OFFSET)).') != 0',
         ));
         if ($pe)
         {

@@ -184,8 +184,8 @@ class IACLEvaluator
     );
     public static function FilterPageQuery(&$query, $page_alias = 'page', $page_join_conds = NULL, $override_namespace = NULL)
     {
-        global $wgUser, $haclgCombineMode, $haclgSuperGroups, $haclgOpenWikiAccess, $iaclUseStoredProcedure;
-        if (!$iaclUseStoredProcedure)
+        global $wgUser, $haclgCombineMode, $wgDBtype, $haclgSuperGroups, $haclgOpenWikiAccess, $iaclUseStoredProcedure;
+        if (!$iaclUseStoredProcedure || $wgDBtype != 'mysql')
         {
             // stored procedure disabled
             return true;

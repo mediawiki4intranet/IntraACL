@@ -178,7 +178,7 @@ class IntraACL_SQL_SD
         $sql_is_single = $incSDType && $incSDId ?
             "(SELECT 1=SUM(CASE WHEN child_type=".$incSDType." AND child_id=".$incSDId.
             " AND (actions & ".((1 << IACL::INDIRECT_OFFSET) - 1).") = ".IACL::ACTION_INCLUDE_SD.
-            " THEN 1 WHEN !(actions & ".((1 << IACL::INDIRECT_OFFSET) - 1).") THEN 0 ELSE 2 END) FROM $rules r".
+            " THEN 1 WHEN (actions & ".((1 << IACL::INDIRECT_OFFSET) - 1).")=0 THEN 0 ELSE 2 END) FROM $rules r".
             " WHERE r.pe_type=".IACL::PE_PAGE." AND r.pe_id=p1.page_id)" : "0";
         // Full SQL query
         $sql =

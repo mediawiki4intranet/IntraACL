@@ -270,7 +270,7 @@ class IACLDefinition implements ArrayAccess
         $ids = implode(', ', $ids);
         $rules = IACLStorage::get('SD')->getRules(array(
             "(child_type, child_id) IN ($ids)",
-            '(actions & '.((1 << IACL::INDIRECT_OFFSET) - 1).')',
+            '(actions & '.((1 << IACL::INDIRECT_OFFSET) - 1).') != 0',
         ));
         $ids = array();
         $keys = array();

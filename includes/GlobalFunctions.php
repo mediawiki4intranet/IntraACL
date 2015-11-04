@@ -539,23 +539,16 @@ function haclfAddToolbarForEditPage($editpage, $out)
 function iaclfLoadExtensionSchemaUpdates($updater = NULL)
 {
     global $wgExtNewTables, $wgDBtype, $iaclUseStoredProcedure;
-    $f1 = __DIR__.'/../storage/intraacl-tables.sql';
-    if (($updater ? $updater->getDB()->getType() : $wgDBtype) != 'mysql')
-    {
-        die("IntraACL only supports MySQL at the moment");
-    }
+    $dbtype = ($updater ? $updater->getDB()->getType() : $wgDBtype);
+    if ($dbtype != 'mysql' && $dbtype != 'postgres')
+        die("IntraACL only supports MySQL and PostgreSQL (without DBMS-side permission checks) at the moment");
+    $f1 = __DIR__.'/../storage/intraacl-tables-'.$dbtype.'.sql';
     if ($updater)
-    {
         $updater->addExtensionUpdate(array('addTable', 'intraacl_rules', $f1, true));
-    }
     else
-    {
         $wgExtNewTables[] = array('intraacl_rules', $f1);
-    }
-    if ($iaclUseStoredProcedure)
-    {
+    if ($iaclUseStoredProcedure && $dbtype == 'mysql')
         IACLUpdateStoredFunctions::addUpdate($updater);
-    }
     // FIXME: Use $updater->addPostDatabaseUpdateMaintenance() (1.19+) instead of destructor hack
     // Defer creating 'Permission Denied' page until all schema updates are finished
     global $egDeferCreatePermissionDenied;
