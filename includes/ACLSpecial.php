@@ -76,6 +76,11 @@ class IntraACLSpecial extends SpecialPage
         parent::__construct('IntraACL');
     }
 
+    protected function getGroupName()
+    {
+        return 'hacl_group';
+    }
+
     /**
      * Entry point
      */

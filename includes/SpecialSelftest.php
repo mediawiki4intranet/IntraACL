@@ -41,6 +41,11 @@ class IntraACLSelftestSpecial extends SpecialPage
         parent::__construct('IntraACLSelftest');
     }
 
+    protected function getGroupName()
+    {
+        return 'hacl_group';
+    }
+
     function execute($par)
     {
         global $wgOut, $wgRequest, $haclgContLang, $wgTitle;
