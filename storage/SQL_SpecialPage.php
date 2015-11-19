@@ -61,7 +61,10 @@ class IntraACL_SQL_SpecialPage
         if (empty($this->name2id[$name]))
         {
             $dbw = wfGetDB(DB_MASTER);
-            $dbw->insert('halo_acl_special_pages', array('name' => $name), __METHOD__);
+            $dbw->insert('halo_acl_special_pages', array(
+                'id' => $dbw->nextSequenceValue('halo_acl_special_pages_id_seq'),
+                'name' => $name,
+            ), __METHOD__);
             $id = $dbw->insertId();
             $this->name2id[$name] = $id;
             $this->id2name[$id] = $name;
