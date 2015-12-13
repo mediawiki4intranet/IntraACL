@@ -33,7 +33,7 @@
    </select>
    <input type="text" class="txt" id="to_name" style="width: 200px" autocomplete="off" />
    <a id="hacl_to_goto" href="#" target="_blank" style="display: none" title="">
-    <img src="<?= $wgScriptPath ?>/skins/monobook/external-ltr.png" width="10" height="10" alt="&rarr;" />
+    <img src="<?= $wgScriptPath ?>/resources/src/mediawiki.skinning/images/external-ltr.png" width="10" height="10" alt="&rarr;" />
    </a>
   </p>
   <p>

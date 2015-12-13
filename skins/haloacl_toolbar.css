@@ -1,6 +1,6 @@
 /* styles used by IntraACL toolbar */
 #hacl_toolbar { border: 1px solid gray; background-color: #eee; padding: 5px; margin: 2px 0; }
-#hacl_toolbar select { vertical-align: middle; }
+#hacl_toolbar select { vertical-align: middle; font-size: 100%; }
 #hacl_toolbar div.qacl { float: right; margin-top: 2px; }
 .haclt_title { border: 1px solid gray; background-color: white; padding: 1px 4px; cursor: pointer; }
 .haclt_tip { display: inline-block; }

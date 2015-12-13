@@ -8,11 +8,11 @@
  </select>
  <?php if ($selectedIndex !== false && $options[$selectedIndex]['title']) { ?>
   <a id="hacl_toolbar_goto" href="<?= Title::newFromText($options[$selectedIndex]['title'])->getLocalUrl() ?>" target="_blank" title="<?= htmlspecialchars(wfMsg('hacl_toolbar_goto', $options[$selectedIndex]['title'])) ?>">
-   <img src="<?= $wgScriptPath ?>/skins/monobook/external-ltr.png" width="10" height="10" alt="&rarr;" />
+   <img src="<?= $wgScriptPath ?>/resources/src/mediawiki.skinning/images/external-ltr.png" width="10" height="10" alt="&rarr;" />
   </a>
  <?php } else { ?>
   <a id="hacl_toolbar_goto" href="#" target="_blank" style="display: none">
-   <img src="<?= $wgScriptPath ?>/skins/monobook/external-ltr.png" width="10" height="10" alt="&rarr;" />
+   <img src="<?= $wgScriptPath ?>/resources/src/mediawiki.skinning/images/external-ltr.png" width="10" height="10" alt="&rarr;" />
   </a>
  <?php } ?>
 <?php } elseif (!$canModify) { ?>
