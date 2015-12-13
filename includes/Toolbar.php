@@ -274,7 +274,8 @@ class IACLToolbar
      */
     public static function addToolbarLinks($out)
     {
-        $out->addModules('ext.intraacl.toolbar');
+        $out->addModuleStyles('ext.intraacl.toolbar');
+        $out->addModules('ext.intraacl.common');
     }
 
     /**
