@@ -332,7 +332,7 @@ class IACLEvaluator
             {
                 $seen[$id] = true;
                 $row = $dbr->selectRow(
-                    array('page', 'redirect'), 'page.*',
+                    array('p' => 'page', 'redirect'), 'p.*',
                     array('rd_from' => $id, 'page_namespace=rd_namespace', 'page_title=rd_title'),
                     __METHOD__
                 );
