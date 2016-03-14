@@ -554,6 +554,22 @@ class IACLParserFunctions
                         ($self->peType == IACL::PE_GROUP ? 'group' : 'sd') => $self->title->getPrefixedText(),
                     )),
                     $haclgHaloScriptPath . '/skins/images/edit.png');
+                if ($self->peType == IACL::PE_CATEGORY)
+                {
+                    // Add "This is category ACL, see category page ACL here"
+                    $pa = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_PAGE, 'Category:'.$self->peName));
+                    $html .= wfMsgForContent('hacl_category_acl_shown', $pa->getPrefixedText(), $pa->getLocalUrl(), $haclgHaloScriptPath . '/skins/images/warn.png');
+                }
+                elseif ($self->peType == IACL::PE_PAGE)
+                {
+                    $peTitle = Title::newFromText($self->peName);
+                    if ($peTitle->getNamespace() == NS_CATEGORY)
+                    {
+                        // Add "This is category page ACL, see category ACL here"
+                        $pa = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_CATEGORY, $peTitle->getText()));
+                        $html .= wfMsgForContent('hacl_category_page_acl_shown', $pa->getPrefixedText(), $pa->getLocalUrl(), $haclgHaloScriptPath . '/skins/images/warn.png');
+                    }
+                }
             }
             $wgOut->addHTML($html);
         }
