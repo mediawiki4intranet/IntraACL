@@ -977,7 +977,7 @@ class IACLParserFunctions
         {
             self::$parser = clone $wgParser;
         }
-        $options = clone $wgParser->getOptions();
+        $options = new ParserOptions();
         self::$parser->parse($text, $title, $options);
     }
 
