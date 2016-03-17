@@ -98,17 +98,20 @@ class IntraACLSelftestSpecial extends SpecialPage
     function doChecks($quiet = false)
     {
         @ob_end_clean();
+        @flush();
         if (!$quiet)
         {
             // Fill Firefox buffer so incremental rendering kicks in
             header("Content-Type: text/html; charset=utf-8");
             header("Content-Encoding: none");
+            header("X-Accel-Buffering: no");
             print str_repeat(" ", 1024);
             print "<html><body><ul>";
         }
         else
         {
             header("Content-Type: text/plain");
+            header("Content-Encoding: none");
         }
         $errors = 0;
         $pages = self::loadConfig();
