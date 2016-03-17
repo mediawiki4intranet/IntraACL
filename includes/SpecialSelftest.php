@@ -55,7 +55,7 @@ class IntraACLSelftestSpecial extends SpecialPage
             return;
         }
         $this->access_denied_page =
-            preg_quote(SpecialPage::getTitleFor('Badtitle')->getPrefixedText()) .
+            preg_replace('/[ _]+/s', '[ _]+', preg_quote(SpecialPage::getTitleFor('Badtitle')->getPrefixedText())) .
             '|' . preg_quote($haclgContLang->getPermissionDeniedPage());
         $q = $wgRequest->getValues();
         if (!empty($q['do']))
