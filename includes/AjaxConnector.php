@@ -224,6 +224,16 @@ function haclGrouplist()
 function haclGroupClosure($groups, $rights)
 {
     global $haclgContLang;
+    static $editorActions = array(
+        IACL::ACTION_READ => 'read',
+        IACL::ACTION_EDIT => 'edit',
+        IACL::ACTION_CREATE => 'create',
+        IACL::ACTION_DELETE => 'delete',
+        IACL::ACTION_MOVE => 'move',
+        // Backwards compatibility with ACL editor
+        IACL::ACTION_MANAGE => 'template',
+        IACL::ACTION_PROTECT_PAGES => 'manage',
+    );
     $pe = array();
     $grp = $haclgContLang->getPetPrefix(IACL::PE_GROUP).'/';
     foreach (explode(',', $groups) as $k)
@@ -310,7 +320,7 @@ function haclGroupClosure($groups, $rights)
             }
             foreach ($cur as $child)
             {
-                foreach (IACL::$actionToName as $i => $a)
+                foreach ($editorActions as $i => $a)
                 {
                     if ($child[1] & ($i | ($i << IACL::INDIRECT_OFFSET)))
                     {

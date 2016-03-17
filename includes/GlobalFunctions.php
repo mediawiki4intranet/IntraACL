@@ -700,30 +700,4 @@ class IACL
         IACL::PE_SPECIAL   => 'special',
         IACL::PE_GROUP     => 'group',
     );
-    static $nameToAction = array(
-        'read'   => IACL::ACTION_READ,
-        'edit'   => IACL::ACTION_EDIT,
-        'create' => IACL::ACTION_CREATE,
-        'delete' => IACL::ACTION_DELETE,
-        'move'   => IACL::ACTION_MOVE,
-    );
-    static $actionToName = array(
-        IACL::ACTION_READ => 'read',
-        IACL::ACTION_EDIT => 'edit',
-        IACL::ACTION_CREATE => 'create',
-        IACL::ACTION_DELETE => 'delete',
-        IACL::ACTION_MOVE => 'move',
-        // Backwards compatibility with ACL editor
-        IACL::ACTION_MANAGE => 'template',
-        IACL::ACTION_PROTECT_PAGES => 'manage',
-    );
-
-    /**
-     * Returns the ID of an action for the given name of an action
-     * (only for Mediawiki
-     */
-    static function getActionID($name)
-    {
-        return isset(self::$nameToAction[$name]) ? self::$nameToAction[$name] : 0;
-    }
 }

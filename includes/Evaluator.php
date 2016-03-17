@@ -40,6 +40,15 @@ class IACLEvaluator
     // Are IntraACL's logging activities enabled?
     static $mLogEnabled = false;
 
+    // MediaWiki action names to IntraACL action IDs
+    static $nameToAction = array(
+        'read'   => IACL::ACTION_READ,
+        'edit'   => IACL::ACTION_EDIT,
+        'create' => IACL::ACTION_CREATE,
+        'delete' => IACL::ACTION_DELETE,
+        'move'   => IACL::ACTION_MOVE,
+    );
+
     /**
      * Returns additional customisation for parser cache key based
      * on ACLs applied to an article.
@@ -274,7 +283,7 @@ class IACLEvaluator
         }
 
         // Check action
-        $actionID = IACL::getActionID($action);
+        $actionID = isset(self::$nameToAction[$action]) ? self::$nameToAction[$action] : 0;
         if (!$actionID)
         {
             // Unknown action => nothing can be said about this

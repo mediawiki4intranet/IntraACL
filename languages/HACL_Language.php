@@ -57,16 +57,16 @@ abstract class HACLLanguage
         IACL::ACTION_MOVE            => 'move',
         IACL::ACTION_DELETE          => 'delete',
         IACL::ACTION_FULL_ACCESS     => '*',
-        IACL::ACTION_MANAGE          => 'manage',
         IACL::ACTION_PROTECT_PAGES   => 'protect_pages',
     );
 
     // Lookup array: lowercased action name --> action ID
     public $mActionAliases = array(
         // HaloACL compatibility
-        'formedit'  => IACL::ACTION_EDIT,
-        'wysiwyg'   => IACL::ACTION_EDIT,
-        'annotate'  => IACL::ACTION_EDIT,
+        'formedit' => IACL::ACTION_EDIT,
+        'wysiwyg'  => IACL::ACTION_EDIT,
+        'annotate' => IACL::ACTION_EDIT,
+        'manage'   => IACL::ACTION_PROTECT_PAGES,
     );
 
     ////////////////////////////////
