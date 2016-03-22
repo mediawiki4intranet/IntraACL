@@ -207,6 +207,7 @@ You have no read access to the <tt>File</tt> namespace. You will <b>not</b> be a
     'hacl_define_page'                  => 'Protect page:',
     'hacl_define_namespace'             => 'Protect namespace:',
     'hacl_define_category'              => 'Protect category:',
+    'hacl_define_tree'                  => 'Protect subpage tree:',
     'hacl_define_right'                 => 'Right template:',
 
     // ACL list
@@ -226,7 +227,8 @@ You have no read access to the <tt>File</tt> namespace. You will <b>not</b> be a
 
     'hacl_acllist_type_page'            => 'Page',
     'hacl_acllist_type_namespace'       => 'Namespace',
-    'hacl_acllist_type_category'        => 'Category',
+    'hacl_acllist_type_category'        => 'Categories',
+    'hacl_acllist_type_tree'            => 'Subpage trees',
     'hacl_acllist_type_right'           => 'Predefined rights',
     'hacl_acllist_type_template'        => 'User templates',
 
@@ -534,6 +536,7 @@ $messages['ru'] = array(
     'hacl_define_page'                  => 'Защитить страницу:',
     'hacl_define_namespace'             => 'Защитить пространство имён:',
     'hacl_define_category'              => 'Защитить категорию:',
+    'hacl_define_tree'                  => 'Защитить дерево подстраниц:',
     'hacl_define_right'                 => 'Шаблон прав:',
 
     // ACL list
@@ -554,6 +557,7 @@ $messages['ru'] = array(
     'hacl_acllist_type_page'            => 'Страниц',
     'hacl_acllist_type_namespace'       => 'Пространств имён',
     'hacl_acllist_type_category'        => 'Категорий',
+    'hacl_acllist_type_tree'            => 'Подстраниц',
     'hacl_acllist_type_right'           => 'Шаблоны прав',
 
     'hacl_acllist_page'                 => 'Права для страниц:',

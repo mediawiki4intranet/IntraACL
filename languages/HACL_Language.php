@@ -47,6 +47,7 @@ abstract class HACLLanguage
         IACL::PE_NAMESPACE  => 'Namespace',
         IACL::PE_RIGHT      => 'Right',
         IACL::PE_GROUP      => 'Group',
+        IACL::PE_TREE       => 'Tree',
     );
 
     // Action names

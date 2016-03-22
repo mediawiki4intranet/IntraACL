@@ -677,6 +677,7 @@ class IACL
     const PE_REG_USERS  = 7;    // Registered users
     const PE_GROUP      = 8;    // Group, identified by group (ACL:Group/XXX) page ID
     const PE_USER       = 9;    // User, identified by user ID. Used only as child, not as definition (obviously)
+    const PE_TREE       = 10;   // Page tree (page with its subpages)
 
     /**
      * Action/child relation details, stored as bitmap in rules table
@@ -705,6 +706,7 @@ class IACL
         'namespace' => IACL::PE_NAMESPACE,
         'category'  => IACL::PE_CATEGORY,
         'page'      => IACL::PE_PAGE,
+        'tree'      => IACL::PE_TREE,
         'special'   => IACL::PE_SPECIAL,
         'group'     => IACL::PE_GROUP,
     );
@@ -713,6 +715,7 @@ class IACL
         IACL::PE_NAMESPACE => 'namespace',
         IACL::PE_CATEGORY  => 'category',
         IACL::PE_PAGE      => 'page',
+        IACL::PE_TREE      => 'tree',
         IACL::PE_SPECIAL   => 'special',
         IACL::PE_GROUP     => 'group',
     );

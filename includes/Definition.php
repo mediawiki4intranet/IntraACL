@@ -699,6 +699,7 @@ class IACLDefinition implements ArrayAccess
      * Determine protected element name and type by definition page title
      *
      *  ACL:Page/<Page title>               PE_PAGE
+     *  ACL:Tree/<Page title>               PE_TREE
      *  ACL:Page/Special:<Special title>    PE_SPECIAL
      *  ACL:Category/<Category name>        PE_CATEGORY
      *  ACL:Namespace/<Namespace name>      PE_NAMESPACE

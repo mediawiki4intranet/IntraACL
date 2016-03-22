@@ -272,6 +272,12 @@ class IACLEvaluator
     left join intraacl_rules r42 on r42.pe_type=".IACL::PE_NAMESPACE." and r42.pe_id=_ip.page_namespace and (r42.actions & $right_id) != 0 and r42.child_type=".IACL::PE_USER." and r42.child_id=$user_id
     left join intraacl_rules r43 on r43.pe_type=".IACL::PE_NAMESPACE." and r43.pe_id=_ip.page_namespace and (r43.actions & $right_id) != 0 and r43.child_type=".IACL::PE_REG_USERS." and r43.child_id=0
 
+    left join _numbers n on substr(cast(_ip.page_title as char character set utf8), n.n, 1)='/' or n.n=length(_ip.page_title)+1
+    left join page _pp on _pp.page_namespace=_ip.page_namespace and _pp.page_title=substr(cast(page_title as char character set utf8), 1, n-1)
+    left join intraacl_rules r5 on r5.pe_type=".IACL::PE_TREE." and r5.pe_id=_pp.page_id and r5.child_type=".IACL::PE_ALL_USERS." and r5.child_id=0
+    left join intraacl_rules r52 on r52.pe_type=".IACL::PE_TREE." and r52.pe_id=_pp.page_id and (r52.actions & $right_id) and r52.child_type=".IACL::PE_USER." and r52.child_id=$user_id
+    left join intraacl_rules r53 on r53.pe_type=".IACL::PE_TREE." and r53.pe_id=_pp.page_id and (r53.actions & $right_id) and r53.child_type=".IACL::PE_REG_USERS." and r53.child_id=0
+
     where _ip.page_id=$page_alias.page_id and ($cond)
     group by _ip.page_id
   ) is not null";
@@ -488,26 +494,47 @@ class IACLEvaluator
         global $haclgCombineMode;
 
         $seq = array();
+
         if ($articleID)
         {
             if ($title->getNamespace() == NS_SPECIAL)
             {
-                // Check special page rights (special pages have no categories)
+                // Check special page rights
                 $seq[] = array('special page SD', IACL::PE_SPECIAL, -$articleID);
             }
             else
             {
-                // First check page rights
+                // Check page rights
                 $seq[] = array('page SD', IACL::PE_PAGE, $articleID);
-                if ($title->getNamespace() == NS_CATEGORY)
-                {
-                    // If the page is a category page, check that category's rights
-                    $seq[] = array('category SD for category page', IACL::PE_CATEGORY, $articleID);
-                }
-                // Check category rights
-                $seq[] = array('category SD', IACL::PE_CATEGORY, IACLStorage::get('Util')->getParentCategoryIDs($articleID));
             }
         }
+
+        $parents = explode('/', $title->getText());
+        $parentTitles = array();
+        while ($parents)
+        {
+            array_unshift($parentTitles, Title::makeTitleSafe($title->getNamespace(), implode('/', $parents)));
+            array_pop($parents);
+        }
+        $batch = new LinkBatch($parentTitles);
+        $batch->execute();
+        foreach ($parentTitles as $t)
+        {
+            $id = $t->getArticleId();
+            $seq[] = array('parent tree SD', IACL::PE_TREE, $id);
+        }
+
+        if ($articleID && $title->getNamespace() != NS_SPECIAL) // special pages have no categories
+        {
+            if ($title->getNamespace() == NS_CATEGORY)
+            {
+                // If the page is a category page, check that category's rights
+                $seq[] = array('category SD for category page', IACL::PE_CATEGORY, $articleID);
+            }
+            // Check category rights
+            $seq[] = array('category SD', IACL::PE_CATEGORY, IACLStorage::get('Util')->getParentCategoryIDs($articleID));
+        }
+
         $seq[] = array('namespace SD', IACL::PE_NAMESPACE, $title->getNamespace());
 
         $msg = array();

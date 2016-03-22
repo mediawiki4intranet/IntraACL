@@ -45,7 +45,7 @@ class IntraACLSpecial extends SpecialPage
     );
 
     var $aclTargetTypes = array(
-        'protect' => array('page' => 1, 'namespace' => 1, 'category' => 1),
+        'protect' => array('page' => 1, 'namespace' => 1, 'category' => 1, 'tree' => 1),
         'define' => array('right' => 1),
     );
 
