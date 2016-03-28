@@ -567,7 +567,7 @@ class IACLUpdateStoredFunctions
     {
         $dbw = wfGetDB(DB_MASTER);
         print "Creating stored procedures for DBMS-side checking of IntraACL rights\n";
-        if ($dbw instanceof DatabaseMysql)
+        if ($dbw instanceof DatabaseMysqlBase)
         {
             $dbw->sourceFile(__DIR__.'/../storage/intraacl-functions-mysql.sql');
             $dbw->query('ALTER TABLE '.$dbw->tableName('category_closure').' COMMENT='.$dbw->addQuotes(self::$spVersion));
@@ -583,7 +583,7 @@ class IACLUpdateStoredFunctions
     {
         global $wgUpdates, $wgDBtype;
         $dbw = $updater ? $updater->getDB() : $wgDBtype;
-        if ($dbw instanceof DatabaseMysql)
+        if ($dbw instanceof DatabaseMysqlBase)
         {
             $row = $dbw->query('SHOW TABLE STATUS LIKE \''.trim($dbw->tableName('category_closure'), '`').'\'')->fetchObject();
             $row = $row ? $row->Comment : NULL;
