@@ -541,13 +541,13 @@ function iaclfLoadExtensionSchemaUpdates($updater = NULL)
     global $wgExtNewTables, $wgDBtype, $iaclUseStoredProcedure;
     $dbtype = ($updater ? $updater->getDB()->getType() : $wgDBtype);
     if ($dbtype != 'mysql' && $dbtype != 'postgres')
-        die("IntraACL only supports MySQL and PostgreSQL (without DBMS-side permission checks) at the moment");
+        die("IntraACL only supports MySQL and PostgreSQL at the moment");
     $f1 = __DIR__.'/../storage/intraacl-tables-'.$dbtype.'.sql';
     if ($updater)
         $updater->addExtensionUpdate(array('addTable', 'intraacl_rules', $f1, true));
     else
         $wgExtNewTables[] = array('intraacl_rules', $f1);
-    if ($iaclUseStoredProcedure && $dbtype == 'mysql')
+    if ($iaclUseStoredProcedure)
         IACLUpdateStoredFunctions::addUpdate($updater);
     // FIXME: Use $updater->addPostDatabaseUpdateMaintenance() (1.19+) instead of destructor hack
     // Defer creating 'Permission Denied' page until all schema updates are finished
@@ -567,25 +567,41 @@ class IACLUpdateStoredFunctions
     {
         $dbw = wfGetDB(DB_MASTER);
         print "Creating stored procedures for DBMS-side checking of IntraACL rights\n";
-        $dbw->sourceFile(__DIR__.'/../storage/intraacl-functions.sql');
-        $dbw->query('ALTER TABLE '.$dbw->tableName('category_closure').' COMMENT='.$dbw->addQuotes(self::$spVersion));
+        if ($dbw instanceof DatabaseMysql)
+        {
+            $dbw->sourceFile(__DIR__.'/../storage/intraacl-functions-mysql.sql');
+            $dbw->query('ALTER TABLE '.$dbw->tableName('category_closure').' COMMENT='.$dbw->addQuotes(self::$spVersion));
+        }
+        else
+        {
+            $dbw->sourceFile(__DIR__.'/../storage/intraacl-functions-postgres.sql');
+            $dbw->query('COMMENT ON TABLE '.$dbw->tableName('category_closure').' IS '.$dbw->addQuotes(self::$spVersion));
+        }
     }
 
     static function addUpdate($updater)
     {
+        global $wgUpdates, $wgDBtype;
         $dbw = $updater ? $updater->getDB() : $wgDBtype;
-        $res = $dbw->query('SHOW TABLE STATUS LIKE \''.trim($dbw->tableName('category_closure'), '`').'\'');
-        $row = $res->fetchObject();
-        if (!$row || $row->Comment != self::$spVersion)
+        if ($dbw instanceof DatabaseMysql)
+        {
+            $row = $dbw->query('SHOW TABLE STATUS LIKE \''.trim($dbw->tableName('category_closure'), '`').'\'')->fetchObject();
+            $row = $row ? $row->Comment : NULL;
+        }
+        else
+        {
+            $row = $dbw->query(
+                'select description from pg_catalog.pg_description d join pg_catalog.pg_class c on d.objoid=c.oid'.
+                ' where relname='.$dbw->addQuotes(trim($dbw->tableName('category_closure'), '"'))
+            )->fetchObject();
+            $row = $row ? $row->description : NULL;
+        }
+        if (1|| !$row || $row != self::$spVersion)
         {
             if ($updater)
-            {
                 $updater->addExtensionUpdate(array(__CLASS__.'::update'));
-            }
             else
-            {
-                $wgUpdates['mysql'][] = __CLASS__.'::update';
-            }
+                $wgUpdates[$wgDBtype][] = __CLASS__.'::update';
         }
     }
 }

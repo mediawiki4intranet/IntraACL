@@ -189,7 +189,7 @@ class IACLEvaluator
     public static function FilterPageQuery(&$query, $page_alias = 'page', $page_join_conds = NULL, $override_namespace = NULL)
     {
         global $wgUser, $haclgCombineMode, $wgDBtype, $haclgSuperGroups, $haclgOpenWikiAccess, $iaclUseStoredProcedure;
-        if (!$iaclUseStoredProcedure || $wgDBtype != 'mysql')
+        if (!$iaclUseStoredProcedure)
         {
             // stored procedure disabled
             return true;
@@ -223,18 +223,18 @@ class IACLEvaluator
             {
                 $cond = ($haclgOpenWikiAccess ? "
     (r1.pe_id is null and r2.pe_id is null and r3.pe_id is null and r4.pe_id is null) or" : "")."
-    ((r1.actions & $right_id) or r12.actions is not null or r13.actions is not null) or
-    ((r2.actions & $right_id) or r22.actions is not null or r23.actions is not null) or
-    ((r3.actions & $right_id) or r32.actions is not null or r33.actions is not null) or
-    ((r4.actions & $right_id) or r42.actions is not null or r43.actions is not null)";
+    ((r1.actions & $right_id) != 0 or r12.actions is not null or r13.actions is not null) or
+    ((r2.actions & $right_id) != 0 or r22.actions is not null or r23.actions is not null) or
+    ((r3.actions & $right_id) != 0 or r32.actions is not null or r33.actions is not null) or
+    ((r4.actions & $right_id) != 0 or r42.actions is not null or r43.actions is not null)";
             }
             elseif ($haclgCombineMode == HACL_COMBINE_SHRINK)
             {
                 $cond = "
-    (r1.pe_id is null or (r1.actions & $right_id) or r12.actions is not null or r13.actions is not null) and
-    (r2.pe_id is null or (r2.actions & $right_id) or r22.actions is not null or r23.actions is not null) and
-    (r3.pe_id is null or (r3.actions & $right_id) or r32.actions is not null or r33.actions is not null) and
-    (r4.pe_id is null or (r4.actions & $right_id) or r42.actions is not null or r43.actions is not null)".
+    (r1.pe_id is null or (r1.actions & $right_id) != 0 or r12.actions is not null or r13.actions is not null) and
+    (r2.pe_id is null or (r2.actions & $right_id) != 0 or r22.actions is not null or r23.actions is not null) and
+    (r3.pe_id is null or (r3.actions & $right_id) != 0 or r32.actions is not null or r33.actions is not null) and
+    (r4.pe_id is null or (r4.actions & $right_id) != 0 or r42.actions is not null or r43.actions is not null)".
                 ($haclgOpenWikiAccess ? "" : "
     and (r1.pe_id is not null or r2.pe_id is not null or r3.pe_id is not null or r4.pe_id is not null)");
             }
@@ -244,10 +244,10 @@ class IACLEvaluator
     (r1.pe_id is null and
       (r2.pe_id is null and
         (r3.pe_id is null and
-          (r4.pe_id is null or (r4.actions & $right_id) or r42.actions is not null or r43.actions is not null)
-        or (r3.actions & $right_id) or r32.actions is not null or r33.actions is not null)
-      or (r2.actions & $right_id) or r22.actions is not null or r23.actions is not null)
-    or (r1.actions & $right_id) or r12.actions is not null or r13.actions is not null)".
+          (r4.pe_id is null or (r4.actions & $right_id) != 0 or r42.actions is not null or r43.actions is not null)
+        or (r3.actions & $right_id) != 0 or r32.actions is not null or r33.actions is not null)
+      or (r2.actions & $right_id) != 0 or r22.actions is not null or r23.actions is not null)
+    or (r1.actions & $right_id) != 0 or r12.actions is not null or r13.actions is not null)".
                 ($haclgOpenWikiAccess ? "" : "
     and (r1.pe_id is not null or r2.pe_id is not null or r3.pe_id is not null or r4.pe_id is not null)");
             }
@@ -256,21 +256,21 @@ class IACLEvaluator
     select _ip.page_id from page _ip
 
     left join intraacl_rules r1 on r1.pe_type=".IACL::PE_PAGE." and r1.pe_id=_ip.page_id and r1.child_type=".IACL::PE_ALL_USERS." and r1.child_id=0
-    left join intraacl_rules r12 on r12.pe_type=".IACL::PE_PAGE." and r12.pe_id=_ip.page_id and (r12.actions & $right_id) and r12.child_type=".IACL::PE_USER." and r12.child_id=$user_id
-    left join intraacl_rules r13 on r12.pe_type=".IACL::PE_PAGE." and r13.pe_id=_ip.page_id and (r13.actions & $right_id) and r13.child_type=".IACL::PE_REG_USERS." and r13.child_id=0
+    left join intraacl_rules r12 on r12.pe_type=".IACL::PE_PAGE." and r12.pe_id=_ip.page_id and (r12.actions & $right_id) != 0 and r12.child_type=".IACL::PE_USER." and r12.child_id=$user_id
+    left join intraacl_rules r13 on r12.pe_type=".IACL::PE_PAGE." and r13.pe_id=_ip.page_id and (r13.actions & $right_id) != 0 and r13.child_type=".IACL::PE_REG_USERS." and r13.child_id=0
 
     left join intraacl_rules r2 on r2.pe_type=".IACL::PE_CATEGORY." and _ip.page_namespace=14 and r2.pe_id=_ip.page_id and r2.child_type=".IACL::PE_ALL_USERS." and r2.child_id=0
-    left join intraacl_rules r22 on r22.pe_type=".IACL::PE_CATEGORY." and _ip.page_namespace=14 and r22.pe_id=_ip.page_id and (r22.actions & $right_id) and r22.child_type=".IACL::PE_USER." and r22.child_id=$user_id
-    left join intraacl_rules r23 on r23.pe_type=".IACL::PE_CATEGORY." and _ip.page_namespace=14 and r23.pe_id=_ip.page_id and (r23.actions & $right_id) and r23.child_type=".IACL::PE_REG_USERS." and r23.child_id=0
+    left join intraacl_rules r22 on r22.pe_type=".IACL::PE_CATEGORY." and _ip.page_namespace=14 and r22.pe_id=_ip.page_id and (r22.actions & $right_id) != 0 and r22.child_type=".IACL::PE_USER." and r22.child_id=$user_id
+    left join intraacl_rules r23 on r23.pe_type=".IACL::PE_CATEGORY." and _ip.page_namespace=14 and r23.pe_id=_ip.page_id and (r23.actions & $right_id) != 0 and r23.child_type=".IACL::PE_REG_USERS." and r23.child_id=0
 
     left join category_closure c on c.page_id=_ip.page_id
     left join intraacl_rules r3 on r3.pe_type=".IACL::PE_CATEGORY." and r3.pe_id=c.category_id and r3.child_type=".IACL::PE_ALL_USERS." and r3.child_id=0
-    left join intraacl_rules r32 on r32.pe_type=".IACL::PE_CATEGORY." and r32.pe_id=c.category_id and (r32.actions & $right_id) and r32.child_type=".IACL::PE_USER." and r32.child_id=$user_id
-    left join intraacl_rules r33 on r33.pe_type=".IACL::PE_CATEGORY." and r33.pe_id=c.category_id and (r33.actions & $right_id) and r33.child_type=".IACL::PE_REG_USERS." and r33.child_id=0
+    left join intraacl_rules r32 on r32.pe_type=".IACL::PE_CATEGORY." and r32.pe_id=c.category_id and (r32.actions & $right_id) != 0 and r32.child_type=".IACL::PE_USER." and r32.child_id=$user_id
+    left join intraacl_rules r33 on r33.pe_type=".IACL::PE_CATEGORY." and r33.pe_id=c.category_id and (r33.actions & $right_id) != 0 and r33.child_type=".IACL::PE_REG_USERS." and r33.child_id=0
 
     left join intraacl_rules r4 on r4.pe_type=".IACL::PE_NAMESPACE." and r4.pe_id=_ip.page_namespace and r4.child_type=".IACL::PE_ALL_USERS." and r4.child_id=0
-    left join intraacl_rules r42 on r42.pe_type=".IACL::PE_NAMESPACE." and r42.pe_id=_ip.page_namespace and (r42.actions & $right_id) and r42.child_type=".IACL::PE_USER." and r42.child_id=$user_id
-    left join intraacl_rules r43 on r43.pe_type=".IACL::PE_NAMESPACE." and r43.pe_id=_ip.page_namespace and (r43.actions & $right_id) and r43.child_type=".IACL::PE_REG_USERS." and r43.child_id=0
+    left join intraacl_rules r42 on r42.pe_type=".IACL::PE_NAMESPACE." and r42.pe_id=_ip.page_namespace and (r42.actions & $right_id) != 0 and r42.child_type=".IACL::PE_USER." and r42.child_id=$user_id
+    left join intraacl_rules r43 on r43.pe_type=".IACL::PE_NAMESPACE." and r43.pe_id=_ip.page_namespace and (r43.actions & $right_id) != 0 and r43.child_type=".IACL::PE_REG_USERS." and r43.child_id=0
 
     where _ip.page_id=$page_alias.page_id and ($cond)
     group by _ip.page_id
@@ -282,18 +282,18 @@ class IACLEvaluator
             {
                 $cond = ($haclgOpenWikiAccess ? "
     (r1.pe_id is null and r2.pe_id is null and r3.pe_id is null and r4.pe_id is null) or" : "")."
-    ((r1.actions & $right_id)) or
-    ((r2.actions & $right_id)) or
-    ((r3.actions & $right_id)) or
-    ((r4.actions & $right_id))";
+    ((r1.actions & $right_id) != 0) or
+    ((r2.actions & $right_id) != 0) or
+    ((r3.actions & $right_id) != 0) or
+    ((r4.actions & $right_id) != 0)";
             }
             elseif ($haclgCombineMode == HACL_COMBINE_SHRINK)
             {
                 $cond = "
-    (r1.pe_id is null or (r1.actions & $right_id)) and
-    (r2.pe_id is null or (r2.actions & $right_id)) and
-    (r3.pe_id is null or (r3.actions & $right_id)) and
-    (r4.pe_id is null or (r4.actions & $right_id))".
+    (r1.pe_id is null or (r1.actions & $right_id) != 0) and
+    (r2.pe_id is null or (r2.actions & $right_id) != 0) and
+    (r3.pe_id is null or (r3.actions & $right_id) != 0) and
+    (r4.pe_id is null or (r4.actions & $right_id) != 0)".
                 ($haclgOpenWikiAccess ? "" : "
     and (r1.pe_id is not null or r2.pe_id is not null or r3.pe_id is not null or r4.pe_id is not null)");
             }
@@ -303,10 +303,10 @@ class IACLEvaluator
     (r1.pe_id is null and
       (r2.pe_id is null and
         (r3.pe_id is null and
-          (r4.pe_id is null or (r4.actions & $right_id))
-        or (r3.actions & $right_id))
-      or (r2.actions & $right_id))
-    or (r1.actions & $right_id))".
+          (r4.pe_id is null or (r4.actions & $right_id) != 0)
+        or (r3.actions & $right_id) != 0)
+      or (r2.actions & $right_id) != 0)
+    or (r1.actions & $right_id) != 0)".
                 ($haclgOpenWikiAccess ? "" : "
     and (r1.pe_id is not null or r2.pe_id is not null or r3.pe_id is not null or r4.pe_id is not null)");
             }
