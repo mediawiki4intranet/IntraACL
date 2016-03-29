@@ -446,10 +446,10 @@ class IACLDefinition implements ArrayAccess
      */
     static function userCan($userID, $peType, $peID, $actionID)
     {
+        if (is_array($peID) && !$peID)
+            return -1;
         if ($userID < 0)
-        {
             $userID = 0;
-        }
         $actionID |= ($actionID << IACL::INDIRECT_OFFSET);
         // Check cache
         $found = -1;
@@ -459,9 +459,7 @@ class IACLDefinition implements ArrayAccess
             {
                 $found = (self::$userCache[$userID][$peType][$id] & $actionID) ? 1 : 0;
                 if ($found > 0)
-                {
                     return $found;
-                }
             }
         }
         // Return if access is denied or if everything is already loaded

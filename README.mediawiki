@@ -8,13 +8,13 @@ based on HaloACL, correcting its endless bugs and inconveniences.
 * Copyright (c) 2010+, Vitaliy Filippov, Stas Fomin
 * Loosely based on HaloACL (c) 2009, ontoprise GmbH
 * This is IntraACL backed by the '''new''' storage code.
-* Version number is 2.1.9.
+* Version number is 2.1.9.1.
 
 == REQUIREMENTS ==
 
 * MediaWiki 1.19-1.26 (and also maybe later versions)
 * PHP >= 5.3
-* MySQL/MariaDB >= 5.1
+* MySQL/MariaDB >= 5.1 or PostgreSQL >= 9.0
 
 == INSTALLATION ==
 
