@@ -596,7 +596,7 @@ class IACLUpdateStoredFunctions
             )->fetchObject();
             $row = $row ? $row->description : NULL;
         }
-        if (1|| !$row || $row != self::$spVersion)
+        if (!$row || $row != self::$spVersion)
         {
             if ($updater)
                 $updater->addExtensionUpdate(array(__CLASS__.'::update'));
