@@ -487,11 +487,8 @@ class IACLDefinition implements ArrayAccess
                 '('.IACL::PE_ALL_USERS.',0)'
             );
         }
-        $where = array(
+        $where0 = array(
             '(child_type, child_id) IN ('.implode(', ', $applicable).')',
-        );
-        $options = array(
-            'ORDER BY' => 'child_type ASC, pe_type ASC, pe_id DESC'
         );
         if (!isset(self::$userCacheLoaded[$userID]) ||
             !(self::$userCacheLoaded[$userID] & (1 << $isGroup)))
@@ -502,34 +499,54 @@ class IACLDefinition implements ArrayAccess
             // and more recent (pe_id DESC) rules for better cache hit ratio.
             // Groups are unused in permission checks and thus have no effect on permission check speed,
             // so don't preload them until explicitly requested
+            $where = $where0;
             if ($peType != IACL::PE_GROUP)
-            {
                 $where[] = 'pe_type != '.IACL::PE_GROUP;
-            }
             else
-            {
                 $where['pe_type'] = IACL::PE_GROUP;
-            }
-            $options['LIMIT'] = $iaclPreloadLimit;
-            $rules = IACLStorage::get('SD')->getRules($where, $options);
+            $rules = IACLStorage::get('SD')->getRules($where, [
+                'ORDER BY' => 'child_type ASC, pe_type ASC, pe_id DESC',
+                'LIMIT' => $iaclPreloadLimit,
+            ]);
             if (count($rules) >= $iaclPreloadLimit)
             {
                 // There are exactly $iaclPreloadLimit rules
                 // => we assume there can be more
                 self::$userCacheLoaded[$userID] |= (4 << $isGroup);
             }
+            $seenGeneral = false;
             foreach ($rules as $rule)
             {
+                if ($rule['child_type'] != IACL::PE_USER)
+                    $seenGeneral = true;
                 $a = &self::$userCache[$userID][$rule['pe_type']][$rule['pe_id']];
                 $a = $a | $rule['actions'];
+            }
+            if (count($rules) >= $iaclPreloadLimit && $userID && $seenGeneral)
+            {
+                // For non-anonymous users, we must load all the missing rules for preloaded PEs
+                // Else we may load only PE_ALL and miss some PE_REG/PE_USER items
+                $where = [];
+                foreach (self::$userCache[$userID] as $peType => $pes)
+                {
+                    $where[] = '(pe_type = '.intval($peType).' AND pe_id IN ('.implode(',', array_keys($pes)).'))';
+                }
+                $where = array_merge($where0, array('('.implode(' OR ', $where).')'));
+                $rules = IACLStorage::get('SD')->getRules($where, []);
+                foreach ($rules as $rule)
+                {
+                    $a = &self::$userCache[$userID][$rule['pe_type']][$rule['pe_id']];
+                    $a = $a | $rule['actions'];
+                }
             }
         }
         if ((self::$userCacheLoaded[$userID] & (4 << $isGroup)))
         {
             // Not all rules were preloaded => database appears to be relatively big, perform a query for single PE
+            $where = $where0;
             $where['pe_type'] = $peType;
             $where['pe_id'] = $peID;
-            $rules = IACLStorage::get('SD')->getRules($where, $options);
+            $rules = IACLStorage::get('SD')->getRules($where, []);
             foreach ($rules as $rule)
             {
                 $a = &self::$userCache[$userID][$rule['pe_type']][$rule['pe_id']];
@@ -544,9 +561,7 @@ class IACLDefinition implements ArrayAccess
             {
                 $found = (self::$userCache[$userID][$peType][$id] & $actionID) ? 1 : 0;
                 if ($found > 0)
-                {
                     return $found;
-                }
             }
         }
         return $found;
