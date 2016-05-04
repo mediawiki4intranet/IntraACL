@@ -504,10 +504,10 @@ class IACLDefinition implements ArrayAccess
                 $where[] = 'pe_type != '.IACL::PE_GROUP;
             else
                 $where['pe_type'] = IACL::PE_GROUP;
-            $rules = IACLStorage::get('SD')->getRules($where, [
+            $rules = IACLStorage::get('SD')->getRules($where, array(
                 'ORDER BY' => 'child_type ASC, pe_type ASC, pe_id DESC',
                 'LIMIT' => $iaclPreloadLimit,
-            ]);
+            ));
             if (count($rules) >= $iaclPreloadLimit)
             {
                 // There are exactly $iaclPreloadLimit rules
@@ -526,13 +526,13 @@ class IACLDefinition implements ArrayAccess
             {
                 // For non-anonymous users, we must load all the missing rules for preloaded PEs
                 // Else we may load only PE_ALL and miss some PE_REG/PE_USER items
-                $where = [];
+                $where = array();
                 foreach (self::$userCache[$userID] as $peType => $pes)
                 {
                     $where[] = '(pe_type = '.intval($peType).' AND pe_id IN ('.implode(',', array_keys($pes)).'))';
                 }
                 $where = array_merge($where0, array('('.implode(' OR ', $where).')'));
-                $rules = IACLStorage::get('SD')->getRules($where, []);
+                $rules = IACLStorage::get('SD')->getRules($where, array());
                 foreach ($rules as $rule)
                 {
                     $a = &self::$userCache[$userID][$rule['pe_type']][$rule['pe_id']];
@@ -546,7 +546,7 @@ class IACLDefinition implements ArrayAccess
             $where = $where0;
             $where['pe_type'] = $peType;
             $where['pe_id'] = $peID;
-            $rules = IACLStorage::get('SD')->getRules($where, []);
+            $rules = IACLStorage::get('SD')->getRules($where, array());
             foreach ($rules as $rule)
             {
                 $a = &self::$userCache[$userID][$rule['pe_type']][$rule['pe_id']];
