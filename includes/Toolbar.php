@@ -57,7 +57,6 @@ class IACLToolbar
         self::addToolbarLinks($wgOut);
 
         $ns = $wgContLang->getNsText(HACL_NS_ACL);
-        $canModify = true;
         $options = array(array(
             'value' => 'unprotected',
             'name' => wfMsg('hacl_toolbar_unprotected'),
@@ -77,20 +76,21 @@ class IACLToolbar
         // $found = "is current page SD in the list?"
         $found = false;
 
-        // The list of ACLs which have effect on $title, but are not ACL:Page/$title by themselves
+        // The list of ACLs which affect $title except ACL:Page/$title itself
         // I.e. category and namespace ACLs
         $globalACL = array();
 
         $pageSDId = NULL;
+        $pet = $title->getNamespace() == NS_CATEGORY ? IACL::PE_CATEGORY : IACL::PE_PAGE;
+        $pageSDTitle = Title::newFromText(IACLDefinition::nameOfSD($pet, $title));
+        // Check SD modification rights
+        $canModify = $pageSDTitle->userCan('edit');
         if ($title->exists())
         {
-            // Check SD modification rights
-            $pageSDTitle = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_PAGE, $title));
-            $pageSD = IACLDefinition::getSDForPE(IACL::PE_PAGE, $title->getArticleId());
+            $pageSD = IACLDefinition::getSDForPE($pet, $title->getArticleId());
             if ($pageSD)
             {
                 $realPageSDId = $pageSDId = array($pageSD['pe_type'], $pageSD['pe_id']);
-                $canModify = $pageSDTitle->userCan('edit');
                 // Check if page SD is a single predefined right inclusion
                 if ($pageSD['single_child'])
                 {

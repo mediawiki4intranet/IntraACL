@@ -34,7 +34,10 @@
   </div></div>
  </div>
 <?php } if ($title->exists()) { ?>
- <a style="text-decoration: none" class="haclt_title" target="_blank" href="index.php?title=Special:IntraACL&action=acl&sd=<?= urlencode($haclgContLang->getPetPrefix($title->getNamespace() == NS_CATEGORY ? IACL::PE_CATEGORY : IACL::PE_PAGE).'/'.$title) ?>"><img src="<?= $haclgHaloScriptPath ?>/skins/images/edit.png" width="16" height="16" alt="Edit" /> <?= wfMsg('hacl_toolbar_advanced_'.($pageSDId ? 'edit' : 'create')) ?></a>
+ <a style="text-decoration: none" class="haclt_title" target="_blank" href="index.php?title=Special:IntraACL&action=acl&sd=<?= urlencode($pageSDTitle->getText()) ?>">
+  <img src="<?= $haclgHaloScriptPath ?>/skins/images/edit.png" width="16" height="16" alt="Edit" />
+  <?= wfMsg('hacl_toolbar_advanced_'.($pageSDId ? 'edit' : 'create')) ?>
+ </a>
 <?php } elseif (!$hasQuickACL) {?>
  <?= wfMsg('hacl_toolbar_select_qacl', $quick_acl_link) ?>
 <?php } if ($nonreadable) { ?>
