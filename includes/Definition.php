@@ -846,6 +846,10 @@ class IACLDefinition implements ArrayAccess
             $delRules = $clean['rules'] ? $clean['rules'] : array();
             $addRules = array();
             $st->deleteRules(array(array('pe_type' => $peType, 'pe_id' => $peID)));
+            if ($peType == IACL::PE_TREE)
+            {
+                $st->refreshParentPagesForParent($peID);
+            }
         }
         else
         {
@@ -857,6 +861,11 @@ class IACLDefinition implements ArrayAccess
             }
             if ($addRules)
             {
+                if ($peType == IACL::PE_TREE && $this->clean() && $this->clean()['rules'])
+                {
+                    $t = $this['pe_title'];
+                    $st->refreshParentPages($peID, $t->getNamespace(), $t->getDBkey());
+                }
                 $st->addRules(self::expandRuleArray($addRules));
             }
         }

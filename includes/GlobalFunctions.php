@@ -561,7 +561,7 @@ function iaclfLoadExtensionSchemaUpdates($updater = NULL)
 
 class IACLUpdateStoredFunctions
 {
-    static $spVersion = 'IACL_SP_V5';
+    static $spVersion = 'IACL_SP_V6';
 
     static function update()
     {
