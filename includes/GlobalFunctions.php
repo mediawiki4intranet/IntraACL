@@ -567,15 +567,15 @@ class IACLUpdateStoredFunctions
     {
         $dbw = wfGetDB(DB_MASTER);
         print "Creating stored procedures for DBMS-side checking of IntraACL rights\n";
-        if ($dbw instanceof DatabaseMysqlBase)
-        {
-            $dbw->sourceFile(__DIR__.'/../storage/intraacl-functions-mysql.sql');
-            $dbw->query('ALTER TABLE '.$dbw->tableName('category_closure').' COMMENT='.$dbw->addQuotes(self::$spVersion));
-        }
-        else
+        if ($dbw instanceof DatabasePostgres)
         {
             $dbw->sourceFile(__DIR__.'/../storage/intraacl-functions-postgres.sql');
             $dbw->query('COMMENT ON TABLE '.$dbw->tableName('category_closure').' IS '.$dbw->addQuotes(self::$spVersion));
+        }
+        else
+        {
+            $dbw->sourceFile(__DIR__.'/../storage/intraacl-functions-mysql.sql');
+            $dbw->query('ALTER TABLE '.$dbw->tableName('category_closure').' COMMENT='.$dbw->addQuotes(self::$spVersion));
         }
     }
 
@@ -583,18 +583,18 @@ class IACLUpdateStoredFunctions
     {
         global $wgUpdates, $wgDBtype;
         $dbw = $updater ? $updater->getDB() : $wgDBtype;
-        if ($dbw instanceof DatabaseMysqlBase)
-        {
-            $row = $dbw->query('SHOW TABLE STATUS LIKE \''.trim($dbw->tableName('category_closure'), '`').'\'')->fetchObject();
-            $row = $row ? $row->Comment : NULL;
-        }
-        else
+        if ($dbw instanceof DatabasePostgres)
         {
             $row = $dbw->query(
                 'select description from pg_catalog.pg_description d join pg_catalog.pg_class c on d.objoid=c.oid'.
                 ' where relname='.$dbw->addQuotes(trim($dbw->tableName('category_closure'), '"'))
             )->fetchObject();
             $row = $row ? $row->description : NULL;
+        }
+        else
+        {
+            $row = $dbw->query('SHOW TABLE STATUS LIKE \''.trim($dbw->tableName('category_closure'), '`').'\'')->fetchObject();
+            $row = $row ? $row->Comment : NULL;
         }
         if (!$row || $row != self::$spVersion)
         {
