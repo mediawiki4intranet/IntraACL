@@ -2,7 +2,7 @@
 -- Highly optimised right/group rule storage table
 -- See GlobalFunctions.php (class IACL) for type/id/bitmask descriptions
 --
-CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/intraacl_rules (
+CREATE TABLE IF NOT EXISTS /*_*/intraacl_rules (
     -- parent protected element type and ID
     -- pe_type = any of IACL::PE_* except PE_USER, PE_ALL_USERS, PE_REG_USERS
     pe_type TINYINT(1) NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/intraacl_rules (
 --
 -- Quick ACL templates
 --
-CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/intraacl_quickacl (
+CREATE TABLE IF NOT EXISTS /*_*/intraacl_quickacl (
     user_id INT UNSIGNED NOT NULL,
     pe_type TINYINT(1) NOT NULL,
     pe_id INT UNSIGNED NOT NULL,
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/intraacl_quickacl (
 -- References from existing right definitions to non-existing ("bad") ones.
 -- Saved so we can do "forward declarations" of rights.
 --
-CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/intraacl_badlinks (
+CREATE TABLE IF NOT EXISTS /*_*/intraacl_badlinks (
     bl_from INT UNSIGNED NOT NULL,
     bl_namespace INT NOT NULL,
     bl_title VARCHAR(255) BINARY NOT NULL,
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/intraacl_badlinks (
 --
 -- Surrogate IDs for special pages
 --
-CREATE TABLE IF NOT EXISTS /*$wgDBprefix*/halo_acl_special_pages (
+CREATE TABLE IF NOT EXISTS /*_*/halo_acl_special_pages (
     id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL
 ) /*$wgDBTableOptions*/;
