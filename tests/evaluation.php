@@ -80,7 +80,10 @@ class IntraACLEvaluationTester extends Maintenance
         {
             print "Delete ".$page->getTitle()." = ".$page->getId()."\n";
         }
+        global $wgTitle;
+        $wgTitle = $page->getTitle();
         $page->doDeleteArticle('-');
+        $wgTitle = NULL;
     }
 
     function execute()
@@ -122,7 +125,7 @@ class IntraACLEvaluationTester extends Maintenance
         // Run tests
         $this->stack = array('groupManagers');
         $this->test();
-        $this->stack = array('checkAccess', 'categoryACL', 'namespaceACL', 'pageACL');
+        $this->stack = array('checkAccess', 'categoryACL', 'namespaceACL', 'treeACL', 'pageACL');
         $this->test();
         // Remove users and groups
         $this->doDelete(Title::makeTitle(HACL_NS_ACL, "Group/G_$u1"));
@@ -181,6 +184,51 @@ class IntraACLEvaluationTester extends Maintenance
         $this->test();
         $this->testACLs($acl, 'page');
         $this->doDelete($this->title);
+    }
+
+    /**
+     * Check that tree ACL protects subsubpages, protects page itself, overrides parent tree ACL and
+     * correctly interacts with other ACL types.
+     * 1) Run tests on page A/B/C/D with tree ACL created for pages A and A/B
+     * 2) Run tests on page A without tree ACL
+     */
+    protected function treeACL()
+    {
+        $t_base = $this->title."";
+        $t_sub = $this->title."/Subpage";
+        $t_subsub = $this->title."/Subpage/S2/D";
+        $this->doDelete(Title::newFromText("ACL:Tree/$t_base"));
+        $this->doDelete(Title::newFromText("ACL:Tree/$t_sub"));
+        $this->doDelete(Title::newFromText($t_subsub));
+        $this->doDelete(Title::newFromText($t_sub));
+        // test subpage itself
+        $this->title = Title::newFromText($t_sub);
+        $this->doEdit(new WikiPage($this->title), 'Test subpage');
+        $acl = Title::newFromText("ACL:Tree/".$this->title);
+        if ($acl->exists())
+        {
+            $this->doDelete($acl);
+            $acl = Title::newFromText("ACL:Tree/".$this->title);
+        }
+        $stk = $this->stack;
+        $this->stack = array('checkAccess');
+        $this->testACLs($acl, 'tree');
+        $this->stack = $stk;
+        // create acl for base page
+        $this->doDelete(Title::newFromText("ACL:Tree/$t_sub"));
+        $baseacl = Title::newFromText("ACL:Tree/$t_base");
+        $subpageacl_user = $this->makeUser("ACL:Page/$t_subsub");
+        $this->doEdit(new WikiPage($baseacl), "Base tree ACL\n{{#access: assigned to = *, #, User:$subpageacl_user | actions = *}}");
+        // test subsubpage
+        $this->title = Title::newFromText($t_subsub);
+        $this->doEdit(new WikiPage($this->title), 'Test subsubpage');
+        $this->testACLs($acl, 'tree');
+        $this->doDelete($this->title);
+        $this->doDelete(Title::newFromText("ACL:Tree/$t_base"));
+        $this->doDelete(Title::newFromText("ACL:Tree/$t_sub"));
+        $this->doDelete(Title::newFromText($t_sub));
+        $this->title = Title::newFromText($t_base);
+        $this->test();
     }
 
     /**
@@ -300,8 +348,8 @@ class IntraACLEvaluationTester extends Maintenance
         $options = array(
             "{{#access: assigned to = Group/GG_$u1, User:$username | actions = *}}",
             "{{#access: assigned to = User:$u1, Group/GG_$username | actions = *}}",
-            "{{#access: assigned to = * | actions = *}} {{#manage rights: assigned to = User:$u1}}",
-            "{{#access: assigned to = # | actions = *}} {{#manage rights: assigned to = Group/GG_$u1}}",
+            "{{#access: assigned to = * | actions = *}}\n{{#manage rights: assigned to = User:$u1}}",
+            "{{#access: assigned to = # | actions = *}}\n{{#manage rights: assigned to = Group/GG_$u1}}",
         );
         static $testedRegGroup;
         if (!$testedRegGroup)
@@ -351,7 +399,7 @@ class IntraACLEvaluationTester extends Maintenance
             $this->assertReadable(reset($this->aclUsers), true);
             return;
         }
-        $priorities = array('ns' => 1, 'cat' => 2, 'page' => 3);
+        $priorities = array('ns' => 1, 'cat' => 2, 'tree' => 3, 'page' => 4);
         foreach (array(HACL_COMBINE_EXTEND, HACL_COMBINE_OVERRIDE, HACL_COMBINE_SHRINK) as $mode)
         {
             $haclgCombineMode = $mode;

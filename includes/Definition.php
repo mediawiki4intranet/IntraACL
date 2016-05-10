@@ -339,7 +339,7 @@ class IACLDefinition implements ArrayAccess
     }
 
     /**
-     * Returns Title of the protected element if it is a PE_PAGE, PE_CATEGORY or PE_SPECIAL,
+     * Returns Title of the protected element if it is a PE_PAGE, PE_TREE, PE_CATEGORY or PE_SPECIAL,
      * using mass-fetch DB operations for the current type.
      *
      * @return Title
@@ -347,7 +347,7 @@ class IACLDefinition implements ArrayAccess
     protected function get_pe_title()
     {
         $t = $this->data['pe_type'];
-        if ($t != IACL::PE_PAGE && $t != IACL::PE_CATEGORY && $t != IACL::PE_SPECIAL)
+        if ($t != IACL::PE_PAGE && $t != IACL::PE_CATEGORY && $t != IACL::PE_SPECIAL && $t != IACL::PE_TREE)
         {
             return NULL;
         }
@@ -847,9 +847,7 @@ class IACLDefinition implements ArrayAccess
             $addRules = array();
             $st->deleteRules(array(array('pe_type' => $peType, 'pe_id' => $peID)));
             if ($peType == IACL::PE_TREE)
-            {
                 $st->refreshParentPagesForParent($peID);
-            }
         }
         else
         {
@@ -861,12 +859,12 @@ class IACLDefinition implements ArrayAccess
             }
             if ($addRules)
             {
-                if ($peType == IACL::PE_TREE && $this->clean() && $this->clean()['rules'])
+                $st->addRules(self::expandRuleArray($addRules));
+                if ($peType == IACL::PE_TREE && (!$this->clean() || !$this->clean()['rules']))
                 {
                     $t = $this['pe_title'];
                     $st->refreshParentPages($peID, $t->getNamespace(), $t->getDBkey());
                 }
-                $st->addRules(self::expandRuleArray($addRules));
             }
         }
         // Invalidate userCan() cache (FIXME - in fact our parents don't need to do it...)

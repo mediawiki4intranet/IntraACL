@@ -523,16 +523,16 @@ class IACLEvaluator
         $parentTitles = array();
         while ($parents)
         {
-            array_unshift($parentTitles, Title::makeTitleSafe($title->getNamespace(), implode('/', $parents)));
+            $parentTitles[] = Title::makeTitleSafe($title->getNamespace(), implode('/', $parents));
             array_pop($parents);
         }
         $batch = new LinkBatch($parentTitles);
         $batch->execute();
-        foreach ($parentTitles as $t)
-        {
-            $id = $t->getArticleId();
-            $seq[] = array('parent tree SD', IACL::PE_TREE, $id);
-        }
+        $ids = array();
+        foreach ($parentTitles as $i => $t)
+            if (($id = $t->getArticleId()))
+                $ids[] = $id;
+        $seq[] = array('parent tree SD', IACL::PE_TREE, $ids);
 
         if ($articleID && $title->getNamespace() != NS_SPECIAL) // special pages have no categories
         {
@@ -553,6 +553,16 @@ class IACLEvaluator
             $r = IACLDefinition::userCan($userID, $pe[1], $pe[2], $actionID);
             if ($r >= 0)
             {
+                if ($pe[1] == IACL::PE_TREE)
+                {
+                    // Subpage tree ACLs always override parent page tree ACLs
+                    foreach ($pe[2] as $id)
+                    {
+                        $r = IACLDefinition::userCan($userID, $pe[1], $id, $actionID);
+                        if ($r >= 0)
+                            break;
+                    }
+                }
                 $msg[] = 'Access '.($r > 0 ? 'allowed' : 'denied').' by '.$pe[0];
             }
             if ($haclgCombineMode == HACL_COMBINE_OVERRIDE && $r >= 0 ||

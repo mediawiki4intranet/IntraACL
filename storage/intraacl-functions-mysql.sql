@@ -26,11 +26,16 @@ begin
     inner join /*_*/intraacl_rules r1 on r1.pe_type=10 and r1.pe_id=p1.page_id and r1.child_type=6 and r1.child_id=0
     inner join /*_*/page p2 on p2.page_namespace=p1.page_namespace
       and p2.page_title like concat(replace(replace(p1.page_title, '%', '\%'), '_', '\_'), '/%')
+    left join /*_*/intraacl_rules r2 on r2.pe_type=10 and r2.pe_id=p2.page_id and r2.child_type=6 and r2.child_id=0
     left join /*_*/page p3 on p3.page_namespace=p1.page_namespace
       and p3.page_title like concat(replace(replace(p1.page_title, '%', '\%'), '_', '\_'), '/%')
       and p2.page_title like concat(replace(replace(p3.page_title, '%', '\%'), '_', '\_'), '/%')
     left join /*_*/intraacl_rules r3 on r3.pe_type=10 and r3.pe_id=p3.page_id and r3.child_type=6 and r3.child_id=0
-    where p3.page_id is null or r3.pe_id is null;
+    where r2.pe_id is null and (p3.page_id is null or r3.pe_id is null)
+    union all
+    select p1.page_id, p1.page_id
+      from /*_*/page p1
+      inner join /*_*/intraacl_rules r1 on r1.pe_type=10 and r1.pe_id=p1.page_id and r1.child_type=6 and r1.child_id=0;
 end //
 
 drop table if exists /*_*/parent_pages //
@@ -46,13 +51,19 @@ begin
     select _page_id, p2.page_id
       from /*_*/page p2
       inner join /*_*/intraacl_rules r1 on r1.pe_type=10 and r1.pe_id=_page_id and r1.child_type=6 and r1.child_id=0
+      left join /*_*/intraacl_rules r2 on r2.pe_type=10 and r2.pe_id=p2.page_id and r2.child_type=6 and r2.child_id=0
       left join /*_*/page p3 on p3.page_namespace=_page_namespace
         and p3.page_title like concat(replace(replace(_page_title, '%', '\%'), '_', '\_'), '/%')
         and p2.page_title like concat(replace(replace(p3.page_title, '%', '\%'), '_', '\_'), '/%')
       left join /*_*/intraacl_rules r3 on r3.pe_type=10 and r3.pe_id=p3.page_id and r3.child_type=6 and r3.child_id=0
-      where p2.page_namespace=_page_namespace
+      where r2.pe_id is null and p2.page_namespace=_page_namespace
         and p2.page_title like concat(replace(replace(_page_title, '%', '\%'), '_', '\_'), '/%')
-        and (p3.page_id is null or r3.pe_id is null);
+        and (p3.page_id is null or r3.pe_id is null)
+    union all
+    select _page_id, p2.page_id
+      from /*_*/page p2
+      inner join /*_*/intraacl_rules r1 on r1.pe_type=10 and r1.pe_id=_page_id and r1.child_type=6 and r1.child_id=0
+      where p2.page_id=_page_id;
 end //
 
 drop procedure if exists /*_*/refresh_all_parents_for_page //
@@ -64,18 +75,17 @@ begin
   declare pos int default 0;
   call /*_*/refresh_parent_pages_for_children(_page_id, _page_namespace, _page_title);
   repeat
-    set pos = locate('/', reverse(_page_title), prev+1);
-    if pos > 0 then
-      replace into /*_*/parent_pages (parent_page_id, page_id)
-        select p1.page_id, _page_id from /*_*/page p1
-        inner join /*_*/intraacl_rules r1 on r1.pe_type=10 and r1.pe_id=p1.page_id and r1.child_type=6 and r1.child_id=0
-        where p1.page_namespace=_page_namespace
-        and p1.page_title = substr(_page_title, 1, length(_page_title)-pos);
-      if row_count() > 0 then
-        set pos = 0;
-      end if;
-    end if;
     set prev = pos;
+    replace into /*_*/parent_pages (parent_page_id, page_id)
+      select p1.page_id, _page_id from /*_*/page p1
+      inner join /*_*/intraacl_rules r1 on r1.pe_type=10 and r1.pe_id=p1.page_id and r1.child_type=6 and r1.child_id=0
+      where p1.page_namespace=_page_namespace
+      and p1.page_title = substr(_page_title, 1, length(_page_title)-pos);
+    if row_count() > 0 then
+      set pos = 0;
+    else
+      set pos = locate('/', reverse(_page_title), prev+1);
+    end if;
   until pos <= 0 end repeat;
 end //
 
@@ -87,7 +97,7 @@ begin
   declare parent_id int unsigned default 0;
   declare parent_namespace int default 0;
   declare parent_title text default '';
-  select page_id, page_namespace, page_title from /*_*/parent_pages pp, /*_*/page p
+  select p.page_id, p.page_namespace, p.page_title from /*_*/parent_pages pp, /*_*/page p
     where pp.page_id=_page_id and pp.parent_page_id=p.page_id into parent_id, parent_namespace, parent_title;
   delete from /*_*/parent_pages where parent_page_id=_page_id;
   if parent_id > 0 then
