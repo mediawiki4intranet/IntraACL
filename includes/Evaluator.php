@@ -261,7 +261,7 @@ class IACLEvaluator
 
     left join intraacl_rules r1 on r1.pe_type=".IACL::PE_PAGE." and r1.pe_id=_ip.page_id and r1.child_type=".IACL::PE_ALL_USERS." and r1.child_id=0
     left join intraacl_rules r12 on r12.pe_type=".IACL::PE_PAGE." and r12.pe_id=_ip.page_id and (r12.actions & $right_id) != 0 and r12.child_type=".IACL::PE_USER." and r12.child_id=$user_id
-    left join intraacl_rules r13 on r12.pe_type=".IACL::PE_PAGE." and r13.pe_id=_ip.page_id and (r13.actions & $right_id) != 0 and r13.child_type=".IACL::PE_REG_USERS." and r13.child_id=0
+    left join intraacl_rules r13 on r13.pe_type=".IACL::PE_PAGE." and r13.pe_id=_ip.page_id and (r13.actions & $right_id) != 0 and r13.child_type=".IACL::PE_REG_USERS." and r13.child_id=0
 
     left join intraacl_rules r2 on r2.pe_type=".IACL::PE_CATEGORY." and _ip.page_namespace=14 and r2.pe_id=_ip.page_id and r2.child_type=".IACL::PE_ALL_USERS." and r2.child_id=0
     left join intraacl_rules r22 on r22.pe_type=".IACL::PE_CATEGORY." and _ip.page_namespace=14 and r22.pe_id=_ip.page_id and (r22.actions & $right_id) != 0 and r22.child_type=".IACL::PE_USER." and r22.child_id=$user_id
@@ -272,8 +272,9 @@ class IACLEvaluator
     left join intraacl_rules r32 on r32.pe_type=".IACL::PE_TREE." and r32.pe_id=_pp.parent_page_id and (r32.actions & $right_id) and r32.child_type=".IACL::PE_USER." and r32.child_id=$user_id
     left join intraacl_rules r33 on r33.pe_type=".IACL::PE_TREE." and r33.pe_id=_pp.parent_page_id and (r33.actions & $right_id) and r33.child_type=".IACL::PE_REG_USERS." and r33.child_id=0
 
-    left join category_closure c on c.page_id=_ip.page_id
-    left join intraacl_rules r4 on r4.pe_type=".IACL::PE_CATEGORY." and r4.pe_id=c.category_id and r4.child_type=".IACL::PE_ALL_USERS." and r4.child_id=0
+    left join (category_closure c
+        inner join intraacl_rules r4 on r4.pe_type=".IACL::PE_CATEGORY." and r4.pe_id=c.category_id and r4.child_type=".IACL::PE_ALL_USERS." and r4.child_id=0
+    ) on c.page_id=_ip.page_id
     left join intraacl_rules r42 on r42.pe_type=".IACL::PE_CATEGORY." and r42.pe_id=c.category_id and (r42.actions & $right_id) != 0 and r42.child_type=".IACL::PE_USER." and r42.child_id=$user_id
     left join intraacl_rules r43 on r43.pe_type=".IACL::PE_CATEGORY." and r43.pe_id=c.category_id and (r43.actions & $right_id) != 0 and r43.child_type=".IACL::PE_REG_USERS." and r43.child_id=0
 
@@ -333,8 +334,9 @@ class IACLEvaluator
     left join parent_pages _pp on _pp.page_id=_ip.page_id
     left join intraacl_rules r3 on r3.pe_type=".IACL::PE_TREE." and r3.pe_id=_pp.parent_page_id and r3.child_type=".IACL::PE_ALL_USERS." and r3.child_id=0
 
-    left join category_closure c on c.page_id=_ip.page_id
-    left join intraacl_rules r4 on r4.pe_type=".IACL::PE_CATEGORY." and r4.pe_id=c.category_id and r4.child_type=".IACL::PE_ALL_USERS." and r4.child_id=0
+    left join (category_closure c
+        inner join intraacl_rules r4 on r4.pe_type=".IACL::PE_CATEGORY." and r4.pe_id=c.category_id and r4.child_type=".IACL::PE_ALL_USERS." and r4.child_id=0
+    ) on c.page_id=_ip.page_id
 
     left join intraacl_rules r5 on r5.pe_type=".IACL::PE_NAMESPACE." and r5.pe_id=_ip.page_namespace and r5.child_type=".IACL::PE_ALL_USERS." and r5.child_id=0
 

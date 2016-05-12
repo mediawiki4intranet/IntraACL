@@ -69,21 +69,20 @@ end
 $mw$
 language plpgsql;
 
-create or replace function /*_*/refresh_all_parents_for_page(_page_id int, _page_namespace int, _page_title text) returns void as
+create or replace function /*_*/get_parent_for_page(_page_namespace int, _page_title text) returns int as
 $mw$
 declare
   prev int default 0;
   pos int default 0;
+  _parent_id int default null;
 begin
-  perform /*_*/refresh_parent_pages_for_children(_page_id, _page_namespace, _page_title);
-  delete from /*_*/parent_pages where page_id=_page_id;
   loop
     prev := pos;
-    insert into /*_*/parent_pages (parent_page_id, page_id)
-      select p1.page_id, _page_id from /*_*/page p1
+    select p1.page_id from /*_*/page p1
       inner join /*_*/intraacl_rules r1 on r1.pe_type=10 and r1.pe_id=p1.page_id and r1.child_type=6 and r1.child_id=0
       where p1.page_namespace=_page_namespace
-      and p1.page_title = substr(_page_title, 1, length(_page_title)-pos);
+      and p1.page_title = substr(_page_title, 1, length(_page_title)-pos)
+      into _parent_id;
     if found then
       pos := 0;
     else
@@ -94,22 +93,50 @@ begin
     end if;
     exit when pos <= 0;
   end loop;
+  return _parent_id;
 end
 $mw$
 language plpgsql;
 
-create or replace function /*_*/refresh_parent_pages_for_parent_children(_page_id int) returns void as
+create or replace function /*_*/refresh_parent_for_page(_page_id int, _page_namespace int, _page_title text) returns void as
 $mw$
 declare
-  parent_id int default 0;
-  parent_namespace int default 0;
-  parent_title text default '';
+  _parent_id int default null;
 begin
-  select p.page_id, p.page_namespace, p.page_title from /*_*/parent_pages pp, /*_*/page p
-    where pp.page_id=_page_id and pp.parent_page_id=p.page_id into parent_id, parent_namespace, parent_title;
-  delete from /*_*/parent_pages where parent_page_id=_page_id;
-  if parent_id > 0 then
-    perform /*_*/refresh_parent_pages_for_children(parent_id, parent_namespace, parent_title);
+  delete from /*_*/parent_pages where page_id=_page_id;
+  select /*_*/get_parent_for_page(_page_namespace, _page_title) into _parent_id;
+  if _parent_id is not null then
+    insert into /*_*/parent_pages (parent_page_id, page_id) values (_parent_id, _page_id);
+  end if;
+end
+$mw$
+language plpgsql;
+
+create or replace function /*_*/refresh_all_parents_for_page(_page_id int, _page_namespace int, _page_title text) returns void as
+$mw$
+begin
+  if _page_namespace is null or _page_title is null then
+    select page_namespace, page_title from page where page_id=_page_id into _page_namespace, _page_title;
+  end if;
+  perform /*_*/refresh_parent_pages_for_children(_page_id, _page_namespace, _page_title);
+  perform /*_*/refresh_parent_for_page(_page_id, _page_namespace, _page_title);
+end
+$mw$
+language plpgsql;
+
+create or replace function /*_*/refresh_parent_pages_for_parent_children(_page_id int, _page_namespace int, _page_title text) returns void as
+$mw$
+declare
+  _parent_id int default null;
+begin
+  if _page_namespace is null or _page_title is null then
+    select page_namespace, page_title from page where page_id=_page_id into _page_namespace, _page_title;
+  end if;
+  select /*_*/get_parent_for_page(_page_namespace, _page_title) into _parent_id;
+  if _parent_id is null then
+    delete from /*_*/parent_pages where parent_page_id=_page_id;
+  else
+    update /*_*/parent_pages set parent_page_id=_parent_id where parent_page_id=_page_id;
   end if;
 end
 $mw$
@@ -299,7 +326,7 @@ begin
   if OLD.page_namespace=14 then
     perform /*_*/rm_category_closure_catlinks(NULL, OLD.page_id);
   end if;
-  perform /*_*/refresh_parent_pages_for_parent_children(OLD.page_id);
+  perform /*_*/refresh_parent_pages_for_parent_children(OLD.page_id, OLD.page_namespace, OLD.page_title);
   return OLD;
 end
 $mw$
@@ -327,7 +354,7 @@ begin
         where l.cl_to=NEW.page_title and c2.page_id is null;
     end if;
     -- update parent/child subpage records
-    perform /*_*/refresh_parent_pages_for_parent_children(OLD.page_id);
+    perform /*_*/refresh_parent_pages_for_parent_children(OLD.page_id, OLD.page_namespace, OLD.page_title);
     perform /*_*/refresh_all_parents_for_page(NEW.page_id, NEW.page_namespace, NEW.page_title);
   end if;
   return NEW;

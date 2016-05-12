@@ -86,6 +86,28 @@ class IntraACLEvaluationTester extends Maintenance
         $wgTitle = NULL;
     }
 
+    /**
+     * Move page
+     */
+    protected function doMove($oldtitle, $newtitle)
+    {
+        if (is_string($oldtitle))
+            $oldtitle = Title::newFromText($oldtitle);
+        if (is_string($newtitle))
+            $newtitle = Title::newFromText($newtitle);
+        if ($newtitle->exists())
+            $this->doDelete($newtitle);
+        if ($this->logActions)
+            print "Move $oldtitle to $newtitle\n";
+        $err = $oldtitle->moveTo($newtitle, true, '-', false);
+        if ($err !== true)
+        {
+            print "Error moving $oldtitle to $newtitle: \n";
+            var_dump($err);
+            exit;
+        }
+    }
+
     function execute()
     {
         if ($this->getOption('evaluation-log', false))
@@ -125,7 +147,7 @@ class IntraACLEvaluationTester extends Maintenance
         // Run tests
         $this->stack = array('groupManagers');
         $this->test();
-        $this->stack = array('checkAccess', 'categoryACL', 'namespaceACL', 'treeACL', 'pageACL');
+        $this->stack = array('checkAccess', 'categoryACL', 'treeACL', 'namespaceACL', 'pageACL');
         $this->test();
         // Remove users and groups
         $this->doDelete(Title::makeTitle(HACL_NS_ACL, "Group/G_$u1"));
@@ -175,15 +197,20 @@ class IntraACLEvaluationTester extends Maintenance
         $this->acls = array();
         $art = new WikiPage($this->title);
         $this->doEdit($art, 'Test page');
-        $acl = Title::newFromText("ACL:Page/".$this->title);
+        $acl = Title::newFromText("ACL:Page/".self::canon($this->title));
         if ($acl->exists())
         {
             $this->doDelete($acl);
-            $acl = Title::newFromText("ACL:Page/".$this->title);
+            $acl = Title::newFromText("ACL:Page/".self::canon($this->title));
         }
         $this->test();
         $this->testACLs($acl, 'page');
         $this->doDelete($this->title);
+    }
+
+    protected static function canon($t)
+    {
+        return ($t->getNamespace() ? iaclfCanonicalNsText($t->getNamespace()).':' : '') . $t->getText();
     }
 
     /**
@@ -194,21 +221,24 @@ class IntraACLEvaluationTester extends Maintenance
      */
     protected function treeACL()
     {
-        $t_base = $this->title."";
-        $t_sub = $this->title."/Subpage";
-        $t_subsub = $this->title."/Subpage/S2/D";
+        $t_base = self::canon($this->title);
+        $t_sub = "$t_base/Subpage";
+        $t_subsub = "$t_base/Subpage/S2/D";
         $this->doDelete(Title::newFromText("ACL:Tree/$t_base"));
         $this->doDelete(Title::newFromText("ACL:Tree/$t_sub"));
         $this->doDelete(Title::newFromText($t_subsub));
-        $this->doDelete(Title::newFromText($t_sub));
         // test subpage itself
+        $origpageacl = Title::newFromText("ACL:Page/$t_base");
+        $orig = $origpageacl->exists();
+        if ($orig)
+            $this->doMove($origpageacl, "ACL:Page/$t_sub");
         $this->title = Title::newFromText($t_sub);
         $this->doEdit(new WikiPage($this->title), 'Test subpage');
-        $acl = Title::newFromText("ACL:Tree/".$this->title);
+        $acl = Title::newFromText("ACL:Tree/$t_sub");
         if ($acl->exists())
         {
             $this->doDelete($acl);
-            $acl = Title::newFromText("ACL:Tree/".$this->title);
+            $acl = Title::newFromText("ACL:Tree/$t_sub");
         }
         $stk = $this->stack;
         $this->stack = array('checkAccess');
@@ -220,13 +250,18 @@ class IntraACLEvaluationTester extends Maintenance
         $subpageacl_user = $this->makeUser("ACL:Page/$t_subsub");
         $this->doEdit(new WikiPage($baseacl), "Base tree ACL\n{{#access: assigned to = *, #, User:$subpageacl_user | actions = *}}");
         // test subsubpage
+        if ($orig)
+            $this->doMove("ACL:Page/$t_sub", "ACL:Page/$t_subsub");
         $this->title = Title::newFromText($t_subsub);
         $this->doEdit(new WikiPage($this->title), 'Test subsubpage');
-        $this->testACLs($acl, 'tree');
+        $this->testACLs($acl, 'tree', array('title' => $baseacl, 'users' => array('*' => '*')));
         $this->doDelete($this->title);
         $this->doDelete(Title::newFromText("ACL:Tree/$t_base"));
         $this->doDelete(Title::newFromText("ACL:Tree/$t_sub"));
         $this->doDelete(Title::newFromText($t_sub));
+        unset($this->acls['tree']);
+        if ($orig)
+            $this->doMove("ACL:Page/$t_subsub", "ACL:Page/$t_base");
         $this->title = Title::newFromText($t_base);
         $this->test();
     }
@@ -243,35 +278,11 @@ class IntraACLEvaluationTester extends Maintenance
         $this->test();
         $nt = Title::makeTitle(NS_PROJECT, $this->title->getText());
         $ot = $this->title;
-        if ($nt->exists())
-        {
-            $this->doDelete($nt);
-        }
-        if ($this->logActions)
-        {
-            print "Move $ot to $nt\n";
-        }
-        $err = $ot->moveTo($nt, true, '-', false);
-        if ($err !== true)
-        {
-            print "Error moving $ot to $nt: \n";
-            var_dump($err);
-            exit;
-        }
+        $this->doMove($ot, $nt);
         $this->title = $nt;
         $acl = Title::newFromText("ACL:Namespace/".$wgCanonicalNamespaceNames[NS_PROJECT]);
         $this->testACLs($acl, 'ns');
-        if ($this->logActions)
-        {
-            print "Move $nt to $ot\n";
-        }
-        $err = $nt->moveTo($ot, true, '-', false);
-        if ($err !== true)
-        {
-            print "Error moving $ot to $nt: \n";
-            var_dump($err);
-            exit;
-        }
+        $this->doMove($nt, $ot);
         $this->title = $ot;
     }
 
@@ -331,7 +342,7 @@ class IntraACLEvaluationTester extends Maintenance
      * 3) Run tests for # and *
      * 4) Delete $acl and run tests without it
      */
-    protected function testACLs($acl, $priority)
+    protected function testACLs($acl, $priority, $overAfterDel = NULL)
     {
         $user1 = $this->makeUser(":shrink");
         $u1 = $user1->getName();
@@ -379,7 +390,10 @@ class IntraACLEvaluationTester extends Maintenance
         $this->doDelete(Title::makeTitle(HACL_NS_ACL, "Group/GG_$username"));
         $this->doDelete(Title::makeTitle(HACL_NS_ACL, "Group/G_$username"));
         $this->doDelete($acl);
-        unset($this->acls[$priority]);
+        if ($overAfterDel)
+            $this->acls[$priority] = $overAfterDel;
+        else
+            unset($this->acls[$priority]);
         $this->test();
     }
 
@@ -494,37 +508,54 @@ class IntraACLEvaluationTester extends Maintenance
      */
     protected function assertCan($user, $can, $action)
     {
-        global $haclgCombineMode, $haclgOpenWikiAccess;
+        global $haclgCombineMode, $haclgOpenWikiAccess, $wgUser, $iaclUseStoredProcedure;
         $info = array_merge(array(
             ($haclgOpenWikiAccess ? 'OPEN' : 'CLOSED'), $haclgCombineMode,
         ), array_keys($this->acls));
         $result = false;
-        if (class_exists('IACLEvaluator'))
+        IACLEvaluator::userCan($this->title, $user, $action, $result);
+        $ok = ($can == $result) ? 1 : 0;
+        if ($ok && $action == 'read' && $iaclUseStoredProcedure)
         {
-            IACLEvaluator::userCan($this->title, $user, $action, $result);
+            // Check stored procedure
+            $dbw = wfGetDB(DB_MASTER);
+            $query = array(
+                'tables' => array('page'),
+                'fields' => '*',
+                'conds' => array('page_namespace' => $this->title->getNamespace(), 'page_title' => $this->title->getDBkey()),
+                'options' => array(),
+                'join_conds' => array(),
+            );
+            $oldUser = $wgUser;
+            $wgUser = $user;
+            IACLEvaluator::FilterPageQuery($query);
+            $wgUser = $oldUser;
+            $res = $dbw->select($query['tables'], $query['fields'], $query['conds'], __METHOD__, $query['options'], $query['join_conds']);
+            $row = $res->fetchObject();
+            $ok = $can == ($row && true) ? 1 : -1;
         }
-        else
-        {
-            HACLEvaluator::userCan($this->title, $user, $action, $result);
-        }
-        $ok = ($can == $result);
-        if ($ok)
+        if ($ok == 1)
         {
             $str = "[OK] ";
             $this->numOk++;
         }
-        else
+        elseif ($ok == 0)
         {
             $str = "[FAILED] ";
             $this->numFailed++;
         }
+        elseif ($ok == -1)
+        {
+            $str = "[SP FAILED] ";
+            $this->numFailed++;
+        }
         $str = $this->pfx.sprintf("%5d ", $this->numFailed+$this->numOk).$str.'['.implode(' ', $info).'] '.
             $user->getName().($can ? " can " : " cannot ").$action.' '.$this->title.($ok ? $this->newline : "\n");
-        if (!$ok || !$this->onlyFailures)
+        if ($ok != 1 || !$this->onlyFailures)
         {
             print $str;
         }
-        if (!$ok)
+        if ($ok != 1)
         {
             global $haclgCombineMode, $haclgOpenWikiAccess;
             $art = new WikiPage($this->title);
@@ -536,7 +567,7 @@ class IntraACLEvaluationTester extends Maintenance
                 print "  Applied ACLs:\n";
                 foreach ($this->acls as $key => $info)
                 {
-                    print '    '.$info['title'].' '.trim((new WikiPage($info['title']))->getText())."\n";
+                    print '    '.$info['title'].' '.trim(preg_replace('/\s+/s', ' ', (new WikiPage($info['title']))->getText()))."\n";
                 }
             }
             else

@@ -49,18 +49,18 @@ class IntraACL_SQL_SD
         $this->deleteWhere('intraacl_rules', $rows, __METHOD__);
     }
 
-    function refreshParentPages($pageId, $pageNamespace, $pageTitle)
+    function refreshParentPages($pageId)
     {
         $dbw = wfGetDB(DB_MASTER);
         $call = $dbw instanceof DatabasePostgres ? 'SELECT' : 'CALL';
-        $dbw->query("$call refresh_all_parents_for_page(".intval($pageId).", ".intval($pageNamespace).", ".$dbw->addQuotes($pageTitle).")");
+        $dbw->query("$call refresh_all_parents_for_page(".intval($pageId).", null, null)");
     }
 
-    function refreshParentPagesForParent($peID)
+    function refreshParentPagesForParent($pageId)
     {
         $dbw = wfGetDB(DB_MASTER);
         $call = $dbw instanceof DatabasePostgres ? 'SELECT' : 'CALL';
-        $dbw->query("$call refresh_parent_pages_for_parent_children(".intval($peID).")");
+        $dbw->query("$call refresh_parent_pages_for_parent_children(".intval($pageId).", null, null)");
     }
 
     /**

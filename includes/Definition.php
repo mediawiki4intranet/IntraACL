@@ -861,10 +861,7 @@ class IACLDefinition implements ArrayAccess
             {
                 $st->addRules(self::expandRuleArray($addRules));
                 if ($peType == IACL::PE_TREE && (!$this->clean() || !$this->clean()['rules']))
-                {
-                    $t = $this['pe_title'];
-                    $st->refreshParentPages($peID, $t->getNamespace(), $t->getDBkey());
-                }
+                    $st->refreshParentPages($peID);
             }
         }
         // Invalidate userCan() cache (FIXME - in fact our parents don't need to do it...)

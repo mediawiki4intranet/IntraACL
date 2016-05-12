@@ -710,14 +710,9 @@ class IACLParserFunctions
             }
             // Prevent overwriting canonical definitions with non-canonical ones
             $canonical = ($self->def && $self->def['def_title']->getPrefixedText() === $title->getPrefixedText());
-            if ($canonical || $self->def['rules'])
-            {
-                if ($self->def)
-                {
-                    $self->def->save();
-                }
-                $self->saveBadlinks($title);
-            }
+            if ($self->def && ($canonical || !$self->def['def_title']->exists()))
+                $self->def->save();
+            $self->saveBadlinks($title);
             self::destroyInstance($self);
         }
         self::refreshBadlinks($title);
@@ -736,7 +731,8 @@ class IACLParserFunctions
             {
                 $this->def = false;
             }
-            if (!$this->def && ($this->peType == IACL::PE_PAGE || $this->peType == IACL::PE_CATEGORY))
+            if (!$this->def && ($this->peType == IACL::PE_PAGE ||
+                $this->peType == IACL::PE_TREE || $this->peType == IACL::PE_CATEGORY))
             {
                 $title = $this->peType == IACL::PE_CATEGORY
                     ? Title::makeTitleSafe(NS_CATEGORY, $this->peName)
@@ -920,6 +916,7 @@ class IACLParserFunctions
     public static function TitleMoveComplete($oldTitle, $newTitle, $user, $pageid, $redirid)
     {
         global $wgVersion;
+
         if ($oldTitle->getNamespace() == HACL_NS_ACL)
         {
             // Move definition data!
@@ -942,10 +939,11 @@ class IACLParserFunctions
                 // Before 1.19, Title::moveTo() doesn't do ArticleEditUpdates, do it manually
                 self::updateDefinition(new WikiPage($newTitle));
             }
+            self::refreshBadlinks($newTitle);
             return true;
         }
 
-        // Check if the old title has an SD
+        // Check if the old title has page SD
         $oldSDTitle = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_PAGE, $oldTitle));
         if ($oldSDTitle->exists())
         {
@@ -961,8 +959,9 @@ class IACLParserFunctions
             {
                 // FIXME report "permission denied to overwrite $to"
             }
-            $oldSDTitle->moveTo($oldSDTitle, false, wfMsg('hacl_move_acl'), true);
+            $oldSDTitle->moveTo($newSDTitle, false, wfMsg('hacl_move_acl'), true);
         }
+        self::refreshBadlinks($newTitle);
 
         return true;
     }
