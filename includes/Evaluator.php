@@ -467,7 +467,7 @@ class IACLEvaluator
                     __METHOD__
                 );
                 $id = $row ? $row->page_id : NULL;
-            } while ($row && $row->page_is_redirect && !$seen[$row->page_id]);
+            } while ($row && $row->page_is_redirect && !isset($seen[$row->page_id]));
             if ($row)
             {
                 $title = Title::newFromRow($row);
