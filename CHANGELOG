@@ -1,0 +1,106 @@
+== 2.2.0 ==
+
+* implement subpage ("tree") ACLs
+* pure SQL (correlated subquery) permission checks instead of a stored procedure (much faster)
+* full support for PostgreSQL with SQL permission checks
+* bugfixes
+
+== 2.1.9.1 ==
+
+* fix #49 - invalid permission evaluation on big databases
+
+== 2.1.9 ==
+
+* support for MediaWiki 1.26
+* basic support for PostgreSQL (without SQL permission checks)
+* replace outdated SHint.js with SimpleAutocomplete.js
+* add notice for switching between category ACL and category page ACL
+* fix "actions=manage" behavior - it was treated like {{#manage rights}} which is incorrect
+* another small table prefix compatibility bugfix
+* other bugfixes
+
+== 2.1.8 ==
+
+* support for MediaWiki 1.25
+* require ACL:Right/ prefix for ACL templates again
+* treat redirect pages as symlinks in UNIX: its permissions are now always equal to the target
+* bugfixes
+
+== 2.1.7 ==
+
+* support MediaWiki 1.23, 1.24
+* drop support for MediaWiki 1.18 and older
+* bugfixes
+
+== 2.1.6 ==
+
+* warn for non-readable uploads
+
+== 2.1.5 ==
+
+* report duplicate and non-canonical definition errors from checkErrors.php
+* bugfixes
+
+== 2.1.4 ==
+
+* a big bugfix: changing groups was allowed for all users except members
+* other bugfixes
+
+== 2.1.3 ==
+
+* use only <?php and <?= tags
+* other bugfixes
+
+== 2.1.2 ==
+
+* category_closure bugfix
+
+== 2.1.1 ==
+
+* bugfixes
+
+== 2.1.0 ==
+
+* add support for permission evaluation inside MySQL, via stored procedure; this allows to correctly paginate article lists 
+
+== 2.0.6 ==
+
+* support MediaWiki 1.22
+* bugfixes
+
+== 2.0.5 ==
+
+* bugfixes
+
+== 2.0.4 ==
+
+* fixed compatibility with table prefix
+* other bugfixes
+
+== 2.0.3 ==
+
+* bugfixes
+
+== 2.0.2 ==
+
+* add new {{#predefined right: A | B | C | ...}} syntax
+* bugfixes
+
+== 2.0.1 ==
+
+* permission evaluation bugfix (access denied in some cases when it should be allowed)
+
+== 2.0 ==
+
+* this is the first IntraACL release backed by the new storage code, which gives highly improved performance over original HaloACL code
+* parser cache support (via cache key "personalisation")
+* allow to make "forward" right declarations which are reparsed after "red links" are created
+* enforce "canonical" ACL titles, i.e. titles without namespace localisation and aliases
+
+== 1.0 ==
+
+* the last version of IntraACL backed by the legacy HaloACL storage code
+* the original HaloACL UI is removed and rewritten
+* compatible with MediaWiki 1.16-1.21, PHP 5.3
+* supports configurable self-tests for ACL definitions in your wiki
+* includes permission evaluation tests for development
