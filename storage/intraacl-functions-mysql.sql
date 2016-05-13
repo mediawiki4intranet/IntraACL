@@ -6,6 +6,9 @@
 
 DELIMITER //
 
+-- old permission checker procedure (not needed anymore)
+drop function if exists check_read_right //
+
 --
 -- Stored procedure for creating parent_pages table
 --
