@@ -569,6 +569,19 @@ class IACLParserFunctions
                         $pa = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_CATEGORY, $peTitle->getText()));
                         $html .= wfMsgForContent('hacl_category_page_acl_shown', $pa->getPrefixedText(), $pa->getLocalUrl(), $haclgHaloScriptPath . '/skins/images/warn.png');
                     }
+                    elseif (MWNamespace::hasSubpages($peTitle->getNamespace()))
+                    {
+                        // Add "This is page ACL, see tree ACL here"
+                        $pa = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_TREE, $peTitle->getText()));
+                        $html .= wfMsgForContent('hacl_page_acl_shown', $pa->getPrefixedText(), $pa->getLocalUrl(), $haclgHaloScriptPath . '/skins/images/warn.png');
+                    }
+                }
+                elseif ($self->peType == IACL::PE_TREE)
+                {
+                    // Add "This is tree ACL, see page ACL here"
+                    $peTitle = Title::newFromText($self->peName);
+                    $pa = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_PAGE, $peTitle->getText()));
+                    $html .= wfMsgForContent('hacl_tree_acl_shown', $pa->getPrefixedText(), $pa->getLocalUrl(), $haclgHaloScriptPath . '/skins/images/warn.png');
                 }
             }
             $wgOut->addHTML($html);
