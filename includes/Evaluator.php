@@ -443,13 +443,6 @@ class IACLEvaluator
             {
                 return array('Moving/deleting non-existing article is pointless', 1);
             }
-            $r = IACLDefinition::userCan($userID, IACL::PE_NAMESPACE, $title->getNamespace(), $actionID);
-            if ($r <= 0 && $actionID == IACL::ACTION_READ)
-            {
-                // Read right is needed to show edit form
-                $r = IACLDefinition::userCan($userID, IACL::PE_NAMESPACE, $title->getNamespace(), IACL::ACTION_CREATE);
-            }
-            return array('Checked namespace access right', $r);
         }
         if ($articleID && $title->isRedirect())
         {
