@@ -439,9 +439,12 @@ class IACLEvaluator
                 self::log('Article does not exist yet. Checking right to create.');
                 $actionID = IACL::ACTION_CREATE;
             }
-            elseif ($actionID == IACL::ACTION_DELETE || $actionID == IACL::ACTION_MOVE)
+            elseif ($actionID == IACL::ACTION_READ || $actionID == IACL::ACTION_DELETE || $actionID == IACL::ACTION_MOVE)
             {
-                return array('Moving/deleting non-existing article is pointless', 1);
+                // read action is checked by MediaWiki before create when creating page
+                // and basically means "can we see that the article does not exist"
+                // so create action also grants read
+                $actionID = IACL::ACTION_CREATE|IACL::ACTION_READ;
             }
         }
         if ($articleID && $title->isRedirect())
