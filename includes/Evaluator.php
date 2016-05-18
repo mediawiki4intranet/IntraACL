@@ -381,7 +381,7 @@ class IACLEvaluator
     public static function userCan_Switches($title, $user, $action)
     {
         global $haclgContLang, $haclgSuperGroups;
-        if (!$title)
+        if (!$title || $title->getText() === '')
         {
             return array('Title is <null>', 1);
         }
