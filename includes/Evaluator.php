@@ -521,7 +521,9 @@ class IACLEvaluator
         $parentTitles = array();
         while ($parents)
         {
-            $parentTitles[] = Title::makeTitleSafe($title->getNamespace(), implode('/', $parents));
+            $t = Title::makeTitleSafe($title->getNamespace(), implode('/', $parents));
+            if ($t) // Skip invalid titles, just in case
+                $parentTitles[] = $t;
             array_pop($parents);
         }
         $batch = new LinkBatch($parentTitles);
