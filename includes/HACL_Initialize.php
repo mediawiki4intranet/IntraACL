@@ -124,6 +124,11 @@ $iaclPreloadLimit = 1000;
 # doesn't have stored procedure support available.
 $iaclUseStoredProcedure = true;
 
+# If set to true, IntraACL will skip read permission checks, i.e. all pages will
+# be always available for reading by everyone. This removes IntraACL's performance penalty,
+# but still allows to restrict edit permissions.
+$iaclDisableReadPermissions = false;
+
 # See also $wgWhitelistRead - IntraACL opens whitelisted pages for reading
 
 // load global functions

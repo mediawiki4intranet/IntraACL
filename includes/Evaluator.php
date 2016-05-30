@@ -59,13 +59,13 @@ class IACLEvaluator
      */
     public static function ParserOutputRenderKey($article, &$renderkey)
     {
-        global $haclgSuperGroups, $haclgContLang, $wgUser;
+        global $haclgSuperGroups, $haclgContLang, $wgUser, $iaclDisableReadPermissions;
+        if ($iaclDisableReadPermissions)
+            return true;
         $title = $article->getTitle();
         $user = $wgUser;
         if ($title->getInterwiki() !== '' || !$title->getArticleId())
-        {
             return true;
-        }
         if ($title->getUserPermissionsErrors('read', $user))
         {
             $renderkey .= '0';
@@ -135,7 +135,10 @@ class IACLEvaluator
      */
     public static function userCan($title, $user, $action, &$result)
     {
-        global $haclgOpenWikiAccess;
+        global $haclgOpenWikiAccess, $iaclDisableReadPermissions;
+
+        if ($iaclDisableReadPermissions && $action == 'read')
+            return true;
 
         self::startLog($title, $user, $action);
 
@@ -189,7 +192,8 @@ class IACLEvaluator
     public static function FilterPageQuery(&$query, $page_alias = 'page', $page_join_conds = NULL, $override_namespace = NULL)
     {
         global $wgUser, $haclgCombineMode, $wgDBtype, $haclgSuperGroups, $haclgOpenWikiAccess, $iaclUseStoredProcedure;
-        if (!$iaclUseStoredProcedure)
+        global $iaclDisableReadPermissions;
+        if ($iaclDisableReadPermissions || !$iaclUseStoredProcedure)
         {
             // stored procedure disabled
             return true;
