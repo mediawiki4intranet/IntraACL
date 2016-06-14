@@ -75,7 +75,7 @@ create procedure /*_*/refresh_parent_for_page(_page_id int unsigned, _page_names
 modifies sql data
 begin
   declare _parent_id int unsigned default null;
-  select get_parent_for_page(_page_namespace, _page_title) into _parent_id;
+  select /*_*/get_parent_for_page(_page_namespace, _page_title) into _parent_id;
   if _parent_id is not null then
     replace into /*_*/parent_pages (parent_page_id, page_id) values (_parent_id, _page_id);
   else
