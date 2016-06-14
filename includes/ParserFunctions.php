@@ -891,12 +891,18 @@ class IACLParserFunctions
         }
         else
         {
-            // Add the removed protected element into bad links
+            // Remove rules for non-existing PE
             $id = $article->getTitle()->getArticleID();
+            IACLStorage::get('SD')->deleteRules(array(array(
+                'pe_type IN ('.IACL::PE_PAGE.', '.IACL::PE_CATEGORY.', '.IACL::PE_TREE.')',
+                'pe_id' => $id,
+            )));
+            // Add the removed protected element into bad links
             $pagesd = IACLDefinition::getSDForPE(IACL::PE_PAGE, $id);
             $catsd = IACLDefinition::getSDForPE(IACL::PE_CATEGORY, $id);
+            $treesd = IACLDefinition::getSDForPE(IACL::PE_TREE, $id);
             $badLinks = array();
-            foreach (array($pagesd, $catsd) as $sd)
+            foreach (array($pagesd, $catsd, $treesd) as $sd)
             {
                 if ($sd)
                 {
