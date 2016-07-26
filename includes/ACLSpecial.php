@@ -168,7 +168,8 @@ class IntraACLSpecial extends SpecialPage
                 $cats[] = $def['pe_title'];
             }
             if ($def['pe_type'] == IACL::PE_CATEGORY ||
-                $def['pe_type'] == IACL::PE_PAGE)
+                $def['pe_type'] == IACL::PE_PAGE ||
+                $def['pe_type'] == IACL::PE_TREE)
             {
                 $titles[$def['pe_id']] = $def['pe_title'];
             }

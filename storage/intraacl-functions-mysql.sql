@@ -294,11 +294,16 @@ drop trigger if exists /*_*/insert_category_closure_page //
 create trigger /*_*/insert_category_closure_page after insert on /*_*/page for each row
 begin
   if NEW.page_namespace=14 then
-    -- only direct categories can emerge
+    -- new category is emerging
     insert into /*_*/category_closure (page_id, category_id)
       select cl_from, NEW.page_id
       from /*_*/categorylinks
       where cl_to=NEW.page_title
+      on duplicate key update page_id=values(page_id);
+    insert into /*_*/category_closure (page_id, category_id)
+      select c1.page_id, c2.category_id
+      from /*_*/category_closure c1, /*_*/category_closure c2
+      where c1.category_id=c2.page_id and c2.category_id=NEW.page_id
       on duplicate key update page_id=values(page_id);
   end if;
   -- add new parent/child subpage records
@@ -326,11 +331,16 @@ begin
       call /*_*/do_delete_category_closure_catlinks(NULL, OLD.page_id);
     end if;
     if NEW.page_namespace=14 then
-      -- only direct categories can emerge
+      -- new category is emerging
       insert into /*_*/category_closure (page_id, category_id)
         select cl_from, NEW.page_id
         from /*_*/categorylinks
         where cl_to=NEW.page_title
+        on duplicate key update page_id=values(page_id);
+      insert into /*_*/category_closure (page_id, category_id)
+        select c1.page_id, c2.category_id
+        from /*_*/category_closure c1, /*_*/category_closure c2
+        where c1.category_id=c2.page_id and c2.category_id=NEW.page_id
         on duplicate key update page_id=values(page_id);
     end if;
     -- update parent/child subpage records

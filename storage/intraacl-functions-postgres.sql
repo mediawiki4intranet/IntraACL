@@ -302,13 +302,19 @@ create or replace function /*_*/do_insert_category_closure_page() returns trigge
 $mw$
 begin
   if NEW.page_namespace=14 then
-    -- only direct categories can emerge
+    -- new category is emerging
     insert into /*_*/category_closure (page_id, category_id)
       select l.cl_from, NEW.page_id
       from /*_*/categorylinks l
       -- "insert ignore"
       left join /*_*/category_closure c2 on c2.page_id=l.cl_from and c2.category_id=NEW.page_id
       where l.cl_to=NEW.page_title and c2.page_id is null;
+    insert into /*_*/category_closure (page_id, category_id)
+      select c1.page_id, c2.category_id
+      from /*_*/category_closure c1, /*_*/category_closure c2
+      -- "insert ignore"
+      left join /*_*/category_closure c3 on c3.page_id=c1.page_id and c3.category_id=c2.category_id
+      where c1.category_id=c2.page_id and c2.category_id=NEW.page_id;
   end if;
   -- add new parent/child subpage records
   perform /*_*/refresh_all_parents_for_page(NEW.page_id, NEW.page_namespace, NEW.page_title);
@@ -345,13 +351,19 @@ begin
       perform /*_*/rm_category_closure_catlinks(NULL, OLD.page_id);
     end if;
     if NEW.page_namespace=14 then
-      -- only direct categories can emerge
+      -- new category is emerging
       insert into /*_*/category_closure (page_id, category_id)
         select l.cl_from, NEW.page_id
         from /*_*/categorylinks l
         -- "insert ignore"
         left join /*_*/category_closure c2 on c2.page_id=l.cl_from and c2.category_id=NEW.page_id
         where l.cl_to=NEW.page_title and c2.page_id is null;
+      insert into /*_*/category_closure (page_id, category_id)
+        select c1.page_id, c2.category_id
+        from /*_*/category_closure c1, /*_*/category_closure c2
+        -- "insert ignore"
+        left join /*_*/category_closure c3 on c3.page_id=c1.page_id and c3.category_id=c2.category_id
+        where c1.category_id=c2.page_id and c2.category_id=NEW.page_id;
     end if;
     -- update parent/child subpage records
     perform /*_*/refresh_parent_pages_for_parent_children(OLD.page_id, OLD.page_namespace, OLD.page_title);
