@@ -109,7 +109,7 @@ class IntraACLSpecial extends SpecialPage
             ));
             if ($f == 'html_acllist')
             {
-                $wgOut->addHTML('<p style="margin-top: -8px">'.wfMessage('hacl_acllist_hello', 'parseinline')->text().'</p>');
+                $wgOut->addHTML('<p style="margin-top: -8px">'.wfMessage('hacl_acllist_hello')->parse().'</p>');
             }
             $this->_actions($q);
             $this->$f($q);
