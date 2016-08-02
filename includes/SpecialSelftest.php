@@ -65,15 +65,15 @@ class IntraACLSelftestSpecial extends SpecialPage
         }
         else
         {
-            $wgOut->setPageTitle(wfMsg('iacl-selftest-title'));
-            $wgOut->addWikiText(wfMsgNoTrans('iacl-selftest-info', $wgTitle->getFullUrl(array('do' => 1, 'quiet' => 1))));
+            $wgOut->setPageTitle(wfMessage('iacl-selftest-title')->text());
+            $wgOut->addWikiText(wfMessage('iacl-selftest-info', $wgTitle->getFullUrl(array('do' => 1, 'quiet' => 1)))->plain());
             $wgOut->addHTML('<iframe style="border-width: 0; width: 100%; height: 500px" src="'.$wgTitle->getLocalUrl(array('do' => 1)).'"></iframe>');
         }
     }
 
     static function loadConfig()
     {
-        $msg = wfMessage('IntraACL right tests');
+        $msg = wfMessage('IntraACL right tests')->text();
         $pages = array();
         if (!$msg->isBlank())
         {

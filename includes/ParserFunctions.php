@@ -114,7 +114,7 @@ class IACLParserFunctions
     {
         if ($this->peType == IACL::PE_GROUP)
         {
-            return wfMsgForContent('hacl_invalid_parser_function', 'access');
+            return wfMessage('hacl_invalid_parser_function', 'access')->text();
         }
 
         $params = $this->getParameters($args);
@@ -128,7 +128,7 @@ class IACLParserFunctions
         $errMsgs = $em1 + $em2;
 
         // Format the defined right in Wikitext
-        $text = wfMsgForContent('hacl_pf_rights_title', implode(', ', $actions));
+        $text = wfMessage('hacl_pf_rights_title', implode(', ', $actions))->text();
         $text .= $this->showAssignees(array_keys($users), array_keys($groups));
         $text .= $this->showErrors($errMsgs);
 
@@ -150,7 +150,7 @@ class IACLParserFunctions
     {
         if ($this->peType == IACL::PE_GROUP)
         {
-            return wfMsgForContent('hacl_invalid_parser_function', 'predefined right');
+            return wfMessage('hacl_invalid_parser_function', 'predefined right')->text();
         }
 
         $params = $this->getParameters($args);
@@ -178,7 +178,7 @@ class IACLParserFunctions
         }
 
         // Format the rights in Wikitext
-        $text = wfMsgForContent('hacl_pf_predefined_rights_title');
+        $text = wfMessage('hacl_pf_predefined_rights_title')->text();
         $text .= $this->showRights(array_keys($rights));
         $text .= $this->showErrors($errors);
 
@@ -200,7 +200,7 @@ class IACLParserFunctions
         list($users, $groups, $errMsgs) = $this->assignedTo($params, 'assigned to', IACL::ACTION_MANAGE);
 
         // Format the right managers in Wikitext
-        $text = wfMsgForContent('hacl_pf_right_managers_title');
+        $text = wfMessage('hacl_pf_right_managers_title')->text();
         $text .= $this->showAssignees(array_keys($users), array_keys($groups));
         $text .= $this->showErrors($errMsgs);
 
@@ -218,7 +218,7 @@ class IACLParserFunctions
     {
         if ($this->peType != IACL::PE_GROUP)
         {
-            return wfMsgForContent('hacl_invalid_parser_function', 'predefined right');
+            return wfMessage('hacl_invalid_parser_function', 'predefined right')->text();
         }
 
         $params = $this->getParameters($args);
@@ -227,7 +227,7 @@ class IACLParserFunctions
         list($users, $groups, $errMsgs) = $this->assignedTo($params, 'members', IACL::ACTION_GROUP_MEMBER);
 
         // Format the group members in Wikitext
-        $text = wfMsgForContent('hacl_pf_group_members_title');
+        $text = wfMessage('hacl_pf_group_members_title')->text();
         $text .= $this->showAssignees(array_keys($users), array_keys($groups));
         $text .= $this->showErrors($errMsgs);
 
@@ -276,7 +276,7 @@ class IACLParserFunctions
         if (!isset($params[$param]))
         {
             // The parameter is missing
-            $errors[] = wfMsgForContent('hacl_missing_parameter', $param);
+            $errors[] = wfMessage('hacl_missing_parameter', $param)->text();
             return array($users, $groups, $errors);
         }
 
@@ -317,7 +317,7 @@ class IACLParserFunctions
             }
             else
             {
-                $errors[] = wfMsgForContent('hacl_unknown_user', $assignee);
+                $errors[] = wfMessage('hacl_unknown_user', $assignee)->text();
             }
         }
         // Get user IDs in a single pass
@@ -332,7 +332,7 @@ class IACLParserFunctions
             }
             foreach ($check as $invalid => $true)
             {
-                $errors[] = wfMsgForContent('hacl_unknown_user', $invalid);
+                $errors[] = wfMessage('hacl_unknown_user', $invalid)->text();
                 $this->badLinks[] = Title::makeTitleSafe(NS_USER, $invalid);
             }
         }
@@ -349,14 +349,14 @@ class IACLParserFunctions
             }
             foreach ($check as $invalid => $true)
             {
-                $errors[] = wfMsgForContent('hacl_unknown_group', $invalid);
+                $errors[] = wfMessage('hacl_unknown_group', $invalid)->text();
                 $this->badLinks[] = Title::makeTitleSafe(HACL_NS_ACL, $invalid);
             }
         }
         if (!$users && !$groups && !$all_reg)
         {
             // No users/groups specified at all => add error message
-            $errors[] = wfMsgForContent('hacl_missing_parameter_values', $param);
+            $errors[] = wfMessage('hacl_missing_parameter_values', $param)->text();
         }
         else
         {
@@ -426,7 +426,7 @@ class IACLParserFunctions
         if (!isset($params[$param]))
         {
             // The parameter "actions" is missing.
-            $errMsgs[] = wfMsgForContent('hacl_missing_parameter', $param);
+            $errMsgs[] = wfMessage('hacl_missing_parameter', $param)->text();
             return array($bitmask, $actions, $errMsgs);
         }
 
@@ -438,7 +438,7 @@ class IACLParserFunctions
             $id = $haclgContLang->getActionId($actions[$i]);
             if (!$id)
             {
-                $errMsgs[] = wfMsgForContent('hacl_invalid_action', $actions[$i]);
+                $errMsgs[] = wfMessage('hacl_invalid_action', $actions[$i])->text();
             }
             else
             {
@@ -447,7 +447,7 @@ class IACLParserFunctions
         }
         if (!$actions)
         {
-            $errMsgs[] = wfMsgForContent('hacl_missing_parameter_values', $param);
+            $errMsgs[] = wfMessage('hacl_missing_parameter_values', $param)->text();
         }
 
         return array($bitmask, $actions, $errMsgs);
@@ -469,7 +469,7 @@ class IACLParserFunctions
         if (!isset($params[$param]))
         {
             // The parameter "rights" is missing
-            $errMsgs[] = wfMsgForContent('hacl_missing_parameter', $param);
+            $errMsgs[] = wfMessage('hacl_missing_parameter', $param)->text();
             return array($rights, $errMsgs);
         }
 
@@ -488,18 +488,18 @@ class IACLParserFunctions
                     if ($result[$r][2] === NULL || !$subt->exists())
                     {
                         $this->badLinks[] = $subt;
-                        $errMsgs[] = wfMsgForContent('hacl_invalid_predefined_right', $subt);
+                        $errMsgs[] = wfMessage('hacl_invalid_predefined_right', $subt)->text();
                     }
                 }
                 else
                 {
-                    $errMsgs[] = wfMsgForContent('hacl_invalid_predefined_right', $r);
+                    $errMsgs[] = wfMessage('hacl_invalid_predefined_right', $r)->text();
                 }
             }
         }
         if (!$result)
         {
-            $errMsgs[] = wfMsgForContent('hacl_missing_parameter_values', $param);
+            $errMsgs[] = wfMessage('hacl_missing_parameter_values', $param)->text();
         }
 
         return array($result, $errMsgs);
@@ -536,29 +536,29 @@ class IACLParserFunctions
                 {
                     $editor = false;
                     $html .= '<div class="error"><p>'.
-                        wfMsgForContent('hacl_non_canonical_acl_new', Title::newFromText($sdName)->getLocalUrl(), $sdName, $old).'</p></div>';
+                        wfMessage('hacl_non_canonical_acl_new', Title::newFromText($sdName)->getLocalUrl(), $sdName, $old)->text().'</p></div>';
                 }
                 else
                 {
                     $html .= '<div class="error"><p>'.
-                        wfMsgForContent('hacl_non_canonical_acl', SpecialPage::getTitleFor('MovePage', $old)
-                        ->getLocalUrl(array('wpLeaveRedirect' => 0, 'wpNewTitle' => $sdName)), $sdName, $old).'</p></div>';
+                        wfMessage('hacl_non_canonical_acl', SpecialPage::getTitleFor('MovePage', $old)
+                        ->getLocalUrl(array('wpLeaveRedirect' => 0, 'wpNewTitle' => $sdName)), $sdName, $old)->text().'</p></div>';
                 }
             }
             // Add "Create/edit with IntraACL editor" link
             if ($editor && $article->getTitle()->userCan('edit'))
             {
-                $html .= wfMsgForContent($self->def && $self->def->clean() ? 'hacl_edit_with_special' : 'hacl_create_with_special',
+                $html .= wfMessage($self->def && $self->def->clean() ? 'hacl_edit_with_special' : 'hacl_create_with_special',
                     Title::newFromText('Special:IntraACL')->getLocalUrl(array(
                         'action' => ($self->peType == IACL::PE_GROUP ? 'group' : 'acl'),
                         ($self->peType == IACL::PE_GROUP ? 'group' : 'sd') => $self->title->getPrefixedText(),
                     )),
-                    $haclgHaloScriptPath . '/skins/images/edit.png');
+                    $haclgHaloScriptPath . '/skins/images/edit.png')->text();
                 if ($self->peType == IACL::PE_CATEGORY)
                 {
                     // Add "This is category ACL, see category page ACL here"
                     $pa = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_PAGE, 'Category:'.$self->peName));
-                    $html .= wfMsgForContent('hacl_category_acl_shown', $pa->getPrefixedText(), $pa->getLocalUrl(), $haclgHaloScriptPath . '/skins/images/warn.png');
+                    $html .= wfMessage('hacl_category_acl_shown', $pa->getPrefixedText(), $pa->getLocalUrl(), $haclgHaloScriptPath . '/skins/images/warn.png')->text();
                 }
                 elseif ($self->peType == IACL::PE_PAGE)
                 {
@@ -567,13 +567,13 @@ class IACLParserFunctions
                     {
                         // Add "This is category page ACL, see category ACL here"
                         $pa = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_CATEGORY, $peTitle->getText()));
-                        $html .= wfMsgForContent('hacl_category_page_acl_shown', $pa->getPrefixedText(), $pa->getLocalUrl(), $haclgHaloScriptPath . '/skins/images/warn.png');
+                        $html .= wfMessage('hacl_category_page_acl_shown', $pa->getPrefixedText(), $pa->getLocalUrl(), $haclgHaloScriptPath . '/skins/images/warn.png')->text();
                     }
                     elseif (MWNamespace::hasSubpages($peTitle->getNamespace()))
                     {
                         // Add "This is page ACL, see tree ACL here"
                         $pa = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_TREE, $peTitle->getText()));
-                        $html .= wfMsgForContent('hacl_page_acl_shown', $pa->getPrefixedText(), $pa->getLocalUrl(), $haclgHaloScriptPath . '/skins/images/warn.png');
+                        $html .= wfMessage('hacl_page_acl_shown', $pa->getPrefixedText(), $pa->getLocalUrl(), $haclgHaloScriptPath . '/skins/images/warn.png')->text();
                     }
                 }
                 elseif ($self->peType == IACL::PE_TREE)
@@ -581,7 +581,7 @@ class IACLParserFunctions
                     // Add "This is tree ACL, see page ACL here"
                     $peTitle = Title::newFromText($self->peName);
                     $pa = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_PAGE, $peTitle->getText()));
-                    $html .= wfMsgForContent('hacl_tree_acl_shown', $pa->getPrefixedText(), $pa->getLocalUrl(), $haclgHaloScriptPath . '/skins/images/warn.png');
+                    $html .= wfMessage('hacl_tree_acl_shown', $pa->getPrefixedText(), $pa->getLocalUrl(), $haclgHaloScriptPath . '/skins/images/warn.png')->text();
                 }
             }
             $wgOut->addHTML($html);
@@ -972,13 +972,13 @@ class IACLParserFunctions
             if ($newSDTitle->exists() && $newSDTitle->userCan('delete'))
             {
                 $page = new WikiPage($newSDTitle);
-                $page->doDeleteArticle(wfMsg('hacl_move_acl'));
+                $page->doDeleteArticle(wfMessage('hacl_move_acl')->text());
             }
             else
             {
                 // FIXME report "permission denied to overwrite $to"
             }
-            $oldSDTitle->moveTo($newSDTitle, false, wfMsg('hacl_move_acl'), true);
+            $oldSDTitle->moveTo($newSDTitle, false, wfMessage('hacl_move_acl')->text(), true);
         }
         self::refreshBadlinks($newTitle);
 
@@ -1009,38 +1009,38 @@ class IACLParserFunctions
         $this->makeDef();
         if ($this->errors)
         {
-            $msg[] = wfMsgForContent('hacl_errors_in_definition');
+            $msg[] = wfMessage('hacl_errors_in_definition')->text();
         }
         $sdName = self::getCanonicalDefTitle($this->title);
         if ($sdName !== NULL && $sdName != $this->title->getPrefixedText())
         {
-            $msg[] = wfMsgForContent('hacl_non_canonical_acl_short', $sdName);
+            $msg[] = wfMessage('hacl_non_canonical_acl_short', $sdName)->text();
         }
         if ($this->isUnprotectable())
         {
             // This namespace can not be protected
-            $msg[] = wfMsgForContent('hacl_unprotectable_namespace');
+            $msg[] = wfMessage('hacl_unprotectable_namespace')->text();
         }
         if ($this->title->exists() && !$this->rules)
         {
             if ($this->peType == IACL::PE_GROUP)
             {
-                $msg[] = wfMsgForContent('hacl_group_must_have_members');
+                $msg[] = wfMessage('hacl_group_must_have_members')->text();
             }
             else
             {
-                $msg[] = wfMsgForContent('hacl_right_must_have_rights');
+                $msg[] = wfMessage('hacl_right_must_have_rights')->text();
             }
         }
         if (!$this->def)
         {
             if ($this->isInterwiki)
             {
-                $msg[] = wfMsgForContent('hacl_pe_is_interwiki', $this->peName);
+                $msg[] = wfMessage('hacl_pe_is_interwiki', $this->peName)->text();
             }
             else
             {
-                $msg[] = wfMsgForContent('hacl_pe_not_exists', $this->peName);
+                $msg[] = wfMessage('hacl_pe_not_exists', $this->peName)->text();
             }
         }
         else
@@ -1049,7 +1049,7 @@ class IACLParserFunctions
             if ($del || $add)
             {
                 // TODO Show inconsistency details
-                $msg[] = wfMsgForContent('hacl_acl_element_inconsistent');
+                $msg[] = wfMessage('hacl_acl_element_inconsistent')->text();
             }
         }
         if (!$asHtml)
@@ -1060,7 +1060,7 @@ class IACLParserFunctions
         $html = '';
         if ($msg)
         {
-            $html .= wfMsgForContent('hacl_consistency_errors');
+            $html .= wfMessage('hacl_consistency_errors')->text();
             $html .= "<ul>";
             foreach ($msg as $m)
             {
@@ -1089,17 +1089,17 @@ class IACLParserFunctions
             global $wgContLang;
             $userNS = $wgContLang->getNsText(NS_USER);
             $text .= $isAssignedTo
-                ? ':;'.wfMsgForContent('hacl_assigned_user')
-                : ':;'.wfMsgForContent('hacl_user_member');
+                ? ':;'.wfMessage('hacl_assigned_user')->text()
+                : ':;'.wfMessage('hacl_user_member')->text();
             foreach ($users as &$u)
             {
                 if ($u == '*')
                 {
-                    $u = wfMsgForContent('hacl_all_users');
+                    $u = wfMessage('hacl_all_users')->text();
                 }
                 elseif ($u == '#')
                 {
-                    $u = wfMsgForContent('hacl_registered_users');
+                    $u = wfMessage('hacl_registered_users')->text();
                 }
                 else
                 {
@@ -1114,8 +1114,8 @@ class IACLParserFunctions
             global $wgContLang;
             $aclNS = $wgContLang->getNsText(HACL_NS_ACL);
             $text .= $isAssignedTo
-                ? ':;'.wfMsgForContent('hacl_assigned_groups')
-                : ':;'.wfMsgForContent('hacl_group_member');
+                ? ':;'.wfMessage('hacl_assigned_groups')->text()
+                : ':;'.wfMessage('hacl_group_member')->text();
             $first = true;
             foreach ($groups as $g)
             {
@@ -1147,8 +1147,8 @@ class IACLParserFunctions
         {
             if (!$this->errors)
             {
-                $text .= "\n:;".wfMsgForContent('hacl_error').
-                    wfMsgForContent('hacl_will_not_work_as_expected');
+                $text .= "\n:;".wfMessage('hacl_error')->text().
+                    wfMessage('hacl_will_not_work_as_expected')->text();
             }
             $text .= "\n:*".implode("\n:*", $messages);
         }
