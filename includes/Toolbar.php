@@ -59,8 +59,8 @@ class IACLToolbar
         $ns = $wgContLang->getNsText(HACL_NS_ACL);
         $options = array(array(
             'value' => 'unprotected',
-            'name' => wfMsg('hacl_toolbar_unprotected'),
-            'title' => wfMsg('hacl_toolbar_unprotected'),
+            'name' => wfMessage('hacl_toolbar_unprotected')->text(),
+            'title' => wfMessage('hacl_toolbar_unprotected')->text(),
         ));
 
         if (!is_object($title))
@@ -348,7 +348,7 @@ class IACLToolbar
         $pe = self::getReadableCategories();
         if (!$pe)
         {
-            return wfMsgNoTrans($for_upload ? 'hacl_nonreadable_upload_nocat' : 'hacl_nonreadable_create_nocat');
+            return wfMessage($for_upload ? 'hacl_nonreadable_upload_nocat' : 'hacl_nonreadable_create_nocat')->plain();
         }
         if ($for_upload)
         {
@@ -364,7 +364,7 @@ class IACLToolbar
                 '\''.$for_upload.')">'.
                 htmlspecialchars($cat->getText()).'</a>';
         }
-        return wfMsgNoTrans($for_upload ? 'hacl_nonreadable_upload' : 'hacl_nonreadable_create', implode(', ', $select));
+        return wfMessage($for_upload ? 'hacl_nonreadable_upload' : 'hacl_nonreadable_create', implode(', ', $select))->plain();
     }
 
     /**
@@ -600,12 +600,12 @@ class IACLToolbar
             $selectedSDTitle = IACLDefinition::getSDTitle($selectedSD);
             $content = '{{#predefined right: '.$selectedSDTitle->getText()."}}\n".
                 '{{#manage rights: assigned to = User:'.$wgUser->getName()."}}\n";
-            $newSDArticle->doEdit($content, wfMsg('hacl_comment_protect_with', $selectedSDTitle->getFullText()));
+            $newSDArticle->doEdit($content, wfMessage('hacl_comment_protect_with', $selectedSDTitle->getFullText())->text());
         }
         else
         {
             // Remove page SD
-            $newSDArticle->doDeleteArticle(wfMsg('hacl_comment_unprotect'));
+            $newSDArticle->doDeleteArticle(wfMessage('hacl_comment_unprotect'))->text();
         }
 
         // Continue hook processing
@@ -689,7 +689,7 @@ class IACLToolbar
                     // Save embedded element SD
                     $emb_sd_article->doEdit(
                         '{{#predefined right: '.$articleSD['def_title'].'}}',
-                        wfMsg('hacl_comment_protect_embedded', ''.$articleSD['def_title']),
+                        wfMessage('hacl_comment_protect_embedded', ''.$articleSD['def_title'])->text(),
                         EDIT_FORCE_BOT
                     );
                 }
@@ -702,15 +702,15 @@ class IACLToolbar
         {
             foreach ($errors as &$e)
             {
-                $e = "[[:".$e[0]->getPrefixedText()."]] (".wfMsg('hacl_embedded_error_'.$e[1]).")";
+                $e = "[[:".$e[0]->getPrefixedText()."]] (".wfMessage('hacl_embedded_error_'.$e[1])->text().")";
             }
             $wgOut->setTitle(Title::newFromText('Special:IntraACL'));
-            $wgOut->addWikiText(wfMsgNoTrans(
+            $wgOut->addWikiText(wfMessage(
                 'hacl_embedded_not_saved',
                 implode(", ", $errors),
                 $article->getTitle()->getPrefixedText()
-            ));
-            $wgOut->setPageTitle(wfMsg('hacl_embedded_not_saved_title'));
+            )->plain());
+            $wgOut->setPageTitle(wfMessage('hacl_embedded_not_saved_title')->text());
             $wgOut->output();
             // FIXME terminate MediaWiki more correctly
             wfGetDB(DB_MASTER)->commit();
@@ -773,12 +773,12 @@ class IACLToolbar
                 if ($link['sd_single'])
                 {
                     // Already protected by page SD
-                    $customprot = wfMsgForContent('hacl_toolbar_emb_already_prot');
+                    $customprot = wfMessage('hacl_toolbar_emb_already_prot')->text();
                 }
                 else
                 {
                     // Custom SD defined
-                    $customprot = wfMsgForContent('hacl_toolbar_emb_custom_prot', $link['sd_title']->getLocalUrl());
+                    $customprot = wfMessage('hacl_toolbar_emb_custom_prot', $link['sd_title']->getLocalUrl())->text();
                 }
             }
             else
@@ -788,7 +788,7 @@ class IACLToolbar
             if ($link['used_on_pages'] > 1)
             {
                 $usedon = Title::newFromText("Special:WhatLinksHere/$t")->getLocalUrl(array('hidelinks' => 1));
-                $usedon = wfMsgForContent('hacl_toolbar_used_on', $link['used_on_pages'], $usedon);
+                $usedon = wfMessage('hacl_toolbar_used_on', $link['used_on_pages'], $usedon)->text();
             }
             else
             {
@@ -816,16 +816,16 @@ class IACLToolbar
         {
             $html[] = '<div class="hacl_embed"><input type="checkbox" id="hacl_emb_all" onchange="hacle_checkall(this, ['.
                 implode(',',$all).'])" onclick="hacle_checkall(this, ['.implode(',',$all).'])" /> '.
-                wfMsg('hacl_toolbar_emb_all').'</div>';
+                wfMessage('hacl_toolbar_emb_all')->text().'</div>';
         }
         elseif ($html)
         {
             $html[] = '<div class="hacl_embed_disabled"><input type="checkbox" disabled="disabled" checked="checked" /> '.
-                wfMsg('hacl_toolbar_emb_all_already').'</div>';
+                wfMessage('hacl_toolbar_emb_all_already')->text().'</div>';
         }
         if ($html)
         {
-            array_unshift($html, '<div class="hacl_emb_text">'.wfMsgForContent('hacl_toolbar_protect_embedded').'</div>');
+            array_unshift($html, '<div class="hacl_emb_text">'.wfMessage('hacl_toolbar_protect_embedded')->text().'</div>');
         }
         $html = implode("\n", $html);
         return $html;
@@ -890,7 +890,7 @@ class IACLToolbar
                 $title = $peType == IACL::PE_PAGE ? Title::newFromText($peName) : Title::makeTitleSafe(NS_CATEGORY, $peName);
                 return array(
                     'class' => false,
-                    'text'  => wfMsg("hacl_tab_".IACL::$typeToName[$peType]),
+                    'text'  => wfMessage("hacl_tab_".IACL::$typeToName[$peType])->text(),
                     'href'  => $title->getLocalUrl(),
                 );
             }
@@ -916,7 +916,7 @@ class IACLToolbar
             }
             return array(
                 'class' => $sd->exists() ? false : 'new',
-                'text'  => wfMsg('hacl_tab_acl'),
+                'text'  => wfMessage('hacl_tab_acl')->text(),
                 'href'  => $sd->getLocalUrl(),
             );
         }

@@ -91,7 +91,7 @@ class IntraACLSpecial extends SpecialPage
         $q = $wgRequest->getValues();
         if ($wgUser->isLoggedIn())
         {
-            $wgOut->setPageTitle(wfMsg('hacl_special_page'));
+            $wgOut->setPageTitle(wfMessage('hacl_special_page')->text());
             $groups = $wgUser->getGroups();
             $this->isAdmin = true && array_intersect($groups, $haclgSuperGroups);
             if (!isset($q['action']) ||
@@ -109,7 +109,7 @@ class IntraACLSpecial extends SpecialPage
             ));
             if ($f == 'html_acllist')
             {
-                $wgOut->addHTML('<p style="margin-top: -8px">'.wfMsgExt('hacl_acllist_hello', 'parseinline').'</p>');
+                $wgOut->addHTML('<p style="margin-top: -8px">'.wfMessage('hacl_acllist_hello', 'parseinline')->text().'</p>');
             }
             $this->_actions($q);
             $this->$f($q);
@@ -467,7 +467,7 @@ class IntraACLSpecial extends SpecialPage
         }
         else
         {
-            $wgOut->addWikiText(wfMsg('hacl_acllist_empty'));
+            $wgOut->addWikiText(wfMessage('hacl_acllist_empty')->text());
         }
         haclfRestoreTitlePatch($patch);
     }
@@ -522,7 +522,7 @@ class IntraACLSpecial extends SpecialPage
         require(dirname(__FILE__).'/../templates/HACL_ACLList.tpl.php');
         $html = ob_get_contents();
         ob_end_clean();
-        $wgOut->setPageTitle(wfMsg('hacl_acllist'));
+        $wgOut->setPageTitle(wfMessage('hacl_acllist')->text());
         $wgOut->addModules('ext.intraacl.acllist');
         $wgOut->addHTML($html);
         $cfg = array();
@@ -576,7 +576,7 @@ class IntraACLSpecial extends SpecialPage
             $msg = 'hacl_acl_create_title';
         else
             $msg = 'hacl_acl_create';
-        $wgOut->setPageTitle(wfMsg($msg, $aclTitle ? $aclTitle->getText() : ''));
+        $wgOut->setPageTitle(wfMessage($msg, $aclTitle ? $aclTitle->getText() : '')->text());
         $wgOut->addModules('ext.intraacl.acleditor');
         $wgOut->addHTML($html);
         $cfg = array(
@@ -647,7 +647,7 @@ class IntraACLSpecial extends SpecialPage
         require(dirname(__FILE__).'/../templates/HACL_QuickACL.tpl.php');
         $html = ob_get_contents();
         ob_end_clean();
-        $wgOut->setPageTitle(wfMsg('hacl_qacl_manage'));
+        $wgOut->setPageTitle(wfMessage('hacl_qacl_manage')->text());
         $wgOut->addHTML($html);
     }
 
@@ -674,7 +674,7 @@ class IntraACLSpecial extends SpecialPage
         }
         foreach ($actions as $action)
         {
-            $a = '<b>'.wfMsg("hacl_action_$action").'</b>';
+            $a = '<b>'.wfMessage("hacl_action_$action")->text().'</b>';
             if ($act != $action)
             {
                 $url = "$wgScript?title=Special:IntraACL&action=$action";
@@ -696,7 +696,7 @@ class IntraACLSpecial extends SpecialPage
         require(dirname(__FILE__).'/../templates/HACL_GroupList.tpl.php');
         $html = ob_get_contents();
         ob_end_clean();
-        $wgOut->setPageTitle(wfMsg('hacl_grouplist'));
+        $wgOut->setPageTitle(wfMessage('hacl_grouplist')->text());
         $wgOut->addModules('ext.intraacl.grouplist');
         $wgOut->addHTML($html);
     }
@@ -730,7 +730,7 @@ class IntraACLSpecial extends SpecialPage
         $html = ob_get_contents();
         ob_end_clean();
         $wgOut->addModules('ext.intraacl.groupeditor');
-        $wgOut->setPageTitle($grpTitle ? wfMsg('hacl_grp_editing', $grpTitle->getText()) : wfMsg('hacl_grp_creating'));
+        $wgOut->setPageTitle($grpTitle ? wfMessage('hacl_grp_editing', $grpTitle->getText()->text()) : wfMessage('hacl_grp_creating')->text());
         $wgOut->addHTML($html);
         $cfg = array(
             'NS_ACL' => $wgContLang->getNsText(HACL_NS_ACL),
@@ -773,7 +773,7 @@ class IntraACLSpecial extends SpecialPage
                 $d['singletype'] = IACL::$typeToName[$s[0]];
                 $d['singlename'] = $d['single']->getText();
                 $d['singlelink'] = $d['single']->getLocalUrl();
-                $d['singletip'] = wfMsg('hacl_acllist_hint_single', $d['real'], $d['single']->getPrefixedText());
+                $d['singletip'] = wfMessage('hacl_acllist_hint_single', $d['real'], $d['single']->getPrefixedText())->text();
             }
             $lists[$d['type']][] = $d;
         }
