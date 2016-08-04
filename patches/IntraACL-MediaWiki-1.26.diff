@@ -1,6 +1,6 @@
 Patch: intraacl-rights
 Type: feature
-MediaWiki: REL1_26 unreleased 635b536601ede2e3bc572778a3c5cc87fc9f983c
+MediaWiki: REL1_26 1.26.3 b1884f15873a10797c3e8ad02a1f164d4a79ec97
 
 Patch needed for IntraACL extension. Enables read access checks
 in various parts of MediaWiki.
@@ -16,6 +16,7 @@ in various parts of MediaWiki.
 2014-01-10 - DBMS-side filtering of page lists based on read permissions
 2014-01-13 - Fix infinite recursion in case of special page whitelist with $wgGroupPermissions['*']['read'] == false
 2014-06-18 - Add hook to allow checking for non-readable uploads
+2016-08-04 - Fix crash when trying to reupload non-accessible upload
 
 diff --git a/includes/CategoryViewer.php b/includes/CategoryViewer.php
 index e2c31a6..97eae4d 100644
@@ -53,10 +54,10 @@ index a01d642..b39f2ea 100644
  		// Can't diff special pages, unreadable pages or pages with no new revision
  		// to compare against: just return the text.
 diff --git a/includes/GlobalFunctions.php b/includes/GlobalFunctions.php
-index 486926f..d41cdb6 100644
+index fe48f00..655846f 100644
 --- a/includes/GlobalFunctions.php
 +++ b/includes/GlobalFunctions.php
-@@ -4075,7 +4075,17 @@ function wfIsBadImage( $name, $contextTitle = false, $blacklist = null ) {
+@@ -4086,7 +4086,17 @@ function wfIsBadImage( $name, $contextTitle = false, $blacklist = null ) {
  	static $badImageCache = null; // based on bad_image_list msg
  
  	# Handle redirects
@@ -75,10 +76,10 @@ index 486926f..d41cdb6 100644
  		$name = $redirectTitle->getDBkey();
  	}
 diff --git a/includes/Linker.php b/includes/Linker.php
-index 9b5ff27..b8a8472 100644
+index 44ceb16..3c9800d 100644
 --- a/includes/Linker.php
 +++ b/includes/Linker.php
-@@ -2063,6 +2063,10 @@ class Linker {
+@@ -2081,6 +2081,10 @@ class Linker {
  						array(),
  						array( 'action' => 'edit' )
  					);
@@ -90,10 +91,10 @@ index 9b5ff27..b8a8472 100644
  					$editLink = self::link(
  						$titleObj,
 diff --git a/includes/OutputPage.php b/includes/OutputPage.php
-index 552e181..ac10b70 100644
+index 324cab3..26367b5 100644
 --- a/includes/OutputPage.php
 +++ b/includes/OutputPage.php
-@@ -1352,6 +1352,12 @@ class OutputPage extends ContextSource {
+@@ -1340,6 +1340,12 @@ class OutputPage extends ContextSource {
  			'OutputPageMakeCategoryLinks',
  			array( &$this, $categories, &$this->mCategoryLinks ) )
  		) {
@@ -106,7 +107,7 @@ index 552e181..ac10b70 100644
  			foreach ( $categories as $category => $type ) {
  				$origcategory = $category;
  				$title = Title::makeTitleSafe( NS_CATEGORY, $category );
-@@ -1366,6 +1372,11 @@ class OutputPage extends ContextSource {
+@@ -1354,6 +1360,11 @@ class OutputPage extends ContextSource {
  				$this->mCategories[] = $title->getText();
  				$this->mCategoryLinks[$type][] = Linker::link( $title, $text );
  			}
@@ -118,7 +119,7 @@ index 552e181..ac10b70 100644
  		}
  	}
  
-@@ -2423,7 +2434,14 @@ class OutputPage extends ContextSource {
+@@ -2426,7 +2437,14 @@ class OutputPage extends ContextSource {
  			# not especially useful as a returnto parameter. Use the title
  			# from the request instead, if there was one.
  			$request = $this->getRequest();
@@ -133,7 +134,7 @@ index 552e181..ac10b70 100644
  			if ( $action == 'edit' ) {
  				$msg = 'whitelistedittext';
  				$displayReturnto = $returnto;
-@@ -2655,7 +2673,9 @@ class OutputPage extends ContextSource {
+@@ -2658,7 +2676,9 @@ class OutputPage extends ContextSource {
  		} else {
  			$titleObj = Title::newFromText( $returnto );
  		}
@@ -145,7 +146,7 @@ index 552e181..ac10b70 100644
  		}
  
 diff --git a/includes/Title.php b/includes/Title.php
-index b347edb..7b88a09 100644
+index 4a15d69..b9c4d26 100644
 --- a/includes/Title.php
 +++ b/includes/Title.php
 @@ -228,7 +228,9 @@ class Title {
@@ -202,7 +203,7 @@ index b347edb..7b88a09 100644
  		} catch ( MalformedTitleException $ex ) {
  			return null;
  		}
-@@ -2385,6 +2396,12 @@ class Title {
+@@ -2379,6 +2390,12 @@ class Title {
  					$whitelisted = true;
  				}
  			} elseif ( $this->isSpecialPage() ) {
@@ -215,7 +216,7 @@ index b347edb..7b88a09 100644
  				# If it's a special page, ditch the subpage bit and check again
  				$name = $this->getDBkey();
  				list( $name, /* $subpage */ ) = SpecialPageFactory::resolveAlias( $name );
-@@ -2394,6 +2411,11 @@ class Title {
+@@ -2388,6 +2405,11 @@ class Title {
  						$whitelisted = true;
  					}
  				}
@@ -227,7 +228,7 @@ index b347edb..7b88a09 100644
  			}
  		}
  
-@@ -4782,4 +4804,67 @@ class Title {
+@@ -4776,4 +4798,67 @@ class Title {
  		$this->mTextform = strtr( $this->mDbkeyform, '_', ' ' );
  	}
  
@@ -296,7 +297,7 @@ index b347edb..7b88a09 100644
 +// </IntraACL>
  }
 diff --git a/includes/User.php b/includes/User.php
-index 22c90cd..92f7ad3 100644
+index f6df7e0..94c1e65 100644
 --- a/includes/User.php
 +++ b/includes/User.php
 @@ -350,7 +350,13 @@ class User implements IDBAccessObject {
@@ -411,7 +412,7 @@ index 22c90cd..92f7ad3 100644
  		return $name;
  	}
  
-@@ -4317,8 +4361,18 @@ class User implements IDBAccessObject {
+@@ -4319,8 +4363,18 @@ class User implements IDBAccessObject {
  	 * @return string Formatted URL
  	 */
  	protected function getTokenUrl( $page, $token ) {
@@ -431,10 +432,10 @@ index 22c90cd..92f7ad3 100644
  	}
  
 diff --git a/includes/api/ApiBase.php b/includes/api/ApiBase.php
-index d53797b..b26965a 100644
+index 4f40499..277c413 100644
 --- a/includes/api/ApiBase.php
 +++ b/includes/api/ApiBase.php
-@@ -724,6 +724,11 @@ abstract class ApiBase extends ContextSource {
+@@ -730,6 +730,11 @@ abstract class ApiBase extends ContextSource {
  				$this->dieUsageMsg( array( 'nosuchpageid', $params['pageid'] ) );
  			}
  		}
@@ -476,7 +477,7 @@ index 7a544ec..a0384cd 100644
  			$r['id'] = $title->getArticleID();
  			ApiQueryBase::addTitleInfo( $r, $title );
 diff --git a/includes/api/ApiMove.php b/includes/api/ApiMove.php
-index aca4378..01a5e8f 100644
+index dc50594..bb0ef7e 100644
 --- a/includes/api/ApiMove.php
 +++ b/includes/api/ApiMove.php
 @@ -50,13 +50,17 @@ class ApiMove extends ApiBase {
@@ -1265,10 +1266,10 @@ index 28a1cca..7c85ee0 100644
  				? $title->getTalkPage()->getFullURL()
  				: '';
 diff --git a/includes/diff/DifferenceEngine.php b/includes/diff/DifferenceEngine.php
-index c138eec..6248300 100644
+index fa1cd79..495e6cf 100644
 --- a/includes/diff/DifferenceEngine.php
 +++ b/includes/diff/DifferenceEngine.php
-@@ -1240,6 +1240,13 @@ class DifferenceEngine extends ContextSource {
+@@ -1269,6 +1269,13 @@ class DifferenceEngine extends ContextSource {
  			return false;
  		}
  
@@ -1282,7 +1283,7 @@ index c138eec..6248300 100644
  		// Update the new revision ID in case it was 0 (makes life easier doing UI stuff)
  		$this->mNewid = $this->mNewRev->getId();
  		$this->mNewPage = $this->mNewRev->getTitle();
-@@ -1266,6 +1273,13 @@ class DifferenceEngine extends ContextSource {
+@@ -1295,6 +1302,13 @@ class DifferenceEngine extends ContextSource {
  
  		if ( $this->mOldRev ) {
  			$this->mOldPage = $this->mOldRev->getTitle();
@@ -1457,10 +1458,10 @@ index b4ca7c8..d2c8a5d 100644
  
  	/**
 diff --git a/includes/parser/Parser.php b/includes/parser/Parser.php
-index c07a08a..1e5758b 100644
+index e14665d..65c70cc 100644
 --- a/includes/parser/Parser.php
 +++ b/includes/parser/Parser.php
-@@ -2162,7 +2162,19 @@ class Parser {
+@@ -2178,7 +2178,19 @@ class Parser {
  			}
  
  			$unstrip = $this->mStripState->unstripNoWiki( $link );
@@ -1480,7 +1481,7 @@ index c07a08a..1e5758b 100644
  			if ( $nt === null ) {
  				$s .= $prefix . '[[' . $line;
  				continue;
-@@ -2244,7 +2256,10 @@ class Parser {
+@@ -2260,7 +2272,10 @@ class Parser {
  				}
  
  				if ( $ns == NS_FILE ) {
@@ -1492,7 +1493,7 @@ index c07a08a..1e5758b 100644
  						if ( $wasblank ) {
  							# if no parameters were passed, $text
  							# becomes something like "File:Foo.png",
-@@ -2261,6 +2276,13 @@ class Parser {
+@@ -2277,6 +2292,13 @@ class Parser {
  						# cloak any absolute URLs inside the image markup, so replaceExternalLinks() won't touch them
  						$s .= $prefix . $this->armorLinks(
  							$this->makeImage( $nt, $text, $holders ) ) . $trail;
@@ -1506,7 +1507,7 @@ index c07a08a..1e5758b 100644
  					} else {
  						$s .= $prefix . $trail;
  					}
-@@ -3543,7 +3565,18 @@ class Parser {
+@@ -3559,7 +3581,18 @@ class Parser {
  				$part1 = $relative;
  				$ns = $this->mTitle->getNamespace();
  			}
@@ -1525,7 +1526,7 @@ index c07a08a..1e5758b 100644
  			if ( $title ) {
  				$titleText = $title->getPrefixedText();
  				# Check for language variants if the template is not found
-@@ -3603,11 +3636,25 @@ class Parser {
+@@ -3619,11 +3652,25 @@ class Parser {
  					wfDebug( __METHOD__ . ": template inclusion denied for " .
  						$title->getPrefixedDBkey() . "\n" );
  				} else {
@@ -1552,7 +1553,7 @@ index c07a08a..1e5758b 100644
  				}
  
  				# If the title is valid but undisplayable, make a link to it
-@@ -3841,26 +3888,30 @@ class Parser {
+@@ -3857,26 +3904,30 @@ class Parser {
  			$titleText = $title->getPrefixedDBkey();
  		}
  		if ( isset( $this->mTplDomCache[$titleText] ) ) {
@@ -1588,7 +1589,7 @@ index c07a08a..1e5758b 100644
  	}
  
  	/**
-@@ -3904,7 +3955,7 @@ class Parser {
+@@ -3920,7 +3971,7 @@ class Parser {
  	/**
  	 * Fetch the unparsed text of a template and register a reference to it.
  	 * @param Title $title
@@ -1597,7 +1598,7 @@ index c07a08a..1e5758b 100644
  	 */
  	public function fetchTemplateAndTitle( $title ) {
  		// Defaults to Parser::statelessFetchTemplate()
-@@ -3926,7 +3977,7 @@ class Parser {
+@@ -3942,7 +3993,7 @@ class Parser {
  				}
  			}
  		}
@@ -1606,7 +1607,7 @@ index c07a08a..1e5758b 100644
  	}
  
  	/**
-@@ -3936,7 +3987,7 @@ class Parser {
+@@ -3952,7 +4003,7 @@ class Parser {
  	 */
  	public function fetchTemplate( $title ) {
  		$rv = $this->fetchTemplateAndTitle( $title );
@@ -1615,7 +1616,7 @@ index c07a08a..1e5758b 100644
  	}
  
  	/**
-@@ -3952,6 +4003,7 @@ class Parser {
+@@ -3968,6 +4019,7 @@ class Parser {
  		$text = $skip = false;
  		$finalTitle = $title;
  		$deps = array();
@@ -1623,7 +1624,7 @@ index c07a08a..1e5758b 100644
  
  		# Loop to fetch the article, with up to 1 redirect
  		for ( $i = 0; $i < 2 && is_object( $title ); $i++ ) {
-@@ -3960,6 +4012,7 @@ class Parser {
+@@ -3976,6 +4028,7 @@ class Parser {
  			Hooks::run( 'BeforeParserFetchTemplateAndtitle',
  				array( $parser, $title, &$skip, &$id ) );
  
@@ -1631,7 +1632,7 @@ index c07a08a..1e5758b 100644
  			if ( $skip ) {
  				$text = false;
  				$deps[] = array(
-@@ -3969,6 +4022,11 @@ class Parser {
+@@ -3985,6 +4038,11 @@ class Parser {
  				);
  				break;
  			}
@@ -1643,7 +1644,7 @@ index c07a08a..1e5758b 100644
  			# Get the revision
  			if ( $id ) {
  				$rev = Revision::newFromId( $id );
-@@ -3978,6 +4036,11 @@ class Parser {
+@@ -3994,6 +4052,11 @@ class Parser {
  				$rev = Revision::newFromTitle( $title );
  			}
  			$rev_id = $rev ? $rev->getId() : 0;
@@ -1655,7 +1656,7 @@ index c07a08a..1e5758b 100644
  			# If there is no current revision, there is no page
  			if ( $id === false && !$rev ) {
  				$linkCache = LinkCache::singleton();
-@@ -4021,9 +4084,20 @@ class Parser {
+@@ -4037,9 +4100,20 @@ class Parser {
  			}
  			# Redirect?
  			$finalTitle = $title;
@@ -2319,10 +2320,10 @@ index 9f7ef66..5142640 100644
  		$query = array_merge( $this->getRequest()->getValues(), $redirectParam );
  		unset( $query['title'] );
 diff --git a/includes/specials/SpecialRecentchanges.php b/includes/specials/SpecialRecentchanges.php
-index 96d512c..b2e8daf 100644
+index 918fefb..b633ae5 100644
 --- a/includes/specials/SpecialRecentchanges.php
 +++ b/includes/specials/SpecialRecentchanges.php
-@@ -322,10 +322,15 @@ class SpecialRecentChanges extends ChangesListSpecialPage {
+@@ -334,10 +334,15 @@ class SpecialRecentChanges extends ChangesListSpecialPage {
  
  		$rclistOutput = $list->beginRecentChangesList();
  		foreach ( $rows as $obj ) {
@@ -2368,7 +2369,7 @@ index 72d21eb..1f4727f 100644
  		}
  		$file = wfFindFile( $title );
 diff --git a/includes/specials/SpecialSearch.php b/includes/specials/SpecialSearch.php
-index f50fb73..5b882e4 100644
+index 589f3de..5a26e3c 100644
 --- a/includes/specials/SpecialSearch.php
 +++ b/includes/specials/SpecialSearch.php
 @@ -646,7 +646,11 @@ class SpecialSearch extends SpecialPage {
@@ -2559,7 +2560,7 @@ index b3ca006..0248c7a 100644
  
  	function sortDescending() {
 diff --git a/includes/specials/SpecialUpload.php b/includes/specials/SpecialUpload.php
-index 10d55b2..c208cd0 100644
+index 16f4d16..558bfb71 100644
 --- a/includes/specials/SpecialUpload.php
 +++ b/includes/specials/SpecialUpload.php
 @@ -345,6 +345,8 @@ class SpecialUpload extends SpecialPage {
@@ -2571,11 +2572,22 @@ index 10d55b2..c208cd0 100644
  		# If there are no warnings, or warnings we can ignore, return early.
  		# mDestWarningAck is set when some javascript has shown the warning
  		# to the user. mForReUpload is set when the user clicks the "upload a
+@@ -574,7 +576,9 @@ class SpecialUpload extends SpecialPage {
+ 			return true;
+ 		}
+ 
+-		$local = wfLocalFile( $this->mDesiredDestName );
++		// <IntraACL>
++		$local = wfLocalFile( $desiredTitleObj );
++		// </IntraACL>
+ 		if ( $local && $local->exists() ) {
+ 			// We're uploading a new version of an existing file.
+ 			// No creation, so don't watch it if we're not already.
 diff --git a/includes/specials/SpecialUserlogin.php b/includes/specials/SpecialUserlogin.php
-index 21f1194..fd2aacc 100644
+index 2d6737b..062c4cf 100644
 --- a/includes/specials/SpecialUserlogin.php
 +++ b/includes/specials/SpecialUserlogin.php
-@@ -1299,7 +1299,9 @@ class LoginForm extends SpecialPage {
+@@ -1301,7 +1301,9 @@ class LoginForm extends SpecialPage {
  		Hooks::run( 'PostLoginRedirect', array( &$returnTo, &$returnToQuery, &$type ) );
  
  		$returnToTitle = Title::newFromText( $returnTo );
@@ -2720,3 +2732,30 @@ index bd01461..152f9ad 100644
  		return $query;
  	}
  
+diff --git a/includes/upload/UploadBase.php b/includes/upload/UploadBase.php
+index 31307c2..16c9226 100644
+--- a/includes/upload/UploadBase.php
++++ b/includes/upload/UploadBase.php
+@@ -365,6 +365,11 @@ abstract class UploadBase {
+ 
+ 			return $result;
+ 		}
++		// <IntraACL>
++		if ( !$nt->userCan( 'create' ) ) {
++			return array( 'status' => 'accessdenied' );
++		}
++		// </IntraACL>
+ 		$this->mDestName = $this->getLocalFile()->getName();
+ 
+ 		return true;
+@@ -771,7 +776,9 @@ abstract class UploadBase {
+ 		/* Assume that if a user specified File:Something.jpg, this is an error
+ 		 * and that the namespace prefix needs to be stripped of.
+ 		 */
+-		$title = Title::newFromText( $this->mDesiredDestName );
++		// <IntraACL>
++		$title = Title::newFromText( $this->mDesiredDestName, NS_FILE );
++		// </IntraACL>
+ 		if ( $title && $title->getNamespace() == NS_FILE ) {
+ 			$this->mFilteredName = $title->getDBkey();
+ 		} else {
