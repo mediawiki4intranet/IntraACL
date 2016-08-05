@@ -730,7 +730,7 @@ class IntraACLSpecial extends SpecialPage
         $html = ob_get_contents();
         ob_end_clean();
         $wgOut->addModules('ext.intraacl.groupeditor');
-        $wgOut->setPageTitle($grpTitle ? wfMessage('hacl_grp_editing', $grpTitle->getText()->text()) : wfMessage('hacl_grp_creating')->text());
+        $wgOut->setPageTitle($grpTitle ? wfMessage('hacl_grp_editing', $grpTitle->getText())->text() : wfMessage('hacl_grp_creating')->text());
         $wgOut->addHTML($html);
         $cfg = array(
             'NS_ACL' => $wgContLang->getNsText(HACL_NS_ACL),
