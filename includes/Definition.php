@@ -831,7 +831,7 @@ class IACLDefinition implements ArrayAccess
     /**
      * Saves this definition into database
      */
-    public function save(&$preventLoop = array())
+    public function save()
     {
         // Load ID and parents before saving, as the definition may be deleted next
         $parents = $this['parents'];
@@ -925,13 +925,10 @@ class IACLDefinition implements ArrayAccess
             self::$clean[$key] = false;
         }
         // Invalidate parents - they will do the same recursively for their parents and so on
-        $preventLoop[$key] = true;
-        foreach ($parents as $p)
+        if ($delRules || $addRules)
         {
-            if (!isset($preventLoop[$p['key']]))
-            {
-                $p->save($preventLoop);
-            }
+            foreach ($parents as $p)
+                $p->save();
         }
     }
 
