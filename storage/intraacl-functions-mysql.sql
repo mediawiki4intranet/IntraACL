@@ -348,3 +348,5 @@ begin
     call /*_*/refresh_all_parents_for_page(NEW.page_id, NEW.page_namespace, NEW.page_title);
   end if;
 end //
+
+DELIMITER ;
