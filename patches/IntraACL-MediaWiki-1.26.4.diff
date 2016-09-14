@@ -1,6 +1,6 @@
 Patch: intraacl-rights
 Type: feature
-MediaWiki: REL1_26 1.26.3 b1884f15873a10797c3e8ad02a1f164d4a79ec97
+MediaWiki: REL1_26 1.26.4 2e3e7395f1f290fff646510233bf6386fcf01a5d
 
 Patch needed for IntraACL extension. Enables read access checks
 in various parts of MediaWiki.
@@ -91,7 +91,7 @@ index 44ceb16..3c9800d 100644
  					$editLink = self::link(
  						$titleObj,
 diff --git a/includes/OutputPage.php b/includes/OutputPage.php
-index 324cab3..26367b5 100644
+index 12b3022..c1f827b 100644
 --- a/includes/OutputPage.php
 +++ b/includes/OutputPage.php
 @@ -1340,6 +1340,12 @@ class OutputPage extends ContextSource {
@@ -146,7 +146,7 @@ index 324cab3..26367b5 100644
  		}
  
 diff --git a/includes/Title.php b/includes/Title.php
-index 4a15d69..b9c4d26 100644
+index 6fb8571..929312e 100644
 --- a/includes/Title.php
 +++ b/includes/Title.php
 @@ -228,7 +228,9 @@ class Title {
@@ -203,7 +203,7 @@ index 4a15d69..b9c4d26 100644
  		} catch ( MalformedTitleException $ex ) {
  			return null;
  		}
-@@ -2379,6 +2390,12 @@ class Title {
+@@ -2384,6 +2395,12 @@ class Title {
  					$whitelisted = true;
  				}
  			} elseif ( $this->isSpecialPage() ) {
@@ -216,7 +216,7 @@ index 4a15d69..b9c4d26 100644
  				# If it's a special page, ditch the subpage bit and check again
  				$name = $this->getDBkey();
  				list( $name, /* $subpage */ ) = SpecialPageFactory::resolveAlias( $name );
-@@ -2388,6 +2405,11 @@ class Title {
+@@ -2393,6 +2410,11 @@ class Title {
  						$whitelisted = true;
  					}
  				}
@@ -228,7 +228,7 @@ index 4a15d69..b9c4d26 100644
  			}
  		}
  
-@@ -4776,4 +4798,67 @@ class Title {
+@@ -4782,4 +4804,67 @@ class Title {
  		$this->mTextform = strtr( $this->mDbkeyform, '_', ' ' );
  	}
  
@@ -297,7 +297,7 @@ index 4a15d69..b9c4d26 100644
 +// </IntraACL>
  }
 diff --git a/includes/User.php b/includes/User.php
-index f6df7e0..94c1e65 100644
+index adf1e72..f30ac0f 100644
 --- a/includes/User.php
 +++ b/includes/User.php
 @@ -350,7 +350,13 @@ class User implements IDBAccessObject {
@@ -412,7 +412,7 @@ index f6df7e0..94c1e65 100644
  		return $name;
  	}
  
-@@ -4319,8 +4363,18 @@ class User implements IDBAccessObject {
+@@ -4335,8 +4379,18 @@ class User implements IDBAccessObject {
  	 * @return string Formatted URL
  	 */
  	protected function getTokenUrl( $page, $token ) {
@@ -608,10 +608,10 @@ index 1415b79..d9c98eb 100644
  					// Handle invalid titles gracefully
  					$this->mAllPages[0][$title] = $this->mFakePageId;
 diff --git a/includes/api/ApiParse.php b/includes/api/ApiParse.php
-index cce8572..9d5dc83 100644
+index c39e70f..09b9edb 100644
 --- a/includes/api/ApiParse.php
 +++ b/includes/api/ApiParse.php
-@@ -107,6 +107,12 @@ class ApiParse extends ApiBase {
+@@ -115,6 +115,12 @@ class ApiParse extends ApiBase {
  				}
  
  				$titleObj = $rev->getTitle();
@@ -624,19 +624,7 @@ index cce8572..9d5dc83 100644
  				$wgTitle = $titleObj;
  				$pageObj = WikiPage::factory( $titleObj );
  				$popts = $this->makeParserOptions( $pageObj, $params );
-@@ -161,6 +167,11 @@ class ApiParse extends ApiBase {
- 				if ( !$titleObj || !$titleObj->exists() ) {
- 					$this->dieUsage( "The page you specified doesn't exist", 'missingtitle' );
- 				}
-+				// <IntraACL>
-+				if ( !$titleObj->userCan( 'read' ) ) {
-+					$this->dieUsage( "You are not allowed to read this article", 'permissiondenied' );
-+				}
-+				// </IntraACL>
- 				$wgTitle = $titleObj;
- 
- 				if ( isset( $prop['revid'] ) ) {
-@@ -193,6 +204,11 @@ class ApiParse extends ApiBase {
+@@ -203,6 +209,11 @@ class ApiParse extends ApiBase {
  			if ( !$titleObj || $titleObj->isExternal() ) {
  				$this->dieUsageMsg( array( 'invalidtitle', $title ) );
  			}
@@ -1343,7 +1331,7 @@ index 6a2c064..6d25b4c 100644
  
  		return $files;
 diff --git a/includes/filerepo/file/LocalFile.php b/includes/filerepo/file/LocalFile.php
-index d2c37e6..6aa7d26 100644
+index fe0222e..58a64e9 100644
 --- a/includes/filerepo/file/LocalFile.php
 +++ b/includes/filerepo/file/LocalFile.php
 @@ -154,6 +154,11 @@ class LocalFile extends File {
@@ -1458,7 +1446,7 @@ index b4ca7c8..d2c8a5d 100644
  
  	/**
 diff --git a/includes/parser/Parser.php b/includes/parser/Parser.php
-index e14665d..65c70cc 100644
+index 5e7db88..2a4e8ec 100644
 --- a/includes/parser/Parser.php
 +++ b/includes/parser/Parser.php
 @@ -2178,7 +2178,19 @@ class Parser {
