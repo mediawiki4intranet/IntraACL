@@ -551,11 +551,9 @@ function iaclfLoadExtensionSchemaUpdates($updater = NULL)
         IACLUpdateStoredFunctions::addUpdate($updater);
     // FIXME: Use $updater->addPostDatabaseUpdateMaintenance() (1.19+) instead of destructor hack
     // Defer creating 'Permission Denied' page until all schema updates are finished
-    global $egDeferCreatePermissionDenied;
-    $egDeferCreatePermissionDenied = new DeferCreatePermissionDenied();
+    register_shutdown_function('DeferCreatePermissionDenied::execute');
     // Reparse right definitions if needed
-    global $egDeferReparseSpecialPageRights;
-    $egDeferReparseSpecialPageRights = new DeferReparsePageRights();
+    register_shutdown_function('DeferReparsePageRights::execute');
     return true;
 }
 
@@ -609,7 +607,7 @@ class IACLUpdateStoredFunctions
 // Creates 'Permission Denied' page during destruction
 class DeferCreatePermissionDenied
 {
-    function __destruct()
+    static function execute()
     {
         global $haclgContLang;
         $pd = $haclgContLang->getPermissionDeniedPage();
@@ -645,7 +643,7 @@ class DeferReparsePageRights
         }
     }
 
-    function __destruct()
+    static function execute()
     {
         global $wgContLang;
         $dbw = wfGetDB(DB_MASTER);
