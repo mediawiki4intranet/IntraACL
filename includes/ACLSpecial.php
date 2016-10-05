@@ -409,7 +409,7 @@ class IntraACLSpecial extends SpecialPage
                 {
                     $graph .= "subgraph clusterns$ns {\n";
                     $graph .= "graph [label=\"Namespace ".($ns ? $wgContLang->getNsText($ns) : 'Main').
-                        "\", href=\"".Title::newFromText('Special:Allpages')->getFullUrl(array('namespace' => $ns)).
+                        "\", href=\"".htmlspecialchars(Title::newFromText('Special:Allpages')->getFullUrl(array('namespace' => $ns))).
                         "\"];\n";
                 }
                 if (isset($cat_cluster[$ns]))
@@ -419,7 +419,7 @@ class IntraACLSpecial extends SpecialPage
                         if ($cat !== '')
                         {
                             $graph .= "subgraph clustercat${ns}_$cat {\n";
-                            $graph .= 'graph [label="'.$titles[$cat]->getPrefixedText().'", href="'.$titles[$cat]->getFullUrl().'"];'."\n";
+                            $graph .= 'graph [label="'.$titles[$cat]->getPrefixedText().'", href="'.htmlspecialchars($titles[$cat]->getFullUrl()).'"];'."\n";
                         }
                         foreach ($ks as $nodename)
                         {
