@@ -83,6 +83,11 @@ class IACLToolbar
         $pageSDId = NULL;
         $pet = $title->getNamespace() == NS_CATEGORY ? IACL::PE_CATEGORY : IACL::PE_PAGE;
         $pageSDTitle = Title::newFromText(IACLDefinition::nameOfSD($pet, $title));
+        if (!$pageSDTitle)
+        {
+            // too long title... :(
+            return '';
+        }
         // Check SD modification rights
         $canModify = $pageSDTitle->userCan('edit');
         if ($title->exists())
