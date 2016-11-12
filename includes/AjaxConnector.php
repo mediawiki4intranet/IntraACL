@@ -365,7 +365,7 @@ function haclGroupClosure($groups, $rights)
             }
             if (isset($def['rules'][IACL::PE_GROUP]))
             {
-                foreach ($g['rules'][IACL::PE_GROUP] as $gid => $right)
+                foreach ($def['rules'][IACL::PE_GROUP] as $gid => $right)
                 {
                     if ($right['actions'] & $memberAction)
                     {
