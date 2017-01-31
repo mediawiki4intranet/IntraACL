@@ -54,29 +54,36 @@ class IntraACL_ErrorCheck extends Maintenance
         {
             $page = new WikiPage($title);
             $pf = IACLParserFunctions::instance($title);
-            IACLParserFunctions::parse($page->getText(), $title);
-            $errors = $pf->consistencyCheckStatus(false);
-            $errors = array_merge($errors, $pf->errors);
-            if ($pf->def)
+            if ($pf)
             {
-                if (isset($seen[$pf->def['key']]))
+                IACLParserFunctions::parse($page->getText(), $title);
+                $errors = $pf->consistencyCheckStatus(false);
+                $errors = array_merge($errors, $pf->errors);
+                if ($pf->def)
                 {
-                    $errors[] = "Duplicate definition! Previous one is ".$seen[$pf->def['key']];
+                    if (isset($seen[$pf->def['key']]))
+                    {
+                        $errors[] = "Duplicate definition! Previous one is ".$seen[$pf->def['key']];
+                    }
+                    $seen[$pf->def['key']] = "$title";
                 }
-                $seen[$pf->def['key']] = "$title";
-            }
-            IACLParserFunctions::destroyInstance($pf);
-            if ($errors)
-            {
-                print "Errors on $title:\n";
-                foreach ($errors as $e)
+                IACLParserFunctions::destroyInstance($pf);
+                if ($errors)
                 {
-                    print "\t$e\n";
+                    print "Errors on $title:\n";
+                    foreach ($errors as $e)
+                    {
+                        print "\t$e\n";
+                    }
+                }
+                elseif (!$quiet)
+                {
+                    print "OK $title\n";
                 }
             }
-            elseif (!$quiet)
+            else
             {
-                print "OK $title\n";
+                print "BAD TITLE $title\n";
             }
         }
     }

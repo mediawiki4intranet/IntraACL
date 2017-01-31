@@ -714,7 +714,7 @@ class IACLParserFunctions
             }
             // TODO Remove incorrect definitions from the DB?
             $self->makeDef();
-            if (!$self->def && ($self->peType == IACL::PE_GROUP || $self->peType == IACL::PE_RIGHT))
+            if (!$self->def && $self->peType == IACL::PE_GROUP)
             {
                 throw new Exception(
                     '[BUG] Something strange: article "'.$title.'" does not exist just after saving!'.
