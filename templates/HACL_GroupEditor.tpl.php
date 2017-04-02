@@ -2,7 +2,7 @@
 <tr>
  <td style="vertical-align: top; width: 500px">
   <form action="<?= $wgScript ?>?action=submit" method="POST" id="groupEditForm">
-   <input type="hidden" name="wpEditToken" value="<?= htmlspecialchars($wgUser->editToken()) ?>" />
+   <input type="hidden" name="wpEditToken" value="<?= htmlspecialchars($wgUser->getEditToken()) ?>" />
    <input type="hidden" name="wpEdittime" value="<?= $grpTitle ? $grpArticle->getTimestamp() : '' ?>" />
    <input type="hidden" name="wpStarttime" value="<?= wfTimestampNow() ?>" />
    <input type="hidden" id="wpTitle" name="title" value="<?= $grpTitle ? htmlspecialchars($grpTitle->getPrefixedText()) : '' ?>" />

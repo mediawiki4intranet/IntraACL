@@ -1,5 +1,5 @@
 <form action="<?= $wgScript ?>?action=submit" method="POST">
-<input type="hidden" name="wpEditToken" value="<?= htmlspecialchars($wgUser->editToken()) ?>" />
+<input type="hidden" name="wpEditToken" value="<?= htmlspecialchars($wgUser->getEditToken()) ?>" />
 <input type="hidden" name="wpEdittime" value="<?= $aclArticle ? $aclArticle->getTimestamp() : '' ?>" />
 <input type="hidden" name="wpStarttime" value="<?= wfTimestampNow() ?>" />
 <input type="hidden" id="wpTitle" name="title" value="<?= $aclArticle ? htmlspecialchars($aclTitle->getPrefixedText()) : '' ?>" />
