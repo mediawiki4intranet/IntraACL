@@ -1,7 +1,7 @@
-diff --git a/templates/HACL_ACLEditor.tpl.php b/templates/HACL_ACLEditor.tpl.php
+diff --git a/extensions/IntraACL/templates/HACL_ACLEditor.tpl.php b/extensions/IntraACL/templates/HACL_ACLEditor.tpl.php
 index ca7d345..4d669a5 100644
---- a/templates/HACL_ACLEditor.tpl.php
-+++ b/templates/HACL_ACLEditor.tpl.php
+--- a/extensions/IntraACL/templates/HACL_ACLEditor.tpl.php
++++ b/extensions/IntraACL/templates/HACL_ACLEditor.tpl.php
 @@ -6,15 +6,15 @@
  <table class="acle">
  <tr>
@@ -86,10 +86,10 @@ index ca7d345..4d669a5 100644
  <p id="acl_define_manager" class="acl_error"></p>
  <p id="acl_non_canonical" class="acl_error"></p>
  </form>
-diff --git a/templates/HACL_ACLList.tpl.php b/templates/HACL_ACLList.tpl.php
+diff --git a/extensions/IntraACL/templates/HACL_ACLList.tpl.php b/extensions/IntraACL/templates/HACL_ACLList.tpl.php
 index 8a543ab..5c4370b 100644
---- a/templates/HACL_ACLList.tpl.php
-+++ b/templates/HACL_ACLList.tpl.php
+--- a/extensions/IntraACL/templates/HACL_ACLList.tpl.php
++++ b/extensions/IntraACL/templates/HACL_ACLList.tpl.php
 @@ -1,28 +1,28 @@
  <div id="acl_list" style="border: 1px solid gray; width: 500px; height: 500px; padding: 5px; overflow-y: scroll; overflow: -moz-scrollbars-vertical; float: left"></div>
  
@@ -126,10 +126,10 @@ index 8a543ab..5c4370b 100644
  
  </div>
  
-diff --git a/templates/HACL_ACLListContents.tpl.php b/templates/HACL_ACLListContents.tpl.php
+diff --git a/extensions/IntraACL/templates/HACL_ACLListContents.tpl.php b/extensions/IntraACL/templates/HACL_ACLListContents.tpl.php
 index 175a915..d2a0296 100644
---- a/templates/HACL_ACLListContents.tpl.php
-+++ b/templates/HACL_ACLListContents.tpl.php
+--- a/extensions/IntraACL/templates/HACL_ACLListContents.tpl.php
++++ b/extensions/IntraACL/templates/HACL_ACLListContents.tpl.php
 @@ -1,13 +1,13 @@
  <input type="hidden" id="totalPages" value="<?= ceil($total/$limit) ?>" />
  <input type="hidden" id="pageUrl" value="<?= $pageurl ?>" />
@@ -164,10 +164,10 @@ index 175a915..d2a0296 100644
 -<p><a href="<?= $nextpage ?>" onclick="change_page(<?= intval(1+$offset/$limit) ?>); return false;"><?= wfMsg('hacl_acllist_next') ?></a></p>
 +<p><a href="<?= $nextpage ?>" onclick="change_page(<?= intval(1+$offset/$limit) ?>); return false;"><?= wfMessage('hacl_acllist_next') ?></a></p>
  <?php }
-diff --git a/templates/HACL_GroupEditor.tpl.php b/templates/HACL_GroupEditor.tpl.php
+diff --git a/extensions/IntraACL/templates/HACL_GroupEditor.tpl.php b/extensions/IntraACL/templates/HACL_GroupEditor.tpl.php
 index b25cc5b..7d5687e 100644
---- a/templates/HACL_GroupEditor.tpl.php
-+++ b/templates/HACL_GroupEditor.tpl.php
+--- a/extensions/IntraACL/templates/HACL_GroupEditor.tpl.php
++++ b/extensions/IntraACL/templates/HACL_GroupEditor.tpl.php
 @@ -8,35 +8,35 @@
     <input type="hidden" id="wpTitle" name="title" value="<?= $grpTitle ? htmlspecialchars($grpTitle->getPrefixedText()) : '' ?>" />
     <input type="hidden" name="wpSave" value="Save" />
@@ -229,10 +229,10 @@ index b25cc5b..7d5687e 100644
 +<p id="grp_exists_hint" class="acl_info" style="display: none"><?= wfMessage('hacl_grp_exists') ?></p>
 +<p id="grp_define_member" class="acl_error" style="display: none"><?= wfMessage('hacl_grp_define_members') ?></p>
 +<p id="grp_define_manager" class="acl_error" style="display: none"><?= wfMessage('hacl_grp_define_managers') ?></p>
-diff --git a/templates/HACL_GroupList.tpl.php b/templates/HACL_GroupList.tpl.php
+diff --git a/extensions/IntraACL/templates/HACL_GroupList.tpl.php b/extensions/IntraACL/templates/HACL_GroupList.tpl.php
 index f090fe1..1e57cea 100644
---- a/templates/HACL_GroupList.tpl.php
-+++ b/templates/HACL_GroupList.tpl.php
+--- a/extensions/IntraACL/templates/HACL_GroupList.tpl.php
++++ b/extensions/IntraACL/templates/HACL_GroupList.tpl.php
 @@ -1,6 +1,6 @@
 -<p><b><?= wfMsg('hacl_grouplist_filter_name') ?></b></p>
 +<p><b><?= wfMessage('hacl_grouplist_filter_name') ?></b></p>
@@ -242,10 +242,10 @@ index f090fe1..1e57cea 100644
  <p><input type="text" id="acl_not_filter" onchange="change_filter()" onkeyup="change_filter()" style="width: 400px" /></p>
  
  <div id="acl_list" style="border: 1px solid gray; width: 500px; height: 500px; padding: 5px; overflow-y: scroll; overflow: -moz-scrollbars-vertical; float: left"></div>
-diff --git a/templates/HACL_GroupListContents.tpl.php b/templates/HACL_GroupListContents.tpl.php
+diff --git a/extensions/IntraACL/templates/HACL_GroupListContents.tpl.php b/extensions/IntraACL/templates/HACL_GroupListContents.tpl.php
 index 0b3c253..f17c9a8 100644
---- a/templates/HACL_GroupListContents.tpl.php
-+++ b/templates/HACL_GroupListContents.tpl.php
+--- a/extensions/IntraACL/templates/HACL_GroupListContents.tpl.php
++++ b/extensions/IntraACL/templates/HACL_GroupListContents.tpl.php
 @@ -1,12 +1,12 @@
  <?php if (!$groups) {
 -print wfMsg('hacl_grouplist_empty');
@@ -262,10 +262,10 @@ index 0b3c253..f17c9a8 100644
   </li>
  <?php } ?>
  </ul>
-diff --git a/templates/HACL_QuickACL.tpl.php b/templates/HACL_QuickACL.tpl.php
+diff --git a/extensions/IntraACL/templates/HACL_QuickACL.tpl.php b/extensions/IntraACL/templates/HACL_QuickACL.tpl.php
 index 47f5d9b..a6a0869 100644
---- a/templates/HACL_QuickACL.tpl.php
-+++ b/templates/HACL_QuickACL.tpl.php
+--- a/extensions/IntraACL/templates/HACL_QuickACL.tpl.php
++++ b/extensions/IntraACL/templates/HACL_QuickACL.tpl.php
 @@ -1,24 +1,24 @@
 -<?= wfMsg('hacl_qacl_manage_text') ?>
 +<?= wfMessage('hacl_qacl_manage_text') ?>
@@ -330,10 +330,10 @@ index 47f5d9b..a6a0869 100644
 - <?= wfMsg('hacl_qacl_empty') ?>
 + <?= wfMessage('hacl_qacl_empty') ?>
  <?php } ?>
-diff --git a/templates/HACL_Toolbar.tpl.php b/templates/HACL_Toolbar.tpl.php
+diff --git a/extensions/IntraACL/templates/HACL_Toolbar.tpl.php b/extensions/IntraACL/templates/HACL_Toolbar.tpl.php
 index 7291fe1..d8a711b 100644
---- a/templates/HACL_Toolbar.tpl.php
-+++ b/templates/HACL_Toolbar.tpl.php
+--- a/extensions/IntraACL/templates/HACL_Toolbar.tpl.php
++++ b/extensions/IntraACL/templates/HACL_Toolbar.tpl.php
 @@ -1,13 +1,13 @@
  <div id="hacl_toolbar">
  <?php if (count($options) > 1 && $canModify) { ?>
