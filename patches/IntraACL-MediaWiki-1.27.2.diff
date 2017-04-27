@@ -1,0 +1,397 @@
+diff --git a/templates/HACL_ACLEditor.tpl.php b/templates/HACL_ACLEditor.tpl.php
+index ca7d345..4d669a5 100644
+--- a/templates/HACL_ACLEditor.tpl.php
++++ b/templates/HACL_ACLEditor.tpl.php
+@@ -6,15 +6,15 @@
+ <table class="acle">
+ <tr>
+  <td style="vertical-align: top; width: 500px">
+-  <p><b><?= wfMsg('hacl_edit_definition_text') ?></b></p>
++  <p><b><?= wfMessage('hacl_edit_definition_text') ?></b></p>
+   <p><textarea id="acl_def" name="wpTextbox1" rows="6" style="width: 500px" onchange="AE.parse_make_closure()"><?= htmlspecialchars($aclContent) ?></textarea></p>
+-  <p><b><?= wfMsg('hacl_edit_definition_target') ?></b></p>
++  <p><b><?= wfMessage('hacl_edit_definition_target') ?></b></p>
+   <p>
+    <select id="acl_what" onchange="AE.target_change(true)" style="max-width: 200px">
+     <?php foreach($this->aclTargetTypes as $t => $l) { ?>
+-     <optgroup label="<?= wfMsg('hacl_edit_'.$t) ?>">
++     <optgroup label="<?= wfMessage('hacl_edit_'.$t) ?>">
+      <?php foreach($l as $k => $true) { ?>
+-      <option id="acl_what_<?= $k ?>" value="<?= $k ?>"><?= wfMsg("hacl_define_$k") ?></option>
++      <option id="acl_what_<?= $k ?>" value="<?= $k ?>"><?= wfMessage("hacl_define_$k") ?></option>
+      <?php } ?>
+      </optgroup>
+     <?php } ?>
+@@ -23,13 +23,13 @@
+   </p>
+  </td>
+  <td style="vertical-align: top">
+-  <p><b><?= wfMsg('hacl_edit_modify_definition') ?></b></p>
++  <p><b><?= wfMessage('hacl_edit_modify_definition') ?></b></p>
+   <p>
+    <select id="to_type" onchange="AE.to_type_change()" style="max-width: 200px">
+-    <option value="user"><?= wfMsg('hacl_edit_user') ?></option>
+-    <option value="group"><?= wfMsg('hacl_edit_group') ?></option>
+-    <option value="*"><?= wfMsg('hacl_edit_all') ?></option>
+-    <option value="#"><?= wfMsg('hacl_edit_reg') ?></option>
++    <option value="user"><?= wfMessage('hacl_edit_user') ?></option>
++    <option value="group"><?= wfMessage('hacl_edit_group') ?></option>
++    <option value="*"><?= wfMessage('hacl_edit_all') ?></option>
++    <option value="#"><?= wfMessage('hacl_edit_reg') ?></option>
+    </select>
+    <input type="text" class="txt" id="to_name" style="width: 200px" autocomplete="off" />
+    <a id="hacl_to_goto" href="#" target="_blank" style="display: none" title="">
+@@ -38,22 +38,22 @@
+   </p>
+   <p>
+    <input type="checkbox" id="act_all" onclick="AE.act_change(this)" onchange="AE.act_change(this)" />
+-   <label for="act_all" id="act_label_all"><?= wfMsg('hacl_edit_action_all') ?></label>
++   <label for="act_all" id="act_label_all"><?= wfMessage('hacl_edit_action_all') ?></label>
+    <input type="checkbox" id="act_manage" onclick="AE.act_change(this)" onchange="AE.act_change(this)" />
+-   <label for="act_manage" id="act_label_manage"><?= wfMsg('hacl_edit_action_manage') ?></label>
++   <label for="act_manage" id="act_label_manage"><?= wfMessage('hacl_edit_action_manage') ?></label>
+    <br />
+    <?php foreach(explode(',', 'read,edit,create,delete,move') as $k) { ?>
+    <input type="checkbox" id="act_<?= $k ?>" onclick="AE.act_change(this)" onchange="AE.act_change(this)" />
+-   <label for="act_<?= $k ?>" id="act_label_<?= $k ?>"><?= wfMsg("hacl_edit_action_$k") ?></label>
++   <label for="act_<?= $k ?>" id="act_label_<?= $k ?>"><?= wfMessage("hacl_edit_action_$k") ?></label>
+    <?php } ?>
+    <br />
+    <input type="checkbox" id="act_template" onclick="AE.act_change(this)" onchange="AE.act_change(this)" />
+-   <label for="act_template" id="act_label_template"><?= wfMsg('hacl_edit_action_template') ?></label>
++   <label for="act_template" id="act_label_template"><?= wfMessage('hacl_edit_action_template') ?></label>
+   </p>
+   <p>
+-   <label for="inc_acl"><?= wfMsg('hacl_edit_include_right') ?></label>
++   <label for="inc_acl"><?= wfMessage('hacl_edit_include_right') ?></label>
+    <input type="text" class="txt" id="inc_acl" />
+-   <input type="button" value="<?= wfMsg('hacl_edit_include_do') ?>" onclick="AE.include_acl()" />
++   <input type="button" value="<?= wfMessage('hacl_edit_include_do') ?>" onclick="AE.include_acl()" />
+   </p>
+   <div id="acl_embed" style="display: none"></div>
+  </td>
+@@ -61,11 +61,11 @@
+ </table>
+ <p id="acl_pns">
+  <span><a id="acl_pn" class="acl_pn" href="#"></a></span>
+- <input type="submit" name="wpSave" value="<?= wfMsg($aclArticle ? 'hacl_edit_save' : 'hacl_edit_create') ?>" id="wpSave" />&nbsp;<a id="acl_delete_link" href="<?= $aclArticle ? $aclTitle->getLocalUrl(array('action' => 'delete')) : '' ?>"><?= wfMsg('hacl_edit_delete') ?></a>
++ <input type="submit" name="wpSave" value="<?= wfMessage($aclArticle ? 'hacl_edit_save' : 'hacl_edit_create') ?>" id="wpSave" />&nbsp;<a id="acl_delete_link" href="<?= $aclArticle ? $aclTitle->getLocalUrl(array('action' => 'delete')) : '' ?>"><?= wfMessage('hacl_edit_delete') ?></a>
+ </p>
+-<p id="acl_pnhint" class="acl_error" style="display: none"><?= wfMsg('hacl_edit_enter_name_first') ?></p>
+-<p id="acl_exists_hint" class="acl_info" style="display: none"><?= wfMsg('hacl_edit_sd_exists') ?></p>
+-<p id="acl_define_rights" class="acl_error"><?= wfMsg('hacl_edit_define_rights') ?></p>
++<p id="acl_pnhint" class="acl_error" style="display: none"><?= wfMessage('hacl_edit_enter_name_first') ?></p>
++<p id="acl_exists_hint" class="acl_info" style="display: none"><?= wfMessage('hacl_edit_sd_exists') ?></p>
++<p id="acl_define_rights" class="acl_error"><?= wfMessage('hacl_edit_define_rights') ?></p>
+ <p id="acl_define_manager" class="acl_error"></p>
+ <p id="acl_non_canonical" class="acl_error"></p>
+ </form>
+diff --git a/templates/HACL_ACLList.tpl.php b/templates/HACL_ACLList.tpl.php
+index 8a543ab..5c4370b 100644
+--- a/templates/HACL_ACLList.tpl.php
++++ b/templates/HACL_ACLList.tpl.php
+@@ -1,28 +1,28 @@
+ <div id="acl_list" style="border: 1px solid gray; width: 500px; height: 500px; padding: 5px; overflow-y: scroll; overflow: -moz-scrollbars-vertical; float: left"></div>
+ 
+ <div style="float: left; margin: 0 8px">
+-<p><b><?= wfMsg('hacl_acllist_filter_name') ?></b></p>
++<p><b><?= wfMessage('hacl_acllist_filter_name') ?></b></p>
+ <p><input type="text" id="acl_filter" value="<?= htmlspecialchars($q['filter']) ?>" onchange="change_filter()" onkeyup="change_filter()" style="width: 400px" /></p>
+ 
+-<p><b><?= wfMsg('hacl_acllist_filter_type') ?></b></p>
+-<p><input type="checkbox" id="atg_all" <?= $types['all'] ? ' checked="checked"' : '' ?> onclick="change_filter(this)" onchange="change_filter(this)" /> <label for="atg_all"><?= wfMsg('hacl_acllist_typegroup_all') ?></label></p>
++<p><b><?= wfMessage('hacl_acllist_filter_type') ?></b></p>
++<p><input type="checkbox" id="atg_all" <?= $types['all'] ? ' checked="checked"' : '' ?> onclick="change_filter(this)" onchange="change_filter(this)" /> <label for="atg_all"><?= wfMessage('hacl_acllist_typegroup_all') ?></label></p>
+ <ul>
+ <?php foreach($this->aclTargetTypes as $t => $l) { ?>
+  <li>
+-  <input type="checkbox" id="atg_<?= $t ?>" <?= $types[$t] ? ' checked="checked"' : '' ?> onclick="change_filter(this)" onchange="change_filter(this)" /> <label for="atg_<?= $t ?>"><?= wfMsg('hacl_acllist_typegroup_'.$t) ?></label>
++  <input type="checkbox" id="atg_<?= $t ?>" <?= $types[$t] ? ' checked="checked"' : '' ?> onclick="change_filter(this)" onchange="change_filter(this)" /> <label for="atg_<?= $t ?>"><?= wfMessage('hacl_acllist_typegroup_'.$t) ?></label>
+   <ul>
+   <?php foreach($l as $k => $true) { ?>
+-   <li><input type="checkbox" id="at_<?= $k ?>" <?= $types[$k] ? ' checked="checked"' : '' ?> onclick="change_filter(this)" onchange="change_filter(this)" /> <label for="at_<?= $k ?>"><?= wfMsg('hacl_acllist_type_'.$k) ?></label></li>
++   <li><input type="checkbox" id="at_<?= $k ?>" <?= $types[$k] ? ' checked="checked"' : '' ?> onclick="change_filter(this)" onchange="change_filter(this)" /> <label for="at_<?= $k ?>"><?= wfMessage('hacl_acllist_type_'.$k) ?></label></li>
+   <?php } ?>
+   </ul>
+  </li>
+ <?php } ?>
+ </ul>
+ 
+-<p><b><?= wfMsg('hacl_acllist_perpage') ?></b> <input type="text" id="perPage" value="<?= $limit ?>" onchange="change_filter()" /></p>
++<p><b><?= wfMessage('hacl_acllist_perpage') ?></b> <input type="text" id="perPage" value="<?= $limit ?>" onchange="change_filter()" /></p>
+ 
+ <input type="hidden" id="acl_page" value="<?= intval($q['offset']/$limit) ?>" />
+-<p id="resultPagesP" style="display: none"><b><?= wfMsg('hacl_acllist_result_page') ?></b> <span id="resultPages"></span></p>
++<p id="resultPagesP" style="display: none"><b><?= wfMessage('hacl_acllist_result_page') ?></b> <span id="resultPages"></span></p>
+ 
+ </div>
+ 
+diff --git a/templates/HACL_ACLListContents.tpl.php b/templates/HACL_ACLListContents.tpl.php
+index 175a915..d2a0296 100644
+--- a/templates/HACL_ACLListContents.tpl.php
++++ b/templates/HACL_ACLListContents.tpl.php
+@@ -1,13 +1,13 @@
+ <input type="hidden" id="totalPages" value="<?= ceil($total/$limit) ?>" />
+ <input type="hidden" id="pageUrl" value="<?= $pageurl ?>" />
+ <?php if (!$lists) { ?>
+-<?= wfMsg('hacl_acllist_empty') ?>
++<?= wfMessage('hacl_acllist_empty') ?>
+ <?php } if ($prevpage) { ?>
+-<p><a href="<?= $prevpage ?>" onclick="change_page(<?= intval($offset/$limit-1) ?>); return false;"><?= wfMsg('hacl_acllist_prev') ?></a></p>
++<p><a href="<?= $prevpage ?>" onclick="change_page(<?= intval($offset/$limit-1) ?>); return false;"><?= wfMessage('hacl_acllist_prev') ?></a></p>
+ <?php }
+ foreach (array('default', 'namespace', 'category', 'right', 'template', 'special', 'page') as $k) {
+  if (!empty($lists[$k])) { ?>
+- <?= wfMsg('hacl_acllist_'.$k) ?>
++ <?= wfMessage('hacl_acllist_'.$k) ?>
+  <ul>
+   <?php foreach ($lists[$k] as $d) { ?>
+    <li>
+@@ -15,13 +15,13 @@ foreach (array('default', 'namespace', 'category', 'right', 'template', 'special
+     <?php if ($d['single']) { ?>
+      = <a title="<?= htmlspecialchars($d['singletip']) ?>" href="<?= $d['singlelink'] ?>"><?= htmlspecialchars($d['singlename']) ?></a>
+     <?php } ?>
+-    &nbsp;<a title="<?= wfMsg('hacl_acllist_view') ?>" href="<?= $d['viewlink'] ?>"><img src="<?= $haclgHaloScriptPath ?>/skins/images/view.png" /></a>
+-    <a title="<?= wfMsg('hacl_acllist_edit') ?>" href="<?= $d['editlink'] ?>"><img src="<?= $haclgHaloScriptPath ?>/skins/images/edit.png" /></a>
++    &nbsp;<a title="<?= wfMessage('hacl_acllist_view') ?>" href="<?= $d['viewlink'] ?>"><img src="<?= $haclgHaloScriptPath ?>/skins/images/view.png" /></a>
++    <a title="<?= wfMessage('hacl_acllist_edit') ?>" href="<?= $d['editlink'] ?>"><img src="<?= $haclgHaloScriptPath ?>/skins/images/edit.png" /></a>
+    </li>
+   <?php } ?>
+  </ul>
+  <?php }
+ }
+ if ($nextpage) { ?>
+-<p><a href="<?= $nextpage ?>" onclick="change_page(<?= intval(1+$offset/$limit) ?>); return false;"><?= wfMsg('hacl_acllist_next') ?></a></p>
++<p><a href="<?= $nextpage ?>" onclick="change_page(<?= intval(1+$offset/$limit) ?>); return false;"><?= wfMessage('hacl_acllist_next') ?></a></p>
+ <?php }
+diff --git a/templates/HACL_GroupEditor.tpl.php b/templates/HACL_GroupEditor.tpl.php
+index b25cc5b..7d5687e 100644
+--- a/templates/HACL_GroupEditor.tpl.php
++++ b/templates/HACL_GroupEditor.tpl.php
+@@ -8,35 +8,35 @@
+    <input type="hidden" id="wpTitle" name="title" value="<?= $grpTitle ? htmlspecialchars($grpTitle->getPrefixedText()) : '' ?>" />
+    <input type="hidden" name="wpSave" value="Save" />
+    <p>
+-    <b><?= wfMsg('hacl_grp_name') ?></b>
++    <b><?= wfMessage('hacl_grp_name') ?></b>
+     <input type="text" class="txt" id="grp_name" style="width: 200px" onchange="GE.name_change(true)" onkeyup="GE.name_change()"  />
+    </p>
+-   <p><b><?= wfMsg('hacl_grp_definition_text') ?></b></p>
++   <p><b><?= wfMessage('hacl_grp_definition_text') ?></b></p>
+    <p><textarea id="grp_def" name="wpTextbox1" rows="6" style="width: 500px" onchange="GE.parse_fill_indirect()"><?= $grpTitle ? htmlspecialchars($grpArticle->getText()) : '' ?></textarea></p>
+   </form>
+  </td>
+  <td style="vertical-align: top">
+   <table>
+    <tr>
+-    <th colspan="2"><?= wfMsg('hacl_grp_members') ?></th>
++    <th colspan="2"><?= wfMessage('hacl_grp_members') ?></th>
+    </tr>
+    <tr>
+-    <th><?= wfMsg('hacl_grp_users') ?></th>
++    <th><?= wfMessage('hacl_grp_users') ?></th>
+     <td><input type="text" class="txt" id="member_users" style="width: 200px" autocomplete="off" /></td>
+    </tr>
+    <tr>
+-    <th><?= wfMsg('hacl_grp_groups') ?></th>
++    <th><?= wfMessage('hacl_grp_groups') ?></th>
+     <td><input type="text" class="txt" id="member_groups" style="width: 200px" autocomplete="off" /></td>
+    </tr>
+    <tr>
+-    <th colspan="2"><?= wfMsg('hacl_grp_managers') ?></th>
++    <th colspan="2"><?= wfMessage('hacl_grp_managers') ?></th>
+    </tr>
+    <tr>
+-    <th><?= wfMsg('hacl_grp_users') ?></th>
++    <th><?= wfMessage('hacl_grp_users') ?></th>
+     <td><input type="text" class="txt" id="manager_users" style="width: 200px" autocomplete="off" /></td>
+    </tr>
+    <tr>
+-    <th><?= wfMsg('hacl_grp_groups') ?></th>
++    <th><?= wfMessage('hacl_grp_groups') ?></th>
+     <td><input type="text" class="txt" id="manager_groups" style="width: 200px" autocomplete="off" /></td>
+    </tr>
+   </table>
+@@ -45,10 +45,10 @@
+ </table>
+ <p id="grp_pns">
+  <span><a id="grp_pn" class="acl_pn" href="#"></a></span>
+- <input type="button" value="<?= wfMsg($grpTitle ? 'hacl_grp_save' : 'hacl_grp_create') ?>" id="wpSave" onclick="document.getElementById('groupEditForm').submit()" />
+- <a id="grp_delete_link" href="<?= $grpTitle ? $grpTitle->getLocalUrl(array('action' => 'delete')) : '' ?>"><?= wfMsg('hacl_grp_delete') ?></a>
++ <input type="button" value="<?= wfMessage($grpTitle ? 'hacl_grp_save' : 'hacl_grp_create') ?>" id="wpSave" onclick="document.getElementById('groupEditForm').submit()" />
++ <a id="grp_delete_link" href="<?= $grpTitle ? $grpTitle->getLocalUrl(array('action' => 'delete')) : '' ?>"><?= wfMessage('hacl_grp_delete') ?></a>
+ </p>
+-<p id="grp_pnhint" class="acl_error" style="display: none"><?= wfMsg('hacl_grp_enter_name_first') ?></p>
+-<p id="grp_exists_hint" class="acl_info" style="display: none"><?= wfMsg('hacl_grp_exists') ?></p>
+-<p id="grp_define_member" class="acl_error" style="display: none"><?= wfMsg('hacl_grp_define_members') ?></p>
+-<p id="grp_define_manager" class="acl_error" style="display: none"><?= wfMsg('hacl_grp_define_managers') ?></p>
++<p id="grp_pnhint" class="acl_error" style="display: none"><?= wfMessage('hacl_grp_enter_name_first') ?></p>
++<p id="grp_exists_hint" class="acl_info" style="display: none"><?= wfMessage('hacl_grp_exists') ?></p>
++<p id="grp_define_member" class="acl_error" style="display: none"><?= wfMessage('hacl_grp_define_members') ?></p>
++<p id="grp_define_manager" class="acl_error" style="display: none"><?= wfMessage('hacl_grp_define_managers') ?></p>
+diff --git a/templates/HACL_GroupList.tpl.php b/templates/HACL_GroupList.tpl.php
+index f090fe1..1e57cea 100644
+--- a/templates/HACL_GroupList.tpl.php
++++ b/templates/HACL_GroupList.tpl.php
+@@ -1,6 +1,6 @@
+-<p><b><?= wfMsg('hacl_grouplist_filter_name') ?></b></p>
++<p><b><?= wfMessage('hacl_grouplist_filter_name') ?></b></p>
+ <p><input type="text" id="acl_filter" onchange="change_filter()" onkeyup="change_filter()" style="width: 400px" /></p>
+-<p><b><?= wfMsg('hacl_grouplist_filter_not_name') ?></b></p>
++<p><b><?= wfMessage('hacl_grouplist_filter_not_name') ?></b></p>
+ <p><input type="text" id="acl_not_filter" onchange="change_filter()" onkeyup="change_filter()" style="width: 400px" /></p>
+ 
+ <div id="acl_list" style="border: 1px solid gray; width: 500px; height: 500px; padding: 5px; overflow-y: scroll; overflow: -moz-scrollbars-vertical; float: left"></div>
+diff --git a/templates/HACL_GroupListContents.tpl.php b/templates/HACL_GroupListContents.tpl.php
+index 0b3c253..f17c9a8 100644
+--- a/templates/HACL_GroupListContents.tpl.php
++++ b/templates/HACL_GroupListContents.tpl.php
+@@ -1,12 +1,12 @@
+ <?php if (!$groups) {
+-print wfMsg('hacl_grouplist_empty');
++print wfMessage('hacl_grouplist_empty');
+ } else { ?>
+ <ul>
+ <?php foreach ($groups as $gr) { ?>
+  <li>
+   <a title="<?= $gr['name'] ?>" href="<?= $gr['editlink'] ?>"><?= $gr['real'] ?></a>&nbsp;
+-  <a title="<?= wfMsg('hacl_grouplist_view') ?>" href="<?= $gr['viewlink'] ?>"><img src="<?= $haclgHaloScriptPath ?>/skins/images/view.png" /></a>
+-  <a title="<?= wfMsg('hacl_grouplist_edit') ?>" href="<?= $gr['editlink'] ?>"><img src="<?= $haclgHaloScriptPath ?>/skins/images/edit.png" /></a>
++  <a title="<?= wfMessage('hacl_grouplist_view') ?>" href="<?= $gr['viewlink'] ?>"><img src="<?= $haclgHaloScriptPath ?>/skins/images/view.png" /></a>
++  <a title="<?= wfMessage('hacl_grouplist_edit') ?>" href="<?= $gr['editlink'] ?>"><img src="<?= $haclgHaloScriptPath ?>/skins/images/edit.png" /></a>
+  </li>
+ <?php } ?>
+ </ul>
+diff --git a/templates/HACL_QuickACL.tpl.php b/templates/HACL_QuickACL.tpl.php
+index 47f5d9b..a6a0869 100644
+--- a/templates/HACL_QuickACL.tpl.php
++++ b/templates/HACL_QuickACL.tpl.php
+@@ -1,24 +1,24 @@
+-<?= wfMsg('hacl_qacl_manage_text') ?>
++<?= wfMessage('hacl_qacl_manage_text') ?>
+ <fieldset style="margin: 0 0 16px 0">
+- <legend><?= wfMsg('hacl_qacl_filter_sds') ?></legend>
++ <legend><?= wfMessage('hacl_qacl_filter_sds') ?></legend>
+  <form action="<?= $wgScript ?>">
+-  <label for="hacl_qafilter"><?= wfMsg('hacl_qacl_filter') ?></label>
++  <label for="hacl_qafilter"><?= wfMessage('hacl_qacl_filter') ?></label>
+   <input type="hidden" name="title" value="Special:IntraACL" />
+   <input type="hidden" name="action" value="quickaccess" />
+   <input type="text" name="like" id="hacl_qafilter" value="<?= htmlspecialchars($like) ?>" />
+-  <input type="submit" value="<?= wfMsg('hacl_qacl_filter_submit') ?>" />
++  <input type="submit" value="<?= wfMessage('hacl_qacl_filter_submit') ?>" />
+  </form>
+ </fieldset>
+ <?php if ($templates) { ?>
+-<p><?= wfMsg('hacl_qacl_hint') ?></p>
++<p><?= wfMessage('hacl_qacl_hint') ?></p>
+ <form action="<?= $wgScript ?>?title=Special:IntraACL&action=quickaccess&save=1" method="POST">
+  <input type="hidden" name="like" value="<?= htmlspecialchars($like) ?>" />
+  <table class="wikitable">
+   <tr>
+-   <th><?= wfMsg('hacl_qacl_col_select') ?></th>
+-   <th><?= wfMsg('hacl_qacl_col_default') ?></th>
+-   <th><?= wfMsg('hacl_qacl_col_name') ?></th>
+-   <th><?= wfMsg('hacl_qacl_col_actions') ?></th>
++   <th><?= wfMessage('hacl_qacl_col_select') ?></th>
++   <th><?= wfMessage('hacl_qacl_col_default') ?></th>
++   <th><?= wfMessage('hacl_qacl_col_name') ?></th>
++   <th><?= wfMessage('hacl_qacl_col_actions') ?></th>
+   </tr>
+   <?php foreach ($templates as $sd) { ?>
+    <tr>
+@@ -30,7 +30,7 @@
+     </td>
+     <td style="text-align: center"><a title="<?= $sd['title']->getText() ?>" href="<?= $sd['viewlink'] ?>"><?= $sd['title']->getText() ?></a></td>
+     <td style="text-align: center">
+-     <a title="<?= wfMsg('hacl_acllist_edit') ?>" href="<?= $sd['editlink'] ?>">
++     <a title="<?= wfMessage('hacl_acllist_edit') ?>" href="<?= $sd['editlink'] ?>">
+       <img src="<?= $haclgHaloScriptPath ?>/skins/images/edit.png" />
+      </a>
+     </td>
+@@ -39,11 +39,11 @@
+   <tr>
+    <td></td>
+    <td style="text-align: center"><input type="radio" name="qa_default" id="qd_clear" value="" <?= !$quickacl->default_pe_id ? ' checked="checked"' : '' ?> /></td>
+-   <td style="text-align: center" colspan="2"><?= wfMsg('hacl_qacl_empty_default') ?></td>
++   <td style="text-align: center" colspan="2"><?= wfMessage('hacl_qacl_empty_default') ?></td>
+   </tr>
+  </table>
+  <p>
+-  <input type="submit" value="<?= wfMsg('hacl_qacl_save') ?>" style="font-weight: bold" />
++  <input type="submit" value="<?= wfMessage('hacl_qacl_save') ?>" style="font-weight: bold" />
+  </p>
+ </form>
+ <script language="JavaScript">
+@@ -67,5 +67,5 @@ var set_checked = function(x)
+ };
+ </script>
+ <?php } else { ?>
+- <?= wfMsg('hacl_qacl_empty') ?>
++ <?= wfMessage('hacl_qacl_empty') ?>
+ <?php } ?>
+diff --git a/templates/HACL_Toolbar.tpl.php b/templates/HACL_Toolbar.tpl.php
+index 7291fe1..d8a711b 100644
+--- a/templates/HACL_Toolbar.tpl.php
++++ b/templates/HACL_Toolbar.tpl.php
+@@ -1,13 +1,13 @@
+ <div id="hacl_toolbar">
+ <?php if (count($options) > 1 && $canModify) { ?>
+- <label for="hacl_protected_with"><?= wfMsg('hacl_toolbar_page_prot') ?></label>
+- <select name="hacl_protected_with" id="hacl_protected_with" onchange="haclt_change_goto(this, '<?= wfMsg('hacl_toolbar_goto') ?>')">
++ <label for="hacl_protected_with"><?= wfMessage('hacl_toolbar_page_prot') ?></label>
++ <select name="hacl_protected_with" id="hacl_protected_with" onchange="haclt_change_goto(this, '<?= wfMessage('hacl_toolbar_goto') ?>')">
+   <?php foreach($options as $o) { ?>
+    <option title="<?= htmlspecialchars($o['title']) ?>" <?= !empty($o['current']) ? ' selected="selected"' : '' ?> value="<?= htmlspecialchars($o['value']) ?>"><?= htmlspecialchars($o['name']) ?></option>
+   <?php } ?>
+  </select>
+  <?php if ($selectedIndex !== false && $options[$selectedIndex]['title']) { ?>
+-  <a id="hacl_toolbar_goto" href="<?= Title::newFromText($options[$selectedIndex]['title'])->getLocalUrl() ?>" target="_blank" title="<?= htmlspecialchars(wfMsg('hacl_toolbar_goto', $options[$selectedIndex]['title'])) ?>">
++  <a id="hacl_toolbar_goto" href="<?= Title::newFromText($options[$selectedIndex]['title'])->getLocalUrl() ?>" target="_blank" title="<?= htmlspecialchars(wfMessage('hacl_toolbar_goto', $options[$selectedIndex]['title'])) ?>">
+    <img src="<?= $wgScriptPath ?>/resources/src/mediawiki.skinning/images/external-ltr.png" width="10" height="10" alt="&rarr;" />
+   </a>
+  <?php } else { ?>
+@@ -16,33 +16,33 @@
+   </a>
+  <?php } ?>
+ <?php } elseif (!$canModify) { ?>
+- <?= wfMsg('hacl_toolbar_cannot_modify') ?>
++ <?= wfMessage('hacl_toolbar_cannot_modify') ?>
+ <?php } else { ?>
+- <?= wfMsg('hacl_toolbar_no_right_templates', $quick_acl_link) ?>
++ <?= wfMessage('hacl_toolbar_no_right_templates', $quick_acl_link) ?>
+ <?php } if ($globalACL) { ?>
+  <div class="haclt_tip">
+-  <a onclick="haclt_show('gacl')" class="haclt_title" id="haclt_gacl_title"><?= wfMsg('hacl_toolbar_global_acl') ?></a>
++  <a onclick="haclt_show('gacl')" class="haclt_title" id="haclt_gacl_title"><?= wfMessage('hacl_toolbar_global_acl') ?></a>
+   <div class="haclt_text" id="haclt_gacl_text" style="display: none"><div class="x">
+-   <?= wfMsg('hacl_toolbar_global_acl_tip') ?><br /><?= $globalACL ?>
++   <?= wfMessage('hacl_toolbar_global_acl_tip') ?><br /><?= $globalACL ?>
+   </div></div>
+  </div>
+ <?php } if ($anyLinks || $embeddedToolbar) { ?>
+  <div class="haclt_tip">
+-  <a onclick="haclt_show('emb')" class="haclt_title" id="haclt_emb_title"><?= wfMsg('hacl_toolbar_embedded_acl') ?></a>
++  <a onclick="haclt_show('emb')" class="haclt_title" id="haclt_emb_title"><?= wfMessage('hacl_toolbar_embedded_acl') ?></a>
+   <div class="haclt_text" id="haclt_emb_text" style="display: none"><div class="x<?= $embeddedToolbar ? ' xl' : '' ?>" id="haclt_emb">
+-   <?= $embeddedToolbar ? $embeddedToolbar : wfMsg('hacl_toolbar_loading') ?>
++   <?= $embeddedToolbar ? $embeddedToolbar : wfMessage('hacl_toolbar_loading') ?>
+   </div></div>
+  </div>
+ <?php } if ($title->exists()) { ?>
+  <a style="text-decoration: none" class="haclt_title" target="_blank" href="index.php?title=Special:IntraACL&action=acl&sd=<?= urlencode($pageSDTitle->getText()) ?>">
+   <img src="<?= $haclgHaloScriptPath ?>/skins/images/edit.png" width="16" height="16" alt="Edit" />
+-  <?= wfMsg('hacl_toolbar_advanced_'.($pageSDId ? 'edit' : 'create')) ?>
++  <?= wfMessage('hacl_toolbar_advanced_'.($pageSDId ? 'edit' : 'create')) ?>
+  </a>
+ <?php } elseif (!$hasQuickACL) {?>
+- <?= wfMsg('hacl_toolbar_select_qacl', $quick_acl_link) ?>
++ <?= wfMessage('hacl_toolbar_select_qacl', $quick_acl_link) ?>
+ <?php } if ($nonreadable) { ?>
+  <input style="vertical-align: middle" type="checkbox" name="hacl_nonreadable_create" id="hacl_nonreadable_create" />
+- <label style="vertical-align: middle" for="hacl_nonreadable_create"><?= wfMsg('hacl_create_nonreadable_article') ?></label>
++ <label style="vertical-align: middle" for="hacl_nonreadable_create"><?= wfMessage('hacl_create_nonreadable_article') ?></label>
+ <?php } ?>
+- <div class="qacl"><a target="_blank" href="<?= $quick_acl_link ?>" title="<?= wfMsg('hacl_toolbar_qacl_title') ?>"><?= wfMsg('hacl_toolbar_qacl') ?></a></div>
++ <div class="qacl"><a target="_blank" href="<?= $quick_acl_link ?>" title="<?= wfMessage('hacl_toolbar_qacl_title') ?>"><?= wfMessage('hacl_toolbar_qacl') ?></a></div>
+ </div>
