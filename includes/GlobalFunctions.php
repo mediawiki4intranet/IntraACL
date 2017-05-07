@@ -240,7 +240,7 @@ function haclfSetupExtension()
 
     global $haclgIP, $wgHooks, $wgParser, $wgExtensionCredits,
         $wgLanguageCode, $wgRequest, $wgContLang;
-    global $haclgUnprotectableNamespaces, $haclgUnprotectableNamespaceIds;
+    global $haclgUnprotectableNamespaces, $haclgUnprotectableNamespaceIds, $haclgDisableToolbar;
 
     /* Title patch is disabled until full initialization of extension.
      * This was formerly done with haclfDisableTitlePatch() in the beginning
@@ -256,7 +256,8 @@ function haclfSetupExtension()
         $wgHooks['UploadForm:initial'][] = 'IACLToolbar::warnNonReadableUpload';
         $wgHooks['SpecialUploadCheckWarnings'][] = 'IACLToolbar::attemptNonReadableUpload';
         $wgHooks['EditPage::attemptSave'][] = 'IACLToolbar::attemptNonReadableCreate';
-        $wgHooks['EditPage::showEditForm:fields'][] = 'haclfAddToolbarForEditPage';
+        if (empty($haclgDisableToolbar))
+            $wgHooks['EditPage::showEditForm:fields'][] = 'haclfAddToolbarForEditPage';
         $wgHooks['SkinTemplateContentActions'][] = 'IACLToolbar::SkinTemplateContentActions';
         $wgHooks['SkinTemplateNavigation'][] = 'IACLToolbar::SkinTemplateNavigation';
         // UI hooks used to update permissions along with article modification

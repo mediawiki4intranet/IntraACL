@@ -83,6 +83,9 @@ $haclgUnprotectableNamespaces = array();
 # If this is true, "ACL" tab will be hidden for unprotected pages.
 $haclgDisableACLTab = false;
 
+# Allows to hide the IntraACL toolbar
+$haclgDisableToolbar = false;
+
 # If $haclgEvaluatorLog is <true>, you can specify the URL-parameter "hacllog=true".
 # In this case IntraACL echos the reason why actions are permitted or prohibited.
 $haclgEvaluatorLog = true;
