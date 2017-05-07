@@ -1305,7 +1305,7 @@ index 04b5614..86af4d8 100644
  
  	/**
 diff --git a/includes/parser/Parser.php b/includes/parser/Parser.php
-index 178d7fd..69170e7 100644
+index 178d7fd..cc14615 100644
 --- a/includes/parser/Parser.php
 +++ b/includes/parser/Parser.php
 @@ -2186,7 +2186,19 @@ class Parser {
@@ -1390,7 +1390,7 @@ index 178d7fd..69170e7 100644
 +						global $haclgInclusionDeniedMessage;
 +						$this->getPreprocessor()->newFrame()->expand( $text, 0 );
 +						if ( $haclgInclusionDeniedMessage ) {
-+							$text = wfMsg( $haclgInclusionDeniedMessage );
++							$text = wfMessage( $haclgInclusionDeniedMessage )->getText();
 +						} elseif ( $haclgInclusionDeniedMessage === '' ) {
 +							$text = '';
 +						}
@@ -1445,6 +1445,15 @@ index 178d7fd..69170e7 100644
  	 */
  	public function fetchTemplateAndTitle( $title ) {
  		// Defaults to Parser::statelessFetchTemplate()
+@@ -3954,7 +4005,7 @@ class Parser {
+ 				}
+ 			}
+ 		}
+-		return [ $text, $finalTitle ];
++		return [ $text, $finalTitle, $stuff['canRead'] ];
+ 	}
+ 
+ 	/**
 @@ -3963,7 +4014,8 @@ class Parser {
  	 * @return string|bool
  	 */
