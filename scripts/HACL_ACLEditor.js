@@ -339,8 +339,8 @@ HACLACLEditor.prototype.closure_groups_sd = function(d, sd)
         }
     }
     // refresh hint
-    if (c && !this.user_hint.element.value.trim().length)
-        this.user_hint.change_ajax(this.get_empty_hint());
+    if (c && !this.user_hint.input.value.trim().length)
+        this.user_hint.onChange(true);
 };
 
 // parse ACL and re-fill closure
