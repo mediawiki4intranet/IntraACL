@@ -621,7 +621,7 @@ class IACLEvaluator
             return -1;
         }
         $peId[1] = IACLDefinition::peIDforName($peId[0], $peId[1]);
-        if (IACLDefinition::userCan($userID, $peId[0], $peId[1], IACL::ACTION_MANAGE))
+        if (IACLDefinition::userCan($userID, $peId[0], $peId[1], IACL::ACTION_MANAGE) > 0)
         {
             // Explicitly granted
             return 1;
