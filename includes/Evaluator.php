@@ -614,14 +614,15 @@ class IACLEvaluator
             return 1;
         }
 
-        $peId = IACLDefinition::nameOfPE($t);
-        if (!$peId)
+        $peName = IACLDefinition::nameOfPE($t);
+        if (!$peName)
         {
             // Don't care about invalid titles
             return -1;
         }
-        $peId[1] = IACLDefinition::peIDforName($peId[0], $peId[1]);
-        if (IACLDefinition::userCan($userID, $peId[0], $peId[1], IACL::ACTION_MANAGE) > 0)
+        list($peType, $peName) = $peName;
+        $peId = IACLDefinition::peIDforName($peType, $peName);
+        if ($peId && IACLDefinition::userCan($userID, $peType, $peId, IACL::ACTION_MANAGE) > 0)
         {
             // Explicitly granted
             return 1;
@@ -641,7 +642,7 @@ class IACLEvaluator
         // category rights are a hole - any editor can change them
 
         // Check for ACTION_PROTECT_PAGES inherited from namespaces and categories
-        if ($peId[0] == IACL::PE_PAGE && self::checkProtectPageRight($peId[1], $userID))
+        if ($peType == IACL::PE_PAGE && self::checkProtectPageRight($peName, $peId, $userID))
         {
             return 1;
         }
@@ -649,14 +650,14 @@ class IACLEvaluator
         return 0;
     }
 
-    protected static function checkProtectPageRight($pageID, $userID)
+    protected static function checkProtectPageRight($pageTitle, $pageID, $userID)
     {
         $etc = haclfDisableTitlePatch();
-        $title = Title::newFromId($pageID);
+        $title = $pageID ? Title::newFromId($pageID) : Title::newFromText($pageTitle);
         haclfRestoreTitlePatch($etc);
         return
             IACLDefinition::userCan($userID, IACL::PE_NAMESPACE, $title->getNamespace(), IACL::ACTION_PROTECT_PAGES) > 0 ||
-            IACLDefinition::userCan($userID, IACL::PE_CATEGORY, IACLStorage::get('Util')->getParentCategoryIDs($pageID), IACL::ACTION_PROTECT_PAGES) > 0;
+            $pageID && IACLDefinition::userCan($userID, IACL::PE_CATEGORY, IACLStorage::get('Util')->getParentCategoryIDs($pageID), IACL::ACTION_PROTECT_PAGES) > 0;
     }
 
     /**
