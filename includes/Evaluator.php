@@ -620,7 +620,9 @@ class IACLEvaluator
             // Don't care about invalid titles
             return -1;
         }
-        list($peType, $peName) = $peName;
+        // We can't use list($peType, $peName) = $peName; - because it's broken in PHP 5.4
+        $peType = $peName[0];
+        $peName = $peName[1];
         $peId = IACLDefinition::peIDforName($peType, $peName);
         if ($peId && IACLDefinition::userCan($userID, $peType, $peId, IACL::ACTION_MANAGE) > 0)
         {
