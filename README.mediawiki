@@ -31,7 +31,67 @@ based on HaloACL, correcting its endless bugs and inconveniences.
 The method of IntraACL installation via the super-duper-installer
 of Halo MediaWiki bundle is now removed as very non-standard.
 
-== WARNING ==
+== PERMISSION MODEL ==
+
+IntraACL is for page-level permissions.
+
+Permissions are defined in ACLs. ACLs are wikipages in ACL namespace and may be defined for:
+
+# Pages (ACL:Page/<PageNamespace:PageTitle>)
+# Page trees (page + subpages) (ACL:Tree/<PageNamespace:PageTitle>)
+# Categories (ACL:Category/<CategoryTitle>)
+# Namespaces (ACL:Namespace/Main, ACL:Namespace/<NamespaceName>)
+
+Each of these is considered a "level of ACL specificity". Coexisting ACLs of different
+"levels" are combined according to $haclgCombineMode which may be EXTEND, OVERRIDE or SHRINK:
+* if EXTEND, the permission is granted if it's granted at ANY level
+*: thus a permission granted for the whole namespace can't be revoked at page or category level
+* if OVERRIDE, the permission is granted only if it is granted at MOST SPECIFIC level
+*: i.e. page ACL overrides tree ACL, tree ACL overrides category ACL, category ACL overrides namespace ACL
+* if SHRINK, the permission is granted only if it is granted in coexisting ACLs of ALL levels
+
+If there are ACLs for multiple categories and/or parent categories of the same page, they
+always "extend" each other.
+
+There are permissions for CREATE, READ, EDIT, DELETE, MOVE, MANAGE and PROTECT_PAGES actions.
+First 5 are obvious, MANAGE and PROTECT_PAGES are for ACLs (see below).
+
+Also there is $haclgOpenWikiAccess setting which means "allow everything that's not denied explicitly"
+when it's true (OpenWikiAccess) and "deny everything that's not allowed explicitly" when it's false
+(ClosedWikiAccess).
+
+Permissions for ACL pages:
+
+# anonymous users cannot read and modify any ACLs
+# ACLs for non-existing [incorrect] protection elements are accessible by everyone in OpenWikiAccess and by no one (i.e only by admins) in ClosedWikiAccess
+# ACL can be read by everyone who can read the protection element (page, namespace, or category)
+# existing ACLs can be modified or deleted by:
+## users granted with MANAGE action in ACL itself
+## for page ACLs: also by users granted with ACTION_PROTECT_PAGES in page namespace or category ACL
+# page, page tree, special page and category ACLs can be created by:
+## if there is a namespace ACL or parent category ACL for this page/category:
+##: by users granted with PROTECT_PAGES action in any of these ACLs
+## otherwise:
+##: by everyone in OpenWikiAccess and by no one in ClosedWikiAccess
+# namespace ACLs can be created only by admins
+# groups and right templates can be created by everyone
+
+=== WARNING 1 ===
+
+This is not an ideal scheme due to the fact that categories are set inside page content. This means
+everyone who can edit a page may modify its permissions - at least by removing categories, or by
+adding his own category granting additional permissions to him. This is important especially in
+conjunction with PROTECT_PAGES permission. Consider the following example:
+
+# user A can edit article X, can create categories and category ACLs
+# he created Category:HisOwnCategory and ACL:Category/HisOwnCategory granting PROTECT_PAGES to him
+# he adds [[Category:HisOwnCategory]] marker to article X
+# he gets the right to change ACL:Page/X
+# he creates ACL:Page/X and thus "takes over" the article. No one more can see the article but him :-)
+
+You should consider this when defining permissions for your wikis.
+
+=== WARNING 2 ===
 
 ANY installed extension MAY lead to SECURITY BREACHES.
 

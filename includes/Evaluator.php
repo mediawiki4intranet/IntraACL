@@ -415,12 +415,6 @@ class IACLEvaluator
             return array('Unknown action', 1);
         }
 
-        // Check rights for managing ACLs
-        if ($title->getNamespace() == HACL_NS_ACL)
-        {
-            return array('Checked ACL modification rights', self::checkACLManager($title, $user, $actionID));
-        }
-
         // If there is a whitelist, then allow user to read the page
         if ($actionID == IACL::ACTION_READ && self::isWhitelisted($title))
         {
@@ -474,6 +468,12 @@ class IACLEvaluator
                 $articleID = $row->page_id;
                 self::log("Page is a live redirect to ".$title->getFullText().", checking permissions for target");
             }
+        }
+
+        // Check rights for managing ACLs
+        if ($title->getNamespace() == HACL_NS_ACL)
+        {
+            return self::checkACLManager($title, $articleID, $userID, $actionID);
         }
 
         return self::hasSD($title, $articleID, $userID, $actionID);
@@ -589,77 +589,103 @@ class IACLEvaluator
     }
 
     /**
-     * This method checks if a user wants to create/modify an article in the ACL namespace.
-     * Should not be used outside of IACLEvaluator because doesn't do any additional access checks.
+     * Check ACL permissions.
      *
-     * @param Title $t
-     * @param User $user
+     * @param Title $title
+     * @param int $articleID
+     * @param int $userID
      * @param int $actionID     Action ID
      * @return bool             Whether the user has the right to perform the action
      */
-    protected static function checkACLManager(Title $t, User $user, $actionID)
+    protected static function checkACLManager(Title $title, $articleID, $userID, $actionID)
     {
-        global $haclgSuperGroups;
-        $userID = $user->getId();
+        global $haclgSuperGroups, $haclgOpenWikiAccess;
+
         if (!$userID)
         {
             // No access for anonymous users to ACL pages
-            return 0;
+            return array('User is anonymous, access is denied', 0);
         }
 
-        if ($actionID == IACL::ACTION_READ)
+        $peName = IACLDefinition::nameOfPE($title);
+        $peID = NULL;
+        if ($peName)
         {
-            // Read access for all registered users
-            // FIXME if not OpenWikiAccess, then return false for users who can't read the article
-            return 1;
+            // We can't use list($peType, $peName) = $peName; - because it's broken in PHP 5.4
+            $peType = $peName[0];
+            $peName = $peName[1];
+            $peID = IACLDefinition::peIDforName($peType, $peName);
         }
-
-        $peName = IACLDefinition::nameOfPE($t);
-        if (!$peName)
+        else
         {
-            // Don't care about invalid titles
-            return -1;
+            return array('Bad ACL title', -1);
         }
-        // We can't use list($peType, $peName) = $peName; - because it's broken in PHP 5.4
-        $peType = $peName[0];
-        $peName = $peName[1];
-        $peId = IACLDefinition::peIDforName($peType, $peName);
-        if ($peId && IACLDefinition::userCan($userID, $peType, $peId, IACL::ACTION_MANAGE) > 0)
+
+        $wikipagePE = ($peType == IACL::PE_PAGE || $peType == IACL::PE_TREE || $peType == IACL::PE_CATEGORY || $peType == IACL::PE_SPECIAL);
+        if (!$peID)
         {
-            // Explicitly granted
-            return 1;
+            if ($peType == IACL::PE_GROUP || $peType == IACL::PE_RIGHT)
+            {
+                return array('Everyone is allowed to create groups and right templates', 1);
+            }
+            elseif ($wikipagePE)
+            {
+                $etc = haclfDisableTitlePatch();
+                $peTitle = Title::newFromText($peName);
+                haclfRestoreTitlePatch($etc);
+                $can = IACLDefinition::userCan($userID, IACL::PE_NAMESPACE, $peTitle->getNamespace(), IACL::ACTION_PROTECT_PAGES);
+                if ($can != -1)
+                {
+                    return array('Action '.($can > 0 ? 'allowed' : 'denied').' by namespace ACL', $can);
+                }
+            }
+            // ACLs for non-existing protection elements are readable and editable by everyone in OpenWikiAccess
+            return array('ACL protection target does not exist', -1);
         }
 
-        // "protect page" right is a hole
-        // 1) user A has read+edit access to article X
-        // 2) he adds [[Category:HisOwnCategory]] marker to article X
-        // 3) ACL:Category/HisOwnCategory grants PROTECT_PAGES to him
-        // 4) he gets the right to change ACL:Page/X
-        // 5) he removes all other users from ACL:Page/X => no one more can see the article :-(
-        // 6) okay, but per-namespace "protect page" right is also a hole
-        // 7) and "move page" right with namespace rights is also a hole
-        // 8) and user who can edit the article always can remove all categories from it
-        // 9) soooooooooo...
-        // "move page" right is a hole
-        // category rights are a hole - any editor can change them
-
-        // Check for ACTION_PROTECT_PAGES inherited from namespaces and categories
-        if ($peType == IACL::PE_PAGE && self::checkProtectPageRight($peName, $peId, $userID))
+        if (IACLDefinition::userCan($userID, $peType, $peID, IACL::ACTION_MANAGE) > 0)
         {
-            return 1;
+            // Explicitly granted in ACL itself
+            return array('"Manage ACL" permission granted explicitly', 1);
         }
 
-        return 0;
-    }
+        if ($wikipagePE)
+        {
+            $etc = haclfDisableTitlePatch();
+            $peTitle = Title::newFromId($peID);
+            haclfRestoreTitlePatch($etc);
+            if (IACLDefinition::userCan($userID, IACL::PE_NAMESPACE, $peTitle->getNamespace(), IACL::ACTION_PROTECT_PAGES) > 0)
+            {
+                return array('Action allowed by "protect pages" permission for namespace', 1);
+            }
+            if ($peID != IACL::PE_SPECIAL && IACLDefinition::userCan($userID, IACL::PE_CATEGORY,
+                IACLStorage::get('Util')->getParentCategoryIDs($peID), IACL::ACTION_PROTECT_PAGES) > 0)
+            {
+                return array('Action allowed by "protect pages" permission for category', 1);
+            }
+            if ($articleID && $actionID == IACL::ACTION_READ)
+            {
+                return self::hasSD($peTitle, $peID, $userID, IACL::ACTION_READ);
+            }
+            elseif (!$articleID)
+            {
+                // All actions are treated as create
+                $hasSD = self::hasSD($peTitle, $peID, $userID, IACL::ACTION_READ);
+                if ($hasSD[1] == -1 && $haclgOpenWikiAccess)
+                {
+                    return array('No ACLs affect this page, everyone is allowed to create ACL', 1);
+                }
+            }
+        }
+        elseif ($articleID && $peType == IACL::PE_NAMESPACE && $actionID == IACL::ACTION_READ &&
+            IACLDefinition::userCan($userID, IACL::PE_NAMESPACE, $peID, IACL::ACTION_READ) > 0)
+        {
+            // Namespace ACL is readable by everyone who can read the namespace
+            return array('Action allowed by namespace ACL', 1);
+        }
 
-    protected static function checkProtectPageRight($pageTitle, $pageID, $userID)
-    {
-        $etc = haclfDisableTitlePatch();
-        $title = $pageID ? Title::newFromId($pageID) : Title::newFromText($pageTitle);
-        haclfRestoreTitlePatch($etc);
-        return
-            IACLDefinition::userCan($userID, IACL::PE_NAMESPACE, $title->getNamespace(), IACL::ACTION_PROTECT_PAGES) > 0 ||
-            $pageID && IACLDefinition::userCan($userID, IACL::PE_CATEGORY, IACLStorage::get('Util')->getParentCategoryIDs($pageID), IACL::ACTION_PROTECT_PAGES) > 0;
+        // Fallback
+        return array('ACL management denied', 0);
     }
 
     /**
