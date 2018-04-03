@@ -75,9 +75,8 @@ class IntraACLSelftestSpecial extends SpecialPage
     {
         $msg = wfMessage('IntraACL right tests')->text();
         $pages = array();
-        if (!$msg->isBlank())
+        if ($msg)
         {
-            $msg = $msg->plain();
             foreach (explode("\n", $msg) as $p)
             {
                 $p = array_map('trim', explode("|", preg_replace('#^\*\s*#s', '', $p)));
