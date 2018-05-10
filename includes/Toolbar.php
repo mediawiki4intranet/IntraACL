@@ -622,7 +622,7 @@ class IACLToolbar
      * Must be set onto ArticleSaveComplete hook AFTER articleSaveComplete_SaveSD
      * in order to handle newly created page SDs.
      */
-    public static function articleSaveComplete_SaveEmbedded(&$article, &$user, $text)
+    public static function articleSaveComplete_SaveEmbedded($article, $user, $text)
     {
         // Flag to prevent recursion
         static $InsideSaveEmbedded;
@@ -851,7 +851,7 @@ class IACLToolbar
     /**
      * Hook for displaying "ACL" tab for Vector skin
      */
-    static function SkinTemplateNavigation(&$skin, &$links)
+    static function SkinTemplateNavigation($skin, &$links)
     {
         if ($act = self::getContentAction())
         {

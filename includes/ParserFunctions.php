@@ -110,7 +110,7 @@ class IACLParserFunctions
      * @param Parser $parser
      * @return string Wikitext
      */
-    public function access(&$parser, $args)
+    public function access($parser, $args)
     {
         if ($this->peType == IACL::PE_GROUP)
         {
@@ -146,7 +146,7 @@ class IACLParserFunctions
      * @param Parser $parser
      * @return string Wikitext
      */
-    public function predefinedRight(&$parser, $args)
+    public function predefinedRight($parser, $args)
     {
         if ($this->peType == IACL::PE_GROUP)
         {
@@ -192,7 +192,7 @@ class IACLParserFunctions
      * @param Parser $parser
      * @return string Wikitext
      */
-    public function manageRights(&$parser, $args)
+    public function manageRights($parser, $args)
     {
         $params = $this->getParameters($args);
 
@@ -214,7 +214,7 @@ class IACLParserFunctions
      * @param Parser $parser
      * @return string Wikitext
      */
-    public function addMember(&$parser, $args)
+    public function addMember($parser, $args)
     {
         if ($this->peType != IACL::PE_GROUP)
         {
@@ -511,7 +511,7 @@ class IACLParserFunctions
      * We need to create a work instance to display consistency checks
      * during display of an article
      */
-    public static function ArticleViewHeader(&$article, &$outputDone, &$pcache)
+    public static function ArticleViewHeader($article, &$outputDone, &$pcache)
     {
         if ($article->getTitle()->getNamespace() == HACL_NS_ACL)
         {
@@ -638,7 +638,7 @@ class IACLParserFunctions
     /**
      * Redirect to canonical ACL page from a non-canonical one if the latter doesn't exist
      */
-    public static function initializeArticleMaybeRedirect(&$title, &$request, &$ignoreRedirect, &$target, &$article)
+    public static function initializeArticleMaybeRedirect($title, $request, $ignoreRedirect, $target, &$article)
     {
         if ($title->getNamespace() == HACL_NS_ACL && !$article->exists())
         {
@@ -880,7 +880,7 @@ class IACLParserFunctions
      * @param User $user
      * @param string $reason
      */
-    public static function articleDelete(&$article, &$user, &$reason)
+    public static function articleDelete($article, $user, $reason)
     {
         // The article is in the ACL namespace?
         $title = $article->getTitle();
