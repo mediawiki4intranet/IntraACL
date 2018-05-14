@@ -107,6 +107,7 @@ You have no read access to the <tt>File</tt> namespace. You will <b>not</b> be a
 </div>',
 
     'hacl_nonreadable_upload_warning'   => 'You will not be able to view the file after uploading.',
+    'hacl_nonreadable_upload_error'     => 'You will not be able to view the file after uploading if you do not include it in one of the following categories: $1',
 
     'hacl_upload_forbidden'             => 'File uploads forbidden',
     'hacl_upload_forbidden_text'        => 'File uploads are forbidden because you have no IntraACL right to create articles within File namespace. Contact the site administrator.',
@@ -438,6 +439,7 @@ $messages['ru'] = array(
 </div>',
 
     'hacl_nonreadable_upload_warning'   => 'Вы не сможете просмотреть файл после загрузки.',
+    'hacl_nonreadable_upload_error'     => 'Чтобы не потерять доступ к файлу после загрузки, включите его в одну из категорий: $1',
 
     'hacl_upload_forbidden'             => 'Загрузка файлов запрещена',
     'hacl_upload_forbidden_text'        => 'Вы не можете загружать файлы, так как у вас нет IntraACL-прав на создание статей в пространстве имён Файл. Свяжитесь с администратором проекта.',

@@ -468,30 +468,52 @@ class IACLToolbar
         return true;
     }
 
-    /**
-     * Similar to attemptNonReadableCreate, but for uploads
-     */
-    public static function attemptNonReadableUpload($special, &$warnings)
+    protected static function checkNonReadableUpload($user, $file, $text)
     {
-        global $haclgOpenWikiAccess, $wgUser, $wgOut, $haclgSuperGroups;
-        $g = $wgUser->getGroups();
+        global $haclgOpenWikiAccess, $haclgSuperGroups;
+        $g = $user->getGroups();
         if (!$g || !array_intersect($g, $haclgSuperGroups))
         {
-            $file = $special->mUpload->getLocalFile();
             if (!$file->exists())
             {
-                // Only check for new files
-                $r = IACLDefinition::userCan($wgUser->getId(), IACL::PE_NAMESPACE, NS_FILE, IACL::ACTION_READ);
+                // Only check new files
+                $r = IACLDefinition::userCan($user->getId(), IACL::PE_NAMESPACE, NS_FILE, IACL::ACTION_READ);
                 if ($r == 0 || $r == -1 && !$haclgOpenWikiAccess)
                 {
-                    $cats = self::checkForReadableCategories($special->mComment, $file->getTitle());
+                    $cats = self::checkForReadableCategories($text, $file->getTitle());
                     if (!$cats)
                     {
-                        $special->uploadFormTextAfterSummary .= self::getReadableCategoriesSelectBox(true);
-                        $warnings['hacl_nonreadable_upload_warning'] = array();
+                        return true;
                     }
                 }
             }
+        }
+        return false;
+    }
+
+    /**
+     * Print non-readable upload warning (custom hook)
+     */
+    public static function onSpecialUploadCheckWarnings($special, &$warnings)
+    {
+        global $wgUser, $wgOut;
+        if (self::checkNonReadableUpload($wgUser, $special->mUpload->getLocalFile(), $special->mComment))
+        {
+            $special->uploadFormTextAfterSummary .= self::getReadableCategoriesSelectBox(true);
+            $warnings['hacl_nonreadable_upload_warning'] = array();
+        }
+        return true;
+    }
+
+    /**
+     * Returns fatal error when trying to upload a file which will then become non-readable for you (custom hook)
+     */
+    public static function onPerformUpload($upload, $comment, $text, $watch, $user, &$status)
+    {
+        if (self::checkNonReadableUpload($user, $upload->getLocalFile(), $text))
+        {
+            $status = Status::newFatal('hacl_nonreadable_upload_error', implode(' | ', self::getReadableCategories()));
+            return false;
         }
         return true;
     }
