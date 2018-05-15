@@ -1,9 +1,11 @@
 Patch: intraacl-rights
 Type: feature
-MediaWiki: REL1_27 1.27.1 36b636dcb6d3a3f67ff368ef55381d6710508c11
+MediaWiki: REL1_28 1.28.3 e9f315ccc13104597c681cf4f7da0d0dab5450f1
 
 Patch needed for IntraACL extension. Enables read access checks
 in various parts of MediaWiki.
+
+Experimental (not much tested).
 
 2013-03-25 - Do not cloak page and category links in article content
 2013-03-29 - Still register dependencies for unreadable images and templates
@@ -19,10 +21,10 @@ in various parts of MediaWiki.
 2016-08-04 - Fix crash when trying to reupload non-accessible upload
 
 diff --git a/includes/CategoryViewer.php b/includes/CategoryViewer.php
-index 389b077..ff33c62 100644
+index b95f274406..1c2d021d07 100644
 --- a/includes/CategoryViewer.php
 +++ b/includes/CategoryViewer.php
-@@ -262,6 +262,11 @@ class CategoryViewer extends ContextSource {
+@@ -263,6 +263,11 @@ class CategoryViewer extends ContextSource {
  	 * @param bool $isRedirect
  	 */
  	function addPage( $title, $sortkey, $pageLength, $isRedirect = false ) {
@@ -35,10 +37,10 @@ index 389b077..ff33c62 100644
  
  		$this->articles[] = $this->generateLink( 'page', $title, $isRedirect );
 diff --git a/includes/FeedUtils.php b/includes/FeedUtils.php
-index d7dbd22..a46c0bf 100644
+index 071a3db98f..d294812c3e 100644
 --- a/includes/FeedUtils.php
 +++ b/includes/FeedUtils.php
-@@ -115,11 +115,9 @@ class FeedUtils {
+@@ -116,11 +116,9 @@ class FeedUtils {
  					$actiontext,
  					Linker::formatComment( $comment ) ] ) ) . "</p>\n";
  
@@ -54,10 +56,10 @@ index d7dbd22..a46c0bf 100644
  		// Can't diff special pages, unreadable pages or pages with no new revision
  		// to compare against: just return the text.
 diff --git a/includes/GlobalFunctions.php b/includes/GlobalFunctions.php
-index 3c565cf..11cd9ae 100644
+index 901581d7c6..14b766c9ea 100644
 --- a/includes/GlobalFunctions.php
 +++ b/includes/GlobalFunctions.php
-@@ -3579,8 +3579,18 @@ function wfUnpack( $format, $data, $length = false ) {
+@@ -3510,8 +3510,18 @@ function wfUnpack( $format, $data, $length = false ) {
  function wfIsBadImage( $name, $contextTitle = false, $blacklist = null ) {
  	# Handle redirects; callers almost always hit wfFindFile() anyway,
  	# so just use that method because it has a fast process cache.
@@ -77,26 +79,11 @@ index 3c565cf..11cd9ae 100644
  
  	# Run the extension hook
  	$bad = false;
-diff --git a/includes/Linker.php b/includes/Linker.php
-index 5717fba..55b1560 100644
---- a/includes/Linker.php
-+++ b/includes/Linker.php
-@@ -2096,6 +2096,10 @@ class Linker {
- 						[],
- 						[ 'action' => 'edit' ]
- 					);
-+				// <IntraACL>
-+				} elseif ( !$titleObj->userCan( 'read' ) ) {
-+					continue;
-+				// </IntraACL>
- 				} else {
- 					$editLink = self::link(
- 						$titleObj,
 diff --git a/includes/OutputPage.php b/includes/OutputPage.php
-index 3c13fa9..adcd2be 100644
+index ab94adb093..20d14cd79d 100644
 --- a/includes/OutputPage.php
 +++ b/includes/OutputPage.php
-@@ -1316,6 +1316,12 @@ class OutputPage extends ContextSource {
+@@ -1290,6 +1290,12 @@ class OutputPage extends ContextSource {
  			'OutputPageMakeCategoryLinks',
  			[ &$this, $categories, &$this->mCategoryLinks ] )
  		) {
@@ -109,7 +96,7 @@ index 3c13fa9..adcd2be 100644
  			foreach ( $categories as $category => $type ) {
  				// array keys will cast numeric category names to ints, so cast back to string
  				$category = (string)$category;
-@@ -1332,6 +1338,11 @@ class OutputPage extends ContextSource {
+@@ -1306,6 +1312,11 @@ class OutputPage extends ContextSource {
  				$this->mCategories[] = $title->getText();
  				$this->mCategoryLinks[$type][] = Linker::link( $title, $text );
  			}
@@ -121,7 +108,7 @@ index 3c13fa9..adcd2be 100644
  		}
  	}
  
-@@ -2423,7 +2434,14 @@ class OutputPage extends ContextSource {
+@@ -2443,7 +2454,14 @@ class OutputPage extends ContextSource {
  			# not especially useful as a returnto parameter. Use the title
  			# from the request instead, if there was one.
  			$request = $this->getRequest();
@@ -136,22 +123,46 @@ index 3c13fa9..adcd2be 100644
  			if ( $action == 'edit' ) {
  				$msg = 'whitelistedittext';
  				$displayReturnto = $returnto;
-@@ -2636,7 +2654,9 @@ class OutputPage extends ContextSource {
- 		} else {
- 			$titleObj = Title::newFromText( $returnto );
+@@ -2659,7 +2677,9 @@ class OutputPage extends ContextSource {
  		}
--		if ( !is_object( $titleObj ) ) {
+ 		// We don't want people to return to external interwiki. That
+ 		// might potentially be used as part of a phishing scheme
+-		if ( !is_object( $titleObj ) || $titleObj->isExternal() ) {
 +		// <IntraACL>
-+		if ( !$titleObj instanceof Title || !$titleObj->userCan( 'read' ) ) {
++		if ( !is_object( $titleObj ) || $titleObj->isExternal() || !$titleObj->userCan( 'read' ) ) {
 +		// </IntraACL>
  			$titleObj = Title::newMainPage();
  		}
  
+diff --git a/includes/TemplatesOnThisPageFormatter.php b/includes/TemplatesOnThisPageFormatter.php
+index 494c7bfc86..7d6073a206 100644
+--- a/includes/TemplatesOnThisPageFormatter.php
++++ b/includes/TemplatesOnThisPageFormatter.php
+@@ -117,7 +117,7 @@ class TemplatesOnThisPageFormatter {
+ 		$editLink = $this->buildEditLink( $titleObj );
+ 		return '<li>' . $this->linkRenderer->makeLink( $target )
+ 			. $this->context->msg( 'word-separator' )->escaped()
+-			. $this->context->msg( 'parentheses' )->rawParams( $editLink )->escaped()
++			. ( $editLink ? $this->context->msg( 'parentheses' )->rawParams( $editLink )->escaped() : '' )
+ 			. $this->context->msg( 'word-separator' )->escaped()
+ 			. $protected . '</li>';
+ 	}
+@@ -168,6 +168,10 @@ class TemplatesOnThisPageFormatter {
+ 	private function buildEditLink( Title $titleObj ) {
+ 		if ( $titleObj->quickUserCan( 'edit', $this->context->getUser() ) ) {
+ 			$linkMsg = 'editlink';
++		// <IntraACL>
++		} elseif ( !$titleObj->userCan( 'read', $this->context->getUser() ) ) {
++			return NULL;
++		// </IntraACL>
+ 		} else {
+ 			$linkMsg = 'viewsourcelink';
+ 		}
 diff --git a/includes/Title.php b/includes/Title.php
-index 589130d..ef60b29 100644
+index cd28000148..a794c094c5 100644
 --- a/includes/Title.php
 +++ b/includes/Title.php
-@@ -224,7 +224,9 @@ class Title implements LinkTarget {
+@@ -209,7 +209,9 @@ class Title implements LinkTarget {
  
  		try {
  			$t->secureAndSplit();
@@ -162,7 +173,7 @@ index 589130d..ef60b29 100644
  		} catch ( MalformedTitleException $ex ) {
  			return null;
  		}
-@@ -333,7 +335,9 @@ class Title implements LinkTarget {
+@@ -318,7 +320,9 @@ class Title implements LinkTarget {
  		if ( $defaultNamespace == NS_MAIN ) {
  			$titleCache->set( $text, $t );
  		}
@@ -173,7 +184,7 @@ index 589130d..ef60b29 100644
  	}
  
  	/**
-@@ -365,7 +369,9 @@ class Title implements LinkTarget {
+@@ -350,7 +354,9 @@ class Title implements LinkTarget {
  
  		try {
  			$t->secureAndSplit();
@@ -184,7 +195,7 @@ index 589130d..ef60b29 100644
  		} catch ( MalformedTitleException $ex ) {
  			return null;
  		}
-@@ -531,6 +537,9 @@ class Title implements LinkTarget {
+@@ -518,6 +524,9 @@ class Title implements LinkTarget {
  		$t->mUrlform = wfUrlencode( $t->mDbkeyform );
  		$t->mTextform = strtr( $title, '_', ' ' );
  		$t->mContentModel = false; # initialized lazily in getContentModel()
@@ -194,7 +205,7 @@ index 589130d..ef60b29 100644
  		return $t;
  	}
  
-@@ -555,7 +564,9 @@ class Title implements LinkTarget {
+@@ -542,7 +551,9 @@ class Title implements LinkTarget {
  
  		try {
  			$t->secureAndSplit();
@@ -205,7 +216,7 @@ index 589130d..ef60b29 100644
  		} catch ( MalformedTitleException $ex ) {
  			return null;
  		}
-@@ -2363,6 +2374,12 @@ class Title implements LinkTarget {
+@@ -2408,6 +2419,12 @@ class Title implements LinkTarget {
  					$whitelisted = true;
  				}
  			} elseif ( $this->isSpecialPage() ) {
@@ -218,7 +229,7 @@ index 589130d..ef60b29 100644
  				# If it's a special page, ditch the subpage bit and check again
  				$name = $this->getDBkey();
  				list( $name, /* $subpage */ ) = SpecialPageFactory::resolveAlias( $name );
-@@ -2372,6 +2389,11 @@ class Title implements LinkTarget {
+@@ -2417,6 +2434,11 @@ class Title implements LinkTarget {
  						$whitelisted = true;
  					}
  				}
@@ -230,7 +241,7 @@ index 589130d..ef60b29 100644
  			}
  		}
  
-@@ -4799,4 +4821,67 @@ class Title implements LinkTarget {
+@@ -4870,4 +4892,67 @@ class Title implements LinkTarget {
  		$this->mTextform = strtr( $this->mDbkeyform, '_', ' ' );
  	}
  
@@ -299,10 +310,10 @@ index 589130d..ef60b29 100644
 +// </IntraACL>
  }
 diff --git a/includes/api/ApiBase.php b/includes/api/ApiBase.php
-index 639f6be..ff8272a 100644
+index 6dfd425664..70be7b9c0a 100644
 --- a/includes/api/ApiBase.php
 +++ b/includes/api/ApiBase.php
-@@ -822,6 +822,11 @@ abstract class ApiBase extends ContextSource {
+@@ -862,6 +862,11 @@ abstract class ApiBase extends ContextSource {
  				$this->dieUsageMsg( [ 'nosuchpageid', $params['pageid'] ] );
  			}
  		}
@@ -315,7 +326,7 @@ index 639f6be..ff8272a 100644
  		return $pageObj;
  	}
 diff --git a/includes/api/ApiExpandTemplates.php b/includes/api/ApiExpandTemplates.php
-index 286fe88..bf0110e 100644
+index 10fb1824be..d07d0cc7d3 100644
 --- a/includes/api/ApiExpandTemplates.php
 +++ b/includes/api/ApiExpandTemplates.php
 @@ -66,6 +66,11 @@ class ApiExpandTemplates extends ApiBase {
@@ -331,12 +342,12 @@ index 286fe88..bf0110e 100644
  		$result = $this->getResult();
  
 diff --git a/includes/api/ApiImageRotate.php b/includes/api/ApiImageRotate.php
-index 2b99353..90e5d90 100644
+index 37cb80a9fc..4b021d2024 100644
 --- a/includes/api/ApiImageRotate.php
 +++ b/includes/api/ApiImageRotate.php
-@@ -68,7 +68,7 @@ class ApiImageRotate extends ApiBase {
- 		self::addValues( $result, $pageSet->getMissingRevisionIDs(), 'missing', 'revid' );
- 		self::addValues( $result, $pageSet->getInterwikiTitlesAsResult() );
+@@ -42,7 +42,7 @@ class ApiImageRotate extends ApiBase {
+ 			'invalidTitles', 'special', 'missingIds', 'missingRevIds', 'interwikiTitles',
+ 		] );
  
 -		foreach ( $pageSet->getTitles() as $title ) {
 +		foreach ( $pageSet->getGoodTitles() as $title ) {
@@ -344,7 +355,7 @@ index 2b99353..90e5d90 100644
  			$r['id'] = $title->getArticleID();
  			ApiQueryBase::addTitleInfo( $r, $title );
 diff --git a/includes/api/ApiMove.php b/includes/api/ApiMove.php
-index 29e67b0..c71e746 100644
+index 29e67b07cd..c71e746076 100644
 --- a/includes/api/ApiMove.php
 +++ b/includes/api/ApiMove.php
 @@ -50,13 +50,17 @@ class ApiMove extends ApiBase {
@@ -368,10 +379,10 @@ index 29e67b0..c71e746 100644
  		}
  		$toTalk = $toTitle->getTalkPage();
 diff --git a/includes/api/ApiPageSet.php b/includes/api/ApiPageSet.php
-index af4e536..4ac242f 100644
+index 46c57b86b4..b7ea7f316c 100644
 --- a/includes/api/ApiPageSet.php
 +++ b/includes/api/ApiPageSet.php
-@@ -729,6 +729,11 @@ class ApiPageSet extends ApiBase {
+@@ -754,6 +754,11 @@ class ApiPageSet extends ApiBase {
  	public function processDbRow( $row ) {
  		// Store Title object in various data structures
  		$title = Title::newFromRow( $row );
@@ -381,9 +392,9 @@ index af4e536..4ac242f 100644
 +		}
 +		// </IntraACL>
  
- 		$pageId = intval( $row->page_id );
- 		$this->mAllPages[$row->page_namespace][$row->page_title] = $pageId;
-@@ -745,6 +750,7 @@ class ApiPageSet extends ApiBase {
+ 		LinkCache::singleton()->addGoodLinkObjFromRow( $title, $row );
+ 
+@@ -772,6 +777,7 @@ class ApiPageSet extends ApiBase {
  		foreach ( $this->mRequestedPageFields as $fieldName => &$fieldValues ) {
  			$fieldValues[$pageId] = $row->$fieldName;
  		}
@@ -391,7 +402,7 @@ index af4e536..4ac242f 100644
  	}
  
  	/**
-@@ -836,8 +842,11 @@ class ApiPageSet extends ApiBase {
+@@ -863,8 +869,11 @@ class ApiPageSet extends ApiBase {
  			foreach ( $res as $row ) {
  				$pageId = intval( $row->page_id );
  
@@ -404,7 +415,7 @@ index af4e536..4ac242f 100644
  					if ( $processTitles ) {
  						unset( $remaining[$row->page_namespace][$row->page_title] );
  					} else {
-@@ -845,9 +854,6 @@ class ApiPageSet extends ApiBase {
+@@ -872,9 +881,6 @@ class ApiPageSet extends ApiBase {
  					}
  				}
  
@@ -414,7 +425,7 @@ index af4e536..4ac242f 100644
  				// Need gender information
  				if ( MWNamespace::hasGenderDistinction( $row->page_namespace ) ) {
  					$usernames[] = $row->page_title;
-@@ -919,13 +925,11 @@ class ApiPageSet extends ApiBase {
+@@ -948,13 +954,11 @@ class ApiPageSet extends ApiBase {
  				$pageid = intval( $row->rev_page );
  				$this->mGoodRevIDs[$revid] = $pageid;
  				$this->mLiveRevIDs[$revid] = $pageid;
@@ -429,7 +440,7 @@ index af4e536..4ac242f 100644
  		// Populate all the page information
  		$this->initFromPageIds( array_keys( $pageids ) );
  
-@@ -971,6 +975,20 @@ class ApiPageSet extends ApiBase {
+@@ -1000,6 +1004,20 @@ class ApiPageSet extends ApiBase {
  
  			$this->mMissingRevIDs = array_keys( $remaining );
  		}
@@ -450,7 +461,7 @@ index af4e536..4ac242f 100644
  	}
  
  	/**
-@@ -1041,6 +1059,11 @@ class ApiPageSet extends ApiBase {
+@@ -1070,6 +1088,11 @@ class ApiPageSet extends ApiBase {
  			);
  			$this->mResolvedRedirectTitles[$from] = $this->mPendingRedirectIDs[$rdfrom];
  			unset( $this->mPendingRedirectIDs[$rdfrom] );
@@ -462,7 +473,7 @@ index af4e536..4ac242f 100644
  			if ( $to->isExternal() ) {
  				$this->mInterwikiTitles[$to->getPrefixedText()] = $to->getInterwiki();
  			} elseif ( !isset( $this->mAllPages[$row->rd_namespace][$row->rd_title] ) ) {
-@@ -1104,6 +1127,11 @@ class ApiPageSet extends ApiBase {
+@@ -1133,6 +1156,11 @@ class ApiPageSet extends ApiBase {
  			if ( is_string( $title ) ) {
  				try {
  					$titleObj = Title::newFromTextThrow( $title, $this->mDefaultNamespace );
@@ -475,7 +486,7 @@ index af4e536..4ac242f 100644
  					// Handle invalid titles gracefully
  					$this->mAllPages[0][$title] = $this->mFakePageId;
 diff --git a/includes/api/ApiParse.php b/includes/api/ApiParse.php
-index 2fb4db1..2c9e7f9 100644
+index 0cad5dee9c..d826ecb1e2 100644
 --- a/includes/api/ApiParse.php
 +++ b/includes/api/ApiParse.php
 @@ -115,6 +115,7 @@ class ApiParse extends ApiBase {
@@ -485,7 +496,7 @@ index 2fb4db1..2c9e7f9 100644
 +
  				$wgTitle = $titleObj;
  				$pageObj = WikiPage::factory( $titleObj );
- 				$popts = $this->makeParserOptions( $pageObj, $params );
+ 				list( $popts, $reset, $suppressCache ) = $this->makeParserOptions( $pageObj, $params );
 @@ -203,6 +204,11 @@ class ApiParse extends ApiBase {
  			if ( !$titleObj || $titleObj->isExternal() ) {
  				$this->dieUsageMsg( [ 'invalidtitle', $title ] );
@@ -499,7 +510,7 @@ index 2fb4db1..2c9e7f9 100644
  			if ( $titleObj->canExist() ) {
  				$pageObj = WikiPage::factory( $titleObj );
 diff --git a/includes/api/ApiQueryAllCategories.php b/includes/api/ApiQueryAllCategories.php
-index 614b06c..43ab7ea 100644
+index 614b06c0b5..43ab7ea217 100644
 --- a/includes/api/ApiQueryAllCategories.php
 +++ b/includes/api/ApiQueryAllCategories.php
 @@ -124,6 +124,11 @@ class ApiQueryAllCategories extends ApiQueryGeneratorBase {
@@ -515,7 +526,7 @@ index 614b06c..43ab7ea 100644
  				$pages[] = $titleObj;
  			} else {
 diff --git a/includes/api/ApiQueryAllImages.php b/includes/api/ApiQueryAllImages.php
-index 6aeee68..2437e55 100644
+index 553995c781..13072dbc5a 100644
 --- a/includes/api/ApiQueryAllImages.php
 +++ b/includes/api/ApiQueryAllImages.php
 @@ -289,6 +289,11 @@ class ApiQueryAllImages extends ApiQueryGeneratorBase {
@@ -531,7 +542,7 @@ index 6aeee68..2437e55 100644
  					ApiQueryImageInfo::getInfo( $file, $prop, $result ) );
  				self::addTitleInfo( $info, $file->getTitle() );
 diff --git a/includes/api/ApiQueryAllLinks.php b/includes/api/ApiQueryAllLinks.php
-index ac90605..a969d97 100644
+index ac906056a3..a969d97196 100644
 --- a/includes/api/ApiQueryAllLinks.php
 +++ b/includes/api/ApiQueryAllLinks.php
 @@ -206,8 +206,13 @@ class ApiQueryAllLinks extends ApiQueryGeneratorBase {
@@ -550,7 +561,7 @@ index ac90605..a969d97 100644
  				}
  				foreach ( $this->props as $name => $field ) {
 diff --git a/includes/api/ApiQueryAllMessages.php b/includes/api/ApiQueryAllMessages.php
-index f1d787b..07272fc 100644
+index e0ba4ea1c1..00a8e464df 100644
 --- a/includes/api/ApiQueryAllMessages.php
 +++ b/includes/api/ApiQueryAllMessages.php
 @@ -49,7 +49,9 @@ class ApiQueryAllMessages extends ApiQueryBase {
@@ -565,7 +576,7 @@ index f1d787b..07272fc 100644
  				}
  			} else {
 diff --git a/includes/api/ApiQueryAllPages.php b/includes/api/ApiQueryAllPages.php
-index 0ce1939..8e08737 100644
+index 0ce1939b28..8e08737303 100644
 --- a/includes/api/ApiQueryAllPages.php
 +++ b/includes/api/ApiQueryAllPages.php
 @@ -222,6 +222,11 @@ class ApiQueryAllPages extends ApiQueryGeneratorBase {
@@ -581,7 +592,7 @@ index 0ce1939..8e08737 100644
  					'pageid' => intval( $row->page_id ),
  					'ns' => intval( $title->getNamespace() ),
 diff --git a/includes/api/ApiQueryBacklinks.php b/includes/api/ApiQueryBacklinks.php
-index fb502e4..0ba0282 100644
+index fb502e40e7..0ba0282dbb 100644
 --- a/includes/api/ApiQueryBacklinks.php
 +++ b/includes/api/ApiQueryBacklinks.php
 @@ -186,6 +186,11 @@ class ApiQueryBacklinks extends ApiQueryGeneratorBase {
@@ -614,7 +625,7 @@ index fb502e4..0ba0282 100644
  					$a['redirect'] = true;
  				}
 diff --git a/includes/api/ApiQueryCategories.php b/includes/api/ApiQueryCategories.php
-index 63d0f6d..8547855 100644
+index 63d0f6da13..85478557b0 100644
 --- a/includes/api/ApiQueryCategories.php
 +++ b/includes/api/ApiQueryCategories.php
 @@ -73,7 +73,7 @@ class ApiQueryCategories extends ApiQueryGeneratorBase {
@@ -639,7 +650,7 @@ index 63d0f6d..8547855 100644
  				ApiQueryBase::addTitleInfo( $vals, $title );
  				if ( isset( $prop['sortkey'] ) ) {
 diff --git a/includes/api/ApiQueryCategoryMembers.php b/includes/api/ApiQueryCategoryMembers.php
-index 4865ad5..dec6976 100644
+index 4865ad56f9..dec69765e6 100644
 --- a/includes/api/ApiQueryCategoryMembers.php
 +++ b/includes/api/ApiQueryCategoryMembers.php
 @@ -249,8 +249,13 @@ class ApiQueryCategoryMembers extends ApiQueryGeneratorBase {
@@ -658,7 +669,7 @@ index 4865ad5..dec6976 100644
  				}
  				if ( $fld_sortkey ) {
 diff --git a/includes/api/ApiQueryDeletedrevs.php b/includes/api/ApiQueryDeletedrevs.php
-index d58efa1..f06a615 100644
+index d58efa1d5a..f06a615771 100644
 --- a/includes/api/ApiQueryDeletedrevs.php
 +++ b/includes/api/ApiQueryDeletedrevs.php
 @@ -408,6 +408,15 @@ class ApiQueryDeletedrevs extends ApiQueryBase {
@@ -678,7 +689,7 @@ index d58efa1..f06a615 100644
  				$pageID = $pageMap[$row->ar_namespace][$row->ar_title];
  				$fit = $result->addValue(
 diff --git a/includes/api/ApiQueryExtLinksUsage.php b/includes/api/ApiQueryExtLinksUsage.php
-index 9b05537..1dac98b 100644
+index 9b055377ef..1dac98bdb7 100644
 --- a/includes/api/ApiQueryExtLinksUsage.php
 +++ b/includes/api/ApiQueryExtLinksUsage.php
 @@ -121,8 +121,13 @@ class ApiQueryExtLinksUsage extends ApiQueryGeneratorBase {
@@ -697,7 +708,7 @@ index 9b05537..1dac98b 100644
  				}
  				if ( $fld_url ) {
 diff --git a/includes/api/ApiQueryFilearchive.php b/includes/api/ApiQueryFilearchive.php
-index 03be491..acce46d 100644
+index 03be491e7c..acce46de4a 100644
 --- a/includes/api/ApiQueryFilearchive.php
 +++ b/includes/api/ApiQueryFilearchive.php
 @@ -165,6 +165,11 @@ class ApiQueryFilearchive extends ApiQueryBase {
@@ -713,7 +724,7 @@ index 03be491..acce46d 100644
  
  			if ( $fld_description &&
 diff --git a/includes/api/ApiQueryIWBacklinks.php b/includes/api/ApiQueryIWBacklinks.php
-index 7568107..f137dc0 100644
+index 75681077de..f137dc0688 100644
 --- a/includes/api/ApiQueryIWBacklinks.php
 +++ b/includes/api/ApiQueryIWBacklinks.php
 @@ -129,6 +129,11 @@ class ApiQueryIWBacklinks extends ApiQueryGeneratorBase {
@@ -729,7 +740,7 @@ index 7568107..f137dc0 100644
  
  				if ( $row->page_is_redirect ) {
 diff --git a/includes/api/ApiQueryImages.php b/includes/api/ApiQueryImages.php
-index e04d8c8..eeb0050 100644
+index e04d8c888f..eeb0050028 100644
 --- a/includes/api/ApiQueryImages.php
 +++ b/includes/api/ApiQueryImages.php
 @@ -89,7 +89,7 @@ class ApiQueryImages extends ApiQueryGeneratorBase {
@@ -757,10 +768,10 @@ index e04d8c8..eeb0050 100644
  				if ( !$fit ) {
  					$this->setContinueEnumParameter( 'continue', $row->il_from . '|' . $row->il_to );
 diff --git a/includes/api/ApiQueryInfo.php b/includes/api/ApiQueryInfo.php
-index b94f567..4be7b2d 100644
+index d287020536..8c916d3248 100644
 --- a/includes/api/ApiQueryInfo.php
 +++ b/includes/api/ApiQueryInfo.php
-@@ -324,14 +324,20 @@ class ApiQueryInfo extends ApiQueryBase {
+@@ -325,14 +325,20 @@ class ApiQueryInfo extends ApiQueryBase {
  			$cont = explode( '|', $this->params['continue'] );
  			$this->dieContinueUsageIf( count( $cont ) != 2 );
  			$conttitle = Title::makeTitleSafe( $cont[0], $cont[1] );
@@ -788,7 +799,7 @@ index b94f567..4be7b2d 100644
  
  		$this->pageRestrictions = $pageSet->getCustomField( 'page_restrictions' );
 diff --git a/includes/api/ApiQueryLangBacklinks.php b/includes/api/ApiQueryLangBacklinks.php
-index a6153de..fe3e0d9 100644
+index a6153de961..fe3e0d94c5 100644
 --- a/includes/api/ApiQueryLangBacklinks.php
 +++ b/includes/api/ApiQueryLangBacklinks.php
 @@ -128,6 +128,11 @@ class ApiQueryLangBacklinks extends ApiQueryGeneratorBase {
@@ -804,7 +815,7 @@ index a6153de..fe3e0d9 100644
  
  				if ( $row->page_is_redirect ) {
 diff --git a/includes/api/ApiQueryLinks.php b/includes/api/ApiQueryLinks.php
-index 6e5239f..3feecb7 100644
+index 6e5239f7b9..3feecb7e57 100644
 --- a/includes/api/ApiQueryLinks.php
 +++ b/includes/api/ApiQueryLinks.php
 @@ -93,7 +93,7 @@ class ApiQueryLinks extends ApiQueryGeneratorBase {
@@ -832,7 +843,7 @@ index 6e5239f..3feecb7 100644
  				if ( !$fit ) {
  					$this->setContinueEnumParameter( 'continue',
 diff --git a/includes/api/ApiQueryLogEvents.php b/includes/api/ApiQueryLogEvents.php
-index 122594d..69ec35f 100644
+index 122594d175..69ec35f3a9 100644
 --- a/includes/api/ApiQueryLogEvents.php
 +++ b/includes/api/ApiQueryLogEvents.php
 @@ -172,7 +172,9 @@ class ApiQueryLogEvents extends ApiQueryBase {
@@ -862,7 +873,7 @@ index 122594d..69ec35f 100644
  		if ( $this->fld_title || $this->fld_ids || $this->fld_details && $row->log_params !== '' ) {
  			if ( LogEventsList::isDeleted( $row, LogPage::DELETED_ACTION ) ) {
 diff --git a/includes/api/ApiQueryPagesWithProp.php b/includes/api/ApiQueryPagesWithProp.php
-index f1f4d9a..c8984a3 100644
+index f1f4d9a453..c8984a3985 100644
 --- a/includes/api/ApiQueryPagesWithProp.php
 +++ b/includes/api/ApiQueryPagesWithProp.php
 @@ -105,8 +105,13 @@ class ApiQueryPagesWithProp extends ApiQueryGeneratorBase {
@@ -881,7 +892,7 @@ index f1f4d9a..c8984a3 100644
  				}
  				if ( $fld_value ) {
 diff --git a/includes/api/ApiQueryProtectedTitles.php b/includes/api/ApiQueryProtectedTitles.php
-index e3c949b..4f134aa 100644
+index e3c949bd3b..4f134aa3ff 100644
 --- a/includes/api/ApiQueryProtectedTitles.php
 +++ b/includes/api/ApiQueryProtectedTitles.php
 @@ -112,6 +112,11 @@ class ApiQueryProtectedTitles extends ApiQueryGeneratorBase {
@@ -897,7 +908,7 @@ index e3c949b..4f134aa 100644
  				ApiQueryBase::addTitleInfo( $vals, $title );
  				if ( isset( $prop['timestamp'] ) ) {
 diff --git a/includes/api/ApiQueryQueryPage.php b/includes/api/ApiQueryQueryPage.php
-index 9ba757c..1b89166 100644
+index 9ba757c078..1b89166353 100644
 --- a/includes/api/ApiQueryQueryPage.php
 +++ b/includes/api/ApiQueryQueryPage.php
 @@ -97,6 +97,11 @@ class ApiQueryQueryPage extends ApiQueryGeneratorBase {
@@ -913,7 +924,7 @@ index 9ba757c..1b89166 100644
  				if ( $qp->usesTimestamps() ) {
  					$data['timestamp'] = wfTimestamp( TS_ISO_8601, $row->value );
 diff --git a/includes/api/ApiQueryRandom.php b/includes/api/ApiQueryRandom.php
-index 00bd467..0659c7b 100644
+index 00bd467cab..0659c7b6fd 100644
 --- a/includes/api/ApiQueryRandom.php
 +++ b/includes/api/ApiQueryRandom.php
 @@ -98,6 +98,11 @@ class ApiQueryRandom extends ApiQueryGeneratorBase {
@@ -929,10 +940,10 @@ index 00bd467..0659c7b 100644
  					'id' => (int)$row->page_id,
  				];
 diff --git a/includes/api/ApiQueryRecentChanges.php b/includes/api/ApiQueryRecentChanges.php
-index f0fd2f4..40d7196 100644
+index 8b11dc2a47..6b289d6db5 100644
 --- a/includes/api/ApiQueryRecentChanges.php
 +++ b/includes/api/ApiQueryRecentChanges.php
-@@ -422,6 +422,11 @@ class ApiQueryRecentChanges extends ApiQueryGeneratorBase {
+@@ -428,6 +428,11 @@ class ApiQueryRecentChanges extends ApiQueryGeneratorBase {
  	public function extractRowInfo( $row ) {
  		/* Determine the title of the page that has been changed. */
  		$title = Title::makeTitle( $row->rc_namespace, $row->rc_title );
@@ -945,7 +956,7 @@ index f0fd2f4..40d7196 100644
  
  		/* Our output data. */
 diff --git a/includes/api/ApiQueryRevisionsBase.php b/includes/api/ApiQueryRevisionsBase.php
-index 266d699..421fd81 100644
+index 266d6999ba..421fd816a5 100644
 --- a/includes/api/ApiQueryRevisionsBase.php
 +++ b/includes/api/ApiQueryRevisionsBase.php
 @@ -159,6 +159,11 @@ abstract class ApiQueryRevisionsBase extends ApiQueryGeneratorBase {
@@ -961,10 +972,10 @@ index 266d699..421fd81 100644
  		$vals = [];
  		$anyHidden = false;
 diff --git a/includes/api/ApiQuerySearch.php b/includes/api/ApiQuerySearch.php
-index f57d3a3..b71883c 100644
+index 6be51986a6..332acb6417 100644
 --- a/includes/api/ApiQuerySearch.php
 +++ b/includes/api/ApiQuerySearch.php
-@@ -169,6 +169,12 @@ class ApiQuerySearch extends ApiQueryGeneratorBase {
+@@ -160,6 +160,12 @@ class ApiQuerySearch extends ApiQueryGeneratorBase {
  
  			$title = $result->getTitle();
  			if ( $resultPageSet === null ) {
@@ -978,20 +989,20 @@ index f57d3a3..b71883c 100644
  				ApiQueryBase::addTitleInfo( $vals, $title );
  
 diff --git a/includes/api/ApiQueryUserContributions.php b/includes/api/ApiQueryUserContributions.php
-index 0688970..ba30843 100644
+index b85bec4899..780e548607 100644
 --- a/includes/api/ApiQueryUserContributions.php
 +++ b/includes/api/ApiQueryUserContributions.php
-@@ -113,6 +113,9 @@ class ApiQueryContributions extends ApiQueryBase {
+@@ -140,6 +140,9 @@ class ApiQueryContributions extends ApiQueryBase {
  			}
  
  			$vals = $this->extractRowInfo( $row );
 +			if ( !$vals ) {
 +				continue;
 +			}
- 			$fit = $this->getResult()->addValue( [ 'query', $this->getModuleName() ], null, $vals );
+ 			$fit = $this->processRow( $row, $vals, $hookData ) &&
+ 				$this->getResult()->addValue( [ 'query', $this->getModuleName() ], null, $vals );
  			if ( !$fit ) {
- 				$this->setContinueEnumParameter( 'continue', $this->continueStr( $row ) );
-@@ -356,6 +359,11 @@ class ApiQueryContributions extends ApiQueryBase {
+@@ -377,6 +380,11 @@ class ApiQueryContributions extends ApiQueryBase {
  		}
  
  		$title = Title::makeTitle( $row->page_namespace, $row->page_title );
@@ -1004,13 +1015,13 @@ index 0688970..ba30843 100644
  		if ( $this->fld_title ) {
  			ApiQueryBase::addTitleInfo( $vals, $title );
 diff --git a/includes/api/ApiQueryWatchlist.php b/includes/api/ApiQueryWatchlist.php
-index db2cf86..ce94657 100644
+index c6b3f0475d..e74cd0af30 100644
 --- a/includes/api/ApiQueryWatchlist.php
 +++ b/includes/api/ApiQueryWatchlist.php
-@@ -269,6 +269,11 @@ class ApiQueryWatchlist extends ApiQueryGeneratorBase {
+@@ -190,6 +190,11 @@ class ApiQueryWatchlist extends ApiQueryGeneratorBase {
  
  			if ( is_null( $resultPageSet ) ) {
- 				$vals = $this->extractRowInfo( $row );
+ 				$vals = $this->extractOutputData( $watchedItem, $recentChangeInfo );
 +				// <IntraACL>
 +				if ( !$vals ) {
 +					continue;
@@ -1018,25 +1029,25 @@ index db2cf86..ce94657 100644
 +				// </IntraACL>
  				$fit = $this->getResult()->addValue( [ 'query', $this->getModuleName() ], null, $vals );
  				if ( !$fit ) {
- 					$this->setContinueEnumParameter( 'continue', "$row->rc_timestamp|$row->rc_id" );
-@@ -298,6 +303,11 @@ class ApiQueryWatchlist extends ApiQueryGeneratorBase {
- 	private function extractRowInfo( $row ) {
- 		/* Determine the title of the page that has been changed. */
- 		$title = Title::makeTitle( $row->rc_namespace, $row->rc_title );
+ 					$this->setContinueEnumParameter(
+@@ -265,6 +270,11 @@ class ApiQueryWatchlist extends ApiQueryGeneratorBase {
+ 			$watchedItem->getLinkTarget()->getDBkey()
+ 		);
+ 		$user = $this->getUser();
 +		// <IntraACL>
-+		if ( !$title || !$title->userCan( 'read' ) ) {
++		if ( !$title || !$title->userCan( 'read', $user ) ) {
 +			return false;
 +		}
 +		// </IntraACL>
- 		$user = $this->getUser();
  
  		/* Our output data. */
+ 		$vals = [];
 diff --git a/includes/api/ApiQueryWatchlistRaw.php b/includes/api/ApiQueryWatchlistRaw.php
-index 742f8f5..82b7f44 100644
+index 50417eac13..83c73dae75 100644
 --- a/includes/api/ApiQueryWatchlistRaw.php
 +++ b/includes/api/ApiQueryWatchlistRaw.php
-@@ -130,6 +130,11 @@ class ApiQueryWatchlistRaw extends ApiQueryGeneratorBase {
- 			$t = Title::makeTitle( $row->wl_namespace, $row->wl_title );
+@@ -115,6 +115,11 @@ class ApiQueryWatchlistRaw extends ApiQueryGeneratorBase {
+ 			$t = Title::makeTitle( $ns, $dbKey );
  
  			if ( is_null( $resultPageSet ) ) {
 +				// <IntraACL>
@@ -1046,12 +1057,12 @@ index 742f8f5..82b7f44 100644
 +				// </IntraACL>
  				$vals = [];
  				ApiQueryBase::addTitleInfo( $vals, $t );
- 				if ( isset( $prop['changed'] ) && !is_null( $row->wl_notificationtimestamp ) ) {
+ 				if ( isset( $prop['changed'] ) && !is_null( $item->getNotificationTimestamp() ) ) {
 diff --git a/includes/cache/LinkBatch.php b/includes/cache/LinkBatch.php
-index c5bd290..a601370 100644
+index d773fff3b7..4a98a4d9a4 100644
 --- a/includes/cache/LinkBatch.php
 +++ b/includes/cache/LinkBatch.php
-@@ -150,6 +150,11 @@ class LinkBatch {
+@@ -155,6 +155,11 @@ class LinkBatch {
  		if ( !$res ) {
  			return [];
  		}
@@ -1061,9 +1072,9 @@ index c5bd290..a601370 100644
 +		}
 +		// </IntraACL>
  
+ 		$titleFormatter = MediaWikiServices::getInstance()->getTitleFormatter();
  		// For each returned entry, add it to the list of good links, and remove it from $remaining
- 
-@@ -171,6 +176,11 @@ class LinkBatch {
+@@ -179,6 +184,11 @@ class LinkBatch {
  			}
  		}
  
@@ -1076,7 +1087,7 @@ index c5bd290..a601370 100644
  	}
  
 diff --git a/includes/changes/ChangesFeed.php b/includes/changes/ChangesFeed.php
-index ca6ba48..1e32910 100644
+index 15a00c7036..820332385f 100644
 --- a/includes/changes/ChangesFeed.php
 +++ b/includes/changes/ChangesFeed.php
 @@ -76,16 +76,17 @@ class ChangesFeed {
@@ -1113,10 +1124,10 @@ index ca6ba48..1e32910 100644
  				? $title->getTalkPage()->getFullURL()
  				: '';
 diff --git a/includes/diff/DifferenceEngine.php b/includes/diff/DifferenceEngine.php
-index af5fbf3..7e1cef2 100644
+index 039cd08783..0430855b8b 100644
 --- a/includes/diff/DifferenceEngine.php
 +++ b/includes/diff/DifferenceEngine.php
-@@ -1290,6 +1290,13 @@ class DifferenceEngine extends ContextSource {
+@@ -1316,6 +1316,13 @@ class DifferenceEngine extends ContextSource {
  			return false;
  		}
  
@@ -1130,7 +1141,7 @@ index af5fbf3..7e1cef2 100644
  		// Update the new revision ID in case it was 0 (makes life easier doing UI stuff)
  		$this->mNewid = $this->mNewRev->getId();
  		$this->mNewPage = $this->mNewRev->getTitle();
-@@ -1316,6 +1323,13 @@ class DifferenceEngine extends ContextSource {
+@@ -1342,6 +1349,13 @@ class DifferenceEngine extends ContextSource {
  
  		if ( $this->mOldRev ) {
  			$this->mOldPage = $this->mOldRev->getTitle();
@@ -1145,10 +1156,10 @@ index af5fbf3..7e1cef2 100644
  
  		// Load tags information for both revisions
 diff --git a/includes/filerepo/LocalRepo.php b/includes/filerepo/LocalRepo.php
-index 8248699..4f3e310 100644
+index c195241da2..56642d28f3 100644
 --- a/includes/filerepo/LocalRepo.php
 +++ b/includes/filerepo/LocalRepo.php
-@@ -383,7 +383,12 @@ class LocalRepo extends FileRepo {
+@@ -379,7 +379,12 @@ class LocalRepo extends FileRepo {
  
  		$result = [];
  		foreach ( $res as $row ) {
@@ -1162,7 +1173,7 @@ index 8248699..4f3e310 100644
  		}
  		$res->free();
  
-@@ -416,7 +421,11 @@ class LocalRepo extends FileRepo {
+@@ -412,7 +417,11 @@ class LocalRepo extends FileRepo {
  		$result = [];
  		foreach ( $res as $row ) {
  			$file = $this->newFileFromRow( $row );
@@ -1175,7 +1186,7 @@ index 8248699..4f3e310 100644
  		}
  		$res->free();
  
-@@ -446,7 +455,12 @@ class LocalRepo extends FileRepo {
+@@ -442,7 +451,12 @@ class LocalRepo extends FileRepo {
  		// Build file objects
  		$files = [];
  		foreach ( $res as $row ) {
@@ -1190,10 +1201,10 @@ index 8248699..4f3e310 100644
  
  		return $files;
 diff --git a/includes/filerepo/file/LocalFile.php b/includes/filerepo/file/LocalFile.php
-index 43b8700..ed7abcd 100644
+index 2885401986..eebbd20bff 100644
 --- a/includes/filerepo/file/LocalFile.php
 +++ b/includes/filerepo/file/LocalFile.php
-@@ -154,6 +154,11 @@ class LocalFile extends File {
+@@ -158,6 +158,11 @@ class LocalFile extends File {
  	 */
  	static function newFromRow( $row, $repo ) {
  		$title = Title::makeTitle( NS_FILE, $row->img_name );
@@ -1206,7 +1217,7 @@ index 43b8700..ed7abcd 100644
  		$file->loadFromRow( $row );
  
 diff --git a/includes/logging/LogEventsList.php b/includes/logging/LogEventsList.php
-index da5527e..67aee85 100644
+index 0cf584b0a2..84c3421991 100644
 --- a/includes/logging/LogEventsList.php
 +++ b/includes/logging/LogEventsList.php
 @@ -353,6 +353,11 @@ class LogEventsList extends ContextSource {
@@ -1222,10 +1233,10 @@ index da5527e..67aee85 100644
  		$formatter->setContext( $this->getContext() );
  		$formatter->setShowUserToolLinks( !( $this->flags & self::NO_EXTRA_USER_LINKS ) );
 diff --git a/includes/mail/EmailNotification.php b/includes/mail/EmailNotification.php
-index 664c111..987d594 100644
+index 1d0bdf6d77..89e2d14792 100644
 --- a/includes/mail/EmailNotification.php
 +++ b/includes/mail/EmailNotification.php
-@@ -236,6 +236,9 @@ class EmailNotification {
+@@ -238,6 +238,9 @@ class EmailNotification {
  						&& $watchingUser->getId() != $userTalkId
  						&& !in_array( $watchingUser->getName(), $wgUsersNotifiedOnAllChanges )
  						&& !( $wgBlockDisablesLogin && $watchingUser->isBlocked() )
@@ -1235,7 +1246,7 @@ index 664c111..987d594 100644
  					) {
  						if ( Hooks::run( 'SendWatchlistEmailNotification', [ $watchingUser, $title, $this ] ) ) {
  							$this->compose( $watchingUser, self::WATCHLIST );
-@@ -251,7 +254,12 @@ class EmailNotification {
+@@ -253,7 +256,12 @@ class EmailNotification {
  				continue;
  			}
  			$user = User::newFromName( $name );
@@ -1250,7 +1261,7 @@ index 664c111..987d594 100644
  
  		$this->sendMails();
 diff --git a/includes/parser/LinkHolderArray.php b/includes/parser/LinkHolderArray.php
-index 04b5614..86af4d8 100644
+index 1111560cf1..64f8ca32e9 100644
 --- a/includes/parser/LinkHolderArray.php
 +++ b/includes/parser/LinkHolderArray.php
 @@ -80,6 +80,12 @@ class LinkHolderArray {
@@ -1278,9 +1289,9 @@ index 04b5614..86af4d8 100644
  	}
  
  	/**
-@@ -288,6 +299,13 @@ class LinkHolderArray {
- 		$linkCache = LinkCache::singleton();
+@@ -289,6 +300,13 @@ class LinkHolderArray {
  		$output = $this->parent->getOutput();
+ 		$linkRenderer = $this->parent->getLinkRenderer();
  
 +		// <IntraACL>
 +		// LinkHolderArray skips permission checks so page links in parsed content are never cloaked
@@ -1289,10 +1300,10 @@ index 04b5614..86af4d8 100644
 +		}
 +		// </IntraACL>
 +
- 		$dbr = wfGetDB( DB_SLAVE );
- 		$threshold = $this->parent->getOptions()->getStubThreshold();
+ 		$dbr = wfGetDB( DB_REPLICA );
  
-@@ -429,6 +447,11 @@ class LinkHolderArray {
+ 		# Sort by namespace
+@@ -415,6 +433,11 @@ class LinkHolderArray {
  			$text
  		);
  
@@ -1305,10 +1316,10 @@ index 04b5614..86af4d8 100644
  
  	/**
 diff --git a/includes/parser/Parser.php b/includes/parser/Parser.php
-index 178d7fd..cc14615 100644
+index 06eae96bb9..e52b5384f9 100644
 --- a/includes/parser/Parser.php
 +++ b/includes/parser/Parser.php
-@@ -2186,7 +2186,19 @@ class Parser {
+@@ -2233,7 +2233,19 @@ class Parser {
  			}
  
  			$unstrip = $this->mStripState->unstripNoWiki( $link );
@@ -1328,33 +1339,18 @@ index 178d7fd..cc14615 100644
  			if ( $nt === null ) {
  				$s .= $prefix . '[[' . $line;
  				continue;
-@@ -2268,7 +2280,10 @@ class Parser {
+@@ -2315,7 +2327,9 @@ class Parser {
  				}
  
  				if ( $ns == NS_FILE ) {
 -					if ( !wfIsBadImage( $nt->getDBkey(), $this->mTitle ) ) {
 +					// <IntraACL>
-+					if ( !wfIsBadImage( $nt->getDBkey(), $this->mTitle ) &&
-+						( $canRead = $nt->userCan( 'read' ) ) ) {
++					if ( !wfIsBadImage( $nt->getDBkey(), $this->mTitle ) && $nt->userCan( 'read' ) ) {
 +					// </IntraACL>
  						if ( $wasblank ) {
  							# if no parameters were passed, $text
  							# becomes something like "File:Foo.png",
-@@ -2285,6 +2300,13 @@ class Parser {
- 						# cloak any absolute URLs inside the image markup, so replaceExternalLinks() won't touch them
- 						$s .= $prefix . $this->armorLinks(
- 							$this->makeImage( $nt, $text, $holders ) ) . $trail;
-+					// <IntraACL>
-+					} elseif ( !$canRead ) {
-+						# Still register dependency on a nonreadable image
-+						$time = $sha1 = $descQuery = false;
-+						list( $file, $nt ) = $this->fetchFileAndTitle( $nt, $time, $sha1 );
-+						$s .= $prefix . $trail;
-+					// </IntraACL>
- 					} else {
- 						$s .= $prefix . $trail;
- 					}
-@@ -3572,7 +3594,18 @@ class Parser {
+@@ -3137,7 +3151,18 @@ class Parser {
  				$part1 = $relative;
  				$ns = $this->mTitle->getNamespace();
  			}
@@ -1373,7 +1369,7 @@ index 178d7fd..cc14615 100644
  			if ( $title ) {
  				$titleText = $title->getPrefixedText();
  				# Check for language variants if the template is not found
-@@ -3632,11 +3665,25 @@ class Parser {
+@@ -3208,11 +3233,25 @@ class Parser {
  					wfDebug( __METHOD__ . ": template inclusion denied for " .
  						$title->getPrefixedDBkey() . "\n" );
  				} else {
@@ -1400,7 +1396,7 @@ index 178d7fd..cc14615 100644
  				}
  
  				# If the title is valid but undisplayable, make a link to it
-@@ -3869,26 +3916,30 @@ class Parser {
+@@ -3448,26 +3487,30 @@ class Parser {
  			$titleText = $title->getPrefixedDBkey();
  		}
  		if ( isset( $this->mTplDomCache[$titleText] ) ) {
@@ -1436,7 +1432,7 @@ index 178d7fd..cc14615 100644
  	}
  
  	/**
-@@ -3932,7 +3983,7 @@ class Parser {
+@@ -3519,7 +3562,7 @@ class Parser {
  	/**
  	 * Fetch the unparsed text of a template and register a reference to it.
  	 * @param Title $title
@@ -1445,7 +1441,7 @@ index 178d7fd..cc14615 100644
  	 */
  	public function fetchTemplateAndTitle( $title ) {
  		// Defaults to Parser::statelessFetchTemplate()
-@@ -3954,7 +4005,7 @@ class Parser {
+@@ -3541,7 +3584,7 @@ class Parser {
  				}
  			}
  		}
@@ -1454,7 +1450,7 @@ index 178d7fd..cc14615 100644
  	}
  
  	/**
-@@ -3963,7 +4014,8 @@ class Parser {
+@@ -3550,7 +3593,8 @@ class Parser {
  	 * @return string|bool
  	 */
  	public function fetchTemplate( $title ) {
@@ -1464,7 +1460,7 @@ index 178d7fd..cc14615 100644
  	}
  
  	/**
-@@ -3979,6 +4031,7 @@ class Parser {
+@@ -3566,6 +3610,7 @@ class Parser {
  		$text = $skip = false;
  		$finalTitle = $title;
  		$deps = [];
@@ -1472,7 +1468,7 @@ index 178d7fd..cc14615 100644
  
  		# Loop to fetch the article, with up to 1 redirect
  		// @codingStandardsIgnoreStart Generic.CodeAnalysis.ForLoopWithTestFunctionCall.NotAllowed
-@@ -3989,6 +4042,7 @@ class Parser {
+@@ -3576,6 +3621,7 @@ class Parser {
  			Hooks::run( 'BeforeParserFetchTemplateAndtitle',
  				[ $parser, $title, &$skip, &$id ] );
  
@@ -1480,7 +1476,7 @@ index 178d7fd..cc14615 100644
  			if ( $skip ) {
  				$text = false;
  				$deps[] = [
-@@ -3998,6 +4052,11 @@ class Parser {
+@@ -3585,6 +3631,11 @@ class Parser {
  				];
  				break;
  			}
@@ -1492,7 +1488,7 @@ index 178d7fd..cc14615 100644
  			# Get the revision
  			if ( $id ) {
  				$rev = Revision::newFromId( $id );
-@@ -4007,6 +4066,11 @@ class Parser {
+@@ -3594,6 +3645,11 @@ class Parser {
  				$rev = Revision::newFromTitle( $title );
  			}
  			$rev_id = $rev ? $rev->getId() : 0;
@@ -1504,7 +1500,7 @@ index 178d7fd..cc14615 100644
  			# If there is no current revision, there is no page
  			if ( $id === false && !$rev ) {
  				$linkCache = LinkCache::singleton();
-@@ -4050,9 +4114,20 @@ class Parser {
+@@ -3637,9 +3693,20 @@ class Parser {
  			}
  			# Redirect?
  			$finalTitle = $title;
@@ -1526,7 +1522,7 @@ index 178d7fd..cc14615 100644
  			'finalTitle' => $finalTitle,
  			'deps' => $deps ];
 diff --git a/includes/parser/ParserCache.php b/includes/parser/ParserCache.php
-index c6265a7..f64764a 100644
+index 9e96540975..36d86d6234 100644
 --- a/includes/parser/ParserCache.php
 +++ b/includes/parser/ParserCache.php
 @@ -67,6 +67,9 @@ class ParserCache {
@@ -1540,7 +1536,7 @@ index c6265a7..f64764a 100644
  		return $key;
  	}
 diff --git a/includes/specialpage/QueryPage.php b/includes/specialpage/QueryPage.php
-index 1beac43..36fc920 100644
+index afbc5813a0..c080c06a10 100644
 --- a/includes/specialpage/QueryPage.php
 +++ b/includes/specialpage/QueryPage.php
 @@ -401,6 +401,12 @@ abstract class QueryPage extends SpecialPage {
@@ -1570,7 +1566,7 @@ index 1beac43..36fc920 100644
  				$line = $this->formatResult( $skin, $row );
  				if ( $line ) {
 diff --git a/includes/specials/SpecialAllPages.php b/includes/specials/SpecialAllPages.php
-index b55f0b4..5546d94 100644
+index 4a2a619716..222c94507a 100644
 --- a/includes/specials/SpecialAllPages.php
 +++ b/includes/specials/SpecialAllPages.php
 @@ -209,6 +209,11 @@ class SpecialAllPages extends IncludableSpecialPage {
@@ -1586,7 +1582,7 @@ index b55f0b4..5546d94 100644
  						$out .= '<li' .
  							( $s->page_is_redirect ? ' class="allpagesredirect"' : '' ) .
 diff --git a/includes/specials/SpecialAncientpages.php b/includes/specials/SpecialAncientpages.php
-index 724435b..5498cfa 100644
+index 724435b04f..5498cfa161 100644
 --- a/includes/specials/SpecialAncientpages.php
 +++ b/includes/specials/SpecialAncientpages.php
 @@ -41,7 +41,7 @@ class AncientPagesPage extends QueryPage {
@@ -1610,12 +1606,12 @@ index 724435b..5498cfa 100644
  
  	public function usesTimestamps() {
 diff --git a/includes/specials/SpecialBrokenRedirects.php b/includes/specials/SpecialBrokenRedirects.php
-index 4c3fbe5..7340ac2 100644
+index b9b20511cf..e8d5ac3b3b 100644
 --- a/includes/specials/SpecialBrokenRedirects.php
 +++ b/includes/specials/SpecialBrokenRedirects.php
 @@ -51,7 +51,7 @@ class BrokenRedirectsPage extends QueryPage {
  	public function getQueryInfo() {
- 		$dbr = wfGetDB( DB_SLAVE );
+ 		$dbr = wfGetDB( DB_REPLICA );
  
 -		return [
 +		$query = [
@@ -1634,7 +1630,7 @@ index 4c3fbe5..7340ac2 100644
  
  	/**
 diff --git a/includes/specials/SpecialDeadendpages.php b/includes/specials/SpecialDeadendpages.php
-index f13f231..8f9b72b 100644
+index f13f231dc4..8f9b72b52a 100644
 --- a/includes/specials/SpecialDeadendpages.php
 +++ b/includes/specials/SpecialDeadendpages.php
 @@ -57,7 +57,7 @@ class DeadendPagesPage extends PageQueryPage {
@@ -1658,7 +1654,7 @@ index f13f231..8f9b72b 100644
  
  	function getOrderFields() {
 diff --git a/includes/specials/SpecialDoubleRedirects.php b/includes/specials/SpecialDoubleRedirects.php
-index 7b00064..1696156 100644
+index 0cec9d076c..3f2f5514fd 100644
 --- a/includes/specials/SpecialDoubleRedirects.php
 +++ b/includes/specials/SpecialDoubleRedirects.php
 @@ -96,6 +96,10 @@ class DoubleRedirectsPage extends QueryPage {
@@ -1673,7 +1669,7 @@ index 7b00064..1696156 100644
  	}
  
 diff --git a/includes/specials/SpecialEditTags.php b/includes/specials/SpecialEditTags.php
-index 252d076..1d71c1c 100644
+index 252d07670e..1d71c1cfc2 100644
 --- a/includes/specials/SpecialEditTags.php
 +++ b/includes/specials/SpecialEditTags.php
 @@ -98,6 +98,11 @@ class SpecialEditTags extends UnlistedSpecialPage {
@@ -1689,7 +1685,7 @@ index 252d076..1d71c1c 100644
  		// sanity check of parameter
  		switch ( $this->typeName ) {
 diff --git a/includes/specials/SpecialFewestrevisions.php b/includes/specials/SpecialFewestrevisions.php
-index b86a95e..f66de8e 100644
+index b86a95e8aa..f66de8e5eb 100644
 --- a/includes/specials/SpecialFewestrevisions.php
 +++ b/includes/specials/SpecialFewestrevisions.php
 @@ -41,7 +41,7 @@ class FewestrevisionsPage extends QueryPage {
@@ -1713,7 +1709,7 @@ index b86a95e..f66de8e 100644
  
  	function sortDescending() {
 diff --git a/includes/specials/SpecialListfiles.php b/includes/specials/SpecialListfiles.php
-index e6e1048..bfe1a2b 100644
+index e6e1048cd6..bfe1a2b17d 100644
 --- a/includes/specials/SpecialListfiles.php
 +++ b/includes/specials/SpecialListfiles.php
 @@ -59,6 +59,18 @@ class SpecialListFiles extends IncludableSpecialPage {
@@ -1736,7 +1732,7 @@ index e6e1048..bfe1a2b 100644
  	 * Return an array of subpages beginning with $search that this special page will accept.
  	 *
 diff --git a/includes/specials/SpecialListredirects.php b/includes/specials/SpecialListredirects.php
-index ace6d02..dd7a523 100644
+index d034a6ca77..1f0752cd8c 100644
 --- a/includes/specials/SpecialListredirects.php
 +++ b/includes/specials/SpecialListredirects.php
 @@ -46,7 +46,7 @@ class ListredirectsPage extends QueryPage {
@@ -1759,7 +1755,7 @@ index ace6d02..dd7a523 100644
  	}
  
  	function getOrderFields() {
-@@ -123,6 +127,11 @@ class ListredirectsPage extends QueryPage {
+@@ -131,6 +135,11 @@ class ListredirectsPage extends QueryPage {
  		# Find out where the redirect leads
  		$target = $this->getRedirectTarget( $result );
  		if ( $target ) {
@@ -1772,7 +1768,7 @@ index ace6d02..dd7a523 100644
  			$lang = $this->getLanguage();
  			$arr = $lang->getArrow() . $lang->getDirMark();
 diff --git a/includes/specials/SpecialLonelypages.php b/includes/specials/SpecialLonelypages.php
-index ff76a4b..8bd3afc 100644
+index ff76a4b47d..8bd3afc1a2 100644
 --- a/includes/specials/SpecialLonelypages.php
 +++ b/includes/specials/SpecialLonelypages.php
 @@ -74,7 +74,7 @@ class LonelyPagesPage extends PageQueryPage {
@@ -1796,7 +1792,7 @@ index ff76a4b..8bd3afc 100644
  
  	function getOrderFields() {
 diff --git a/includes/specials/SpecialMostcategories.php b/includes/specials/SpecialMostcategories.php
-index 06d21d5..ebe09e1 100644
+index 06d21d568a..ebe09e1cc9 100644
 --- a/includes/specials/SpecialMostcategories.php
 +++ b/includes/specials/SpecialMostcategories.php
 @@ -43,7 +43,7 @@ class MostcategoriesPage extends QueryPage {
@@ -1820,7 +1816,7 @@ index 06d21d5..ebe09e1 100644
  
  	/**
 diff --git a/includes/specials/SpecialMostimages.php b/includes/specials/SpecialMostimages.php
-index 1339f4b..e9d019e 100644
+index 1339f4bcbb..e9d019e1b7 100644
 --- a/includes/specials/SpecialMostimages.php
 +++ b/includes/specials/SpecialMostimages.php
 @@ -43,7 +43,7 @@ class MostimagesPage extends ImageQueryPage {
@@ -1844,7 +1840,7 @@ index 1339f4b..e9d019e 100644
  
  	function getCellHtml( $row ) {
 diff --git a/includes/specials/SpecialMostinterwikis.php b/includes/specials/SpecialMostinterwikis.php
-index 8271d16..3bc1e4e 100644
+index 8271d165b6..3bc1e4e14f 100644
 --- a/includes/specials/SpecialMostinterwikis.php
 +++ b/includes/specials/SpecialMostinterwikis.php
 @@ -43,7 +43,7 @@ class MostinterwikisPage extends QueryPage {
@@ -1879,7 +1875,7 @@ index 8271d16..3bc1e4e 100644
  				'span',
  				[ 'class' => 'mw-invalidtitle' ],
 diff --git a/includes/specials/SpecialMostlinked.php b/includes/specials/SpecialMostlinked.php
-index 3663647..151b5b4 100644
+index 3663647129..151b5b46e7 100644
 --- a/includes/specials/SpecialMostlinked.php
 +++ b/includes/specials/SpecialMostlinked.php
 @@ -44,7 +44,7 @@ class MostlinkedPage extends QueryPage {
@@ -1903,7 +1899,7 @@ index 3663647..151b5b4 100644
  
  	/**
 diff --git a/includes/specials/SpecialMostlinkedcategories.php b/includes/specials/SpecialMostlinkedcategories.php
-index b8316f3..6a82283 100644
+index 3ead08ad41..e40204920f 100644
 --- a/includes/specials/SpecialMostlinkedcategories.php
 +++ b/includes/specials/SpecialMostlinkedcategories.php
 @@ -39,13 +39,17 @@ class MostlinkedCategoriesPage extends QueryPage {
@@ -1926,7 +1922,7 @@ index b8316f3..6a82283 100644
  
  	function sortDescending() {
 diff --git a/includes/specials/SpecialMostlinkedtemplates.php b/includes/specials/SpecialMostlinkedtemplates.php
-index 950241f..6ba2707 100644
+index 950241f4fb..6ba2707b70 100644
 --- a/includes/specials/SpecialMostlinkedtemplates.php
 +++ b/includes/specials/SpecialMostlinkedtemplates.php
 @@ -61,7 +61,7 @@ class MostlinkedTemplatesPage extends QueryPage {
@@ -1950,10 +1946,10 @@ index 950241f..6ba2707 100644
  
  	/**
 diff --git a/includes/specials/SpecialNewpages.php b/includes/specials/SpecialNewpages.php
-index c24b054..a8bbbda 100644
+index d719e53bdd..cf3b463d8b 100644
 --- a/includes/specials/SpecialNewpages.php
 +++ b/includes/specials/SpecialNewpages.php
-@@ -304,6 +304,12 @@ class SpecialNewpages extends IncludableSpecialPage {
+@@ -308,6 +308,12 @@ class SpecialNewpages extends IncludableSpecialPage {
  		$lang = $this->getLanguage();
  		$dm = $lang->getDirMark();
  
@@ -1967,7 +1963,7 @@ index c24b054..a8bbbda 100644
  			$lang->userTimeAndDate( $result->rc_timestamp, $this->getUser() )
  		);
 diff --git a/includes/specials/SpecialPageLanguage.php b/includes/specials/SpecialPageLanguage.php
-index 5322a04..cc042aa 100644
+index 6edb17c258..2a8c25bb2a 100644
 --- a/includes/specials/SpecialPageLanguage.php
 +++ b/includes/specials/SpecialPageLanguage.php
 @@ -117,9 +117,11 @@ class SpecialPageLanguage extends FormSpecialPage {
@@ -1984,7 +1980,7 @@ index 5322a04..cc042aa 100644
  		// Get the default language for the wiki
  		$defLang = $this->getConfig()->get( 'LanguageCode' );
 diff --git a/includes/specials/SpecialPagesWithProp.php b/includes/specials/SpecialPagesWithProp.php
-index 327ddda..967a019 100644
+index 706a1d7794..aade4aa618 100644
 --- a/includes/specials/SpecialPagesWithProp.php
 +++ b/includes/specials/SpecialPagesWithProp.php
 @@ -101,7 +101,7 @@ class SpecialPagesWithProp extends QueryPage {
@@ -2008,26 +2004,26 @@ index 327ddda..967a019 100644
  
  	function getOrderFields() {
 diff --git a/includes/specials/SpecialPrefixindex.php b/includes/specials/SpecialPrefixindex.php
-index 9891f86..61ce7d2 100644
+index 5e3e430a2a..92dcb1b389 100644
 --- a/includes/specials/SpecialPrefixindex.php
 +++ b/includes/specials/SpecialPrefixindex.php
-@@ -211,6 +211,11 @@ class SpecialPrefixindex extends SpecialAllPages {
- 				while ( ( $n < $this->maxPerPage ) && ( $s = $res->fetchObject() ) ) {
- 					$t = Title::makeTitle( $s->page_namespace, $s->page_title );
- 					if ( $t ) {
-+						// <IntraACL>
-+						if ( !$t->userCan( 'read' ) ) {
-+							continue;
-+						}
-+						// </IntraACL>
- 						$displayed = $t->getText();
- 						// Try not to generate unclickable links
- 						if ( $this->stripPrefix && $prefixLength !== strlen( $displayed ) ) {
+@@ -220,6 +220,11 @@ class SpecialPrefixindex extends SpecialAllPages {
+ 						break;
+ 					}
+ 					$title = Title::newFromRow( $row );
++					// <IntraACL>
++					if ( !$title->userCan( 'read' ) ) {
++						continue;
++					}
++					// </IntraACL>
+ 					// Make sure it gets into LinkCache
+ 					$linkCache->addGoodLinkObjFromRow( $title, $row );
+ 					$displayed = $title->getText();
 diff --git a/includes/specials/SpecialProtectedpages.php b/includes/specials/SpecialProtectedpages.php
-index 54b471e..5b5f9a1 100644
+index 5bdae159eb..de2ba5068e 100644
 --- a/includes/specials/SpecialProtectedpages.php
 +++ b/includes/specials/SpecialProtectedpages.php
-@@ -517,7 +517,7 @@ class ProtectedPagesPager extends TablePager {
+@@ -538,7 +538,7 @@ class ProtectedPagesPager extends TablePager {
  			$conds[] = 'page_namespace=' . $this->mDb->addQuotes( $this->namespace );
  		}
  
@@ -2036,7 +2032,7 @@ index 54b471e..5b5f9a1 100644
  			'tables' => [ 'page', 'page_restrictions', 'log_search', 'logging' ],
  			'fields' => [
  				'pr_id',
-@@ -547,6 +547,10 @@ class ProtectedPagesPager extends TablePager {
+@@ -568,6 +568,10 @@ class ProtectedPagesPager extends TablePager {
  				]
  			]
  		];
@@ -2048,10 +2044,10 @@ index 54b471e..5b5f9a1 100644
  
  	protected function getTableClass() {
 diff --git a/includes/specials/SpecialRandomInCategory.php b/includes/specials/SpecialRandomInCategory.php
-index efb1748..762f3e8 100644
+index adf12d40a6..10b0665893 100644
 --- a/includes/specials/SpecialRandomInCategory.php
 +++ b/includes/specials/SpecialRandomInCategory.php
-@@ -147,6 +147,8 @@ class SpecialRandomInCategory extends FormSpecialPage {
+@@ -152,6 +152,8 @@ class SpecialRandomInCategory extends FormSpecialPage {
  	 * @return Title|null Title object (or null if nothing to choose from)
  	 */
  	public function getRandomTitle() {
@@ -2060,7 +2056,7 @@ index efb1748..762f3e8 100644
  		// Convert to float, since we do math with the random number.
  		$rand = (float)wfRandom();
  		$title = null;
-@@ -179,7 +181,17 @@ class SpecialRandomInCategory extends FormSpecialPage {
+@@ -184,7 +186,17 @@ class SpecialRandomInCategory extends FormSpecialPage {
  		}
  
  		if ( $row ) {
@@ -2080,7 +2076,7 @@ index efb1748..762f3e8 100644
  
  		return null;
 diff --git a/includes/specials/SpecialRandompage.php b/includes/specials/SpecialRandompage.php
-index d7835d1..2d062cf 100644
+index e3b567d7fe..ddb5ae7db9 100644
 --- a/includes/specials/SpecialRandompage.php
 +++ b/includes/specials/SpecialRandompage.php
 @@ -73,6 +73,15 @@ class RandomPage extends SpecialPage {
@@ -2100,10 +2096,10 @@ index d7835d1..2d062cf 100644
  		$query = array_merge( $this->getRequest()->getValues(), $redirectParam );
  		unset( $query['title'] );
 diff --git a/includes/specials/SpecialRecentchanges.php b/includes/specials/SpecialRecentchanges.php
-index b93fb4e..6b67cd8 100644
+index cd3299c210..4409af77b8 100644
 --- a/includes/specials/SpecialRecentchanges.php
 +++ b/includes/specials/SpecialRecentchanges.php
-@@ -331,6 +331,11 @@ class SpecialRecentChanges extends ChangesListSpecialPage {
+@@ -336,6 +336,11 @@ class SpecialRecentChanges extends ChangesListSpecialPage {
  				break;
  			}
  			$rc = RecentChange::newFromRow( $obj );
@@ -2116,7 +2112,7 @@ index b93fb4e..6b67cd8 100644
  			# Skip CatWatch entries for hidden cats based on user preference
  			if (
 diff --git a/includes/specials/SpecialRedirect.php b/includes/specials/SpecialRedirect.php
-index 80dc797..7472c36 100644
+index 1d1df6a043..9cb3372687 100644
 --- a/includes/specials/SpecialRedirect.php
 +++ b/includes/specials/SpecialRedirect.php
 @@ -78,7 +78,11 @@ class SpecialRedirect extends FormSpecialPage {
@@ -2144,24 +2140,24 @@ index 80dc797..7472c36 100644
  		}
  		$file = wfFindFile( $title );
 diff --git a/includes/specials/SpecialSearch.php b/includes/specials/SpecialSearch.php
-index d474ba5..130ccf6 100644
+index ccf1885fbe..b2abbcf1a9 100644
 --- a/includes/specials/SpecialSearch.php
 +++ b/includes/specials/SpecialSearch.php
-@@ -716,7 +716,11 @@ class SpecialSearch extends SpecialPage {
+@@ -731,7 +731,11 @@ class SpecialSearch extends SpecialPage {
  
  		$out .= "<ul class='mw-search-results'>\n";
  		while ( $result ) {
--			$out .= $this->showHit( $result, $terms, ++$pos );
+-			$out .= $this->showHit( $result, $terms, $pos++ );
 +			// <IntraACL>
 +			if ( $result->getTitle() && $result->getTitle()->userCan( 'read' ) ) {
-+				$out .= $this->showHit( $result, $terms, ++$pos );
++				$out .= $this->showHit( $result, $terms, $pos++ );
 +			}
 +			// </IntraACL>
  			$result = $matches->next();
  		}
  		$out .= "</ul>\n";
 diff --git a/includes/specials/SpecialShortpages.php b/includes/specials/SpecialShortpages.php
-index 20f2fc8..b65401c 100644
+index a76b511d0d..2ddfa5dba8 100644
 --- a/includes/specials/SpecialShortpages.php
 +++ b/includes/specials/SpecialShortpages.php
 @@ -49,7 +49,7 @@ class ShortPagesPage extends QueryPage {
@@ -2185,7 +2181,7 @@ index 20f2fc8..b65401c 100644
  
  	function getOrderFields() {
 diff --git a/includes/specials/SpecialSpecialpages.php b/includes/specials/SpecialSpecialpages.php
-index 688a6ef..db3de3e 100644
+index 688a6efb52..db3de3e2a5 100644
 --- a/includes/specials/SpecialSpecialpages.php
 +++ b/includes/specials/SpecialSpecialpages.php
 @@ -61,7 +61,9 @@ class SpecialSpecialpages extends UnlistedSpecialPage {
@@ -2200,7 +2196,7 @@ index 688a6ef..db3de3e 100644
  				if ( !isset( $groups[$group] ) ) {
  					$groups[$group] = [];
 diff --git a/includes/specials/SpecialUncategorizedimages.php b/includes/specials/SpecialUncategorizedimages.php
-index 1cb27a3..59ff883 100644
+index 1cb27a3fc6..59ff883465 100644
 --- a/includes/specials/SpecialUncategorizedimages.php
 +++ b/includes/specials/SpecialUncategorizedimages.php
 @@ -46,7 +46,7 @@ class UncategorizedImagesPage extends ImageQueryPage {
@@ -2224,7 +2220,7 @@ index 1cb27a3..59ff883 100644
  
  	protected function getGroupName() {
 diff --git a/includes/specials/SpecialUncategorizedpages.php b/includes/specials/SpecialUncategorizedpages.php
-index 30b33cc..9270ca9 100644
+index 30b33cc697..9270ca9a76 100644
 --- a/includes/specials/SpecialUncategorizedpages.php
 +++ b/includes/specials/SpecialUncategorizedpages.php
 @@ -47,7 +47,7 @@ class UncategorizedPagesPage extends PageQueryPage {
@@ -2248,7 +2244,7 @@ index 30b33cc..9270ca9 100644
  
  	function getOrderFields() {
 diff --git a/includes/specials/SpecialUnusedcategories.php b/includes/specials/SpecialUnusedcategories.php
-index 45efaf3..b1c1ebb 100644
+index 45efaf3f13..b1c1ebbbfd 100644
 --- a/includes/specials/SpecialUnusedcategories.php
 +++ b/includes/specials/SpecialUnusedcategories.php
 @@ -38,7 +38,7 @@ class UnusedCategoriesPage extends QueryPage {
@@ -2272,7 +2268,7 @@ index 45efaf3..b1c1ebb 100644
  
  	/**
 diff --git a/includes/specials/SpecialUnusedimages.php b/includes/specials/SpecialUnusedimages.php
-index 2cc1a7b..25cd0db 100644
+index 2cc1a7b0e8..25cd0dbc7a 100644
 --- a/includes/specials/SpecialUnusedimages.php
 +++ b/includes/specials/SpecialUnusedimages.php
 @@ -70,6 +70,10 @@ class UnusedimagesPage extends ImageQueryPage {
@@ -2287,7 +2283,7 @@ index 2cc1a7b..25cd0db 100644
  	}
  
 diff --git a/includes/specials/SpecialUnusedtemplates.php b/includes/specials/SpecialUnusedtemplates.php
-index b0a2579..1b6afc1 100644
+index f73be43839..3c6efc1580 100644
 --- a/includes/specials/SpecialUnusedtemplates.php
 +++ b/includes/specials/SpecialUnusedtemplates.php
 @@ -47,7 +47,7 @@ class UnusedtemplatesPage extends QueryPage {
@@ -2311,7 +2307,7 @@ index b0a2579..1b6afc1 100644
  
  	/**
 diff --git a/includes/specials/SpecialUnwatchedpages.php b/includes/specials/SpecialUnwatchedpages.php
-index df57744..cd1debd 100644
+index df57744b3a..cd1debd691 100644
 --- a/includes/specials/SpecialUnwatchedpages.php
 +++ b/includes/specials/SpecialUnwatchedpages.php
 @@ -44,7 +44,7 @@ class UnwatchedpagesPage extends QueryPage {
@@ -2335,10 +2331,10 @@ index df57744..cd1debd 100644
  
  	function sortDescending() {
 diff --git a/includes/specials/SpecialUpload.php b/includes/specials/SpecialUpload.php
-index 09111f6..38dcf5e 100644
+index 5707b6726a..827706a92e 100644
 --- a/includes/specials/SpecialUpload.php
 +++ b/includes/specials/SpecialUpload.php
-@@ -354,6 +354,8 @@ class SpecialUpload extends SpecialPage {
+@@ -363,6 +363,8 @@ class SpecialUpload extends SpecialPage {
  	 *   warnings and it should continue processing
  	 */
  	protected function showUploadWarning( $warnings ) {
@@ -2348,7 +2344,7 @@ index 09111f6..38dcf5e 100644
  		# mDestWarningAck is set when some javascript has shown the warning
  		# to the user. mForReUpload is set when the user clicks the "upload a
 diff --git a/includes/specials/SpecialWantedcategories.php b/includes/specials/SpecialWantedcategories.php
-index 9bf44ad..9cf4a86 100644
+index 9bf44adffd..9cf4a86d7b 100644
 --- a/includes/specials/SpecialWantedcategories.php
 +++ b/includes/specials/SpecialWantedcategories.php
 @@ -36,7 +36,7 @@ class WantedCategoriesPage extends WantedQueryPage {
@@ -2372,7 +2368,7 @@ index 9bf44ad..9cf4a86 100644
  
  	function preprocessResults( $db, $res ) {
 diff --git a/includes/specials/SpecialWantedfiles.php b/includes/specials/SpecialWantedfiles.php
-index 74d5e5d..46261e4 100644
+index 74d5e5d346..46261e4134 100644
 --- a/includes/specials/SpecialWantedfiles.php
 +++ b/includes/specials/SpecialWantedfiles.php
 @@ -106,7 +106,7 @@ class WantedFilesPage extends WantedQueryPage {
@@ -2396,13 +2392,13 @@ index 74d5e5d..46261e4 100644
  
  	protected function getGroupName() {
 diff --git a/includes/specials/SpecialWantedpages.php b/includes/specials/SpecialWantedpages.php
-index 76b721c..ac857e5 100644
+index 1956c9d166..f3e9b507a7 100644
 --- a/includes/specials/SpecialWantedpages.php
 +++ b/includes/specials/SpecialWantedpages.php
-@@ -85,6 +85,9 @@ class WantedPagesPage extends WantedQueryPage {
- 		];
- 		// Replacement for the WantedPages::getSQL hook
- 		Hooks::run( 'WantedPages::getQueryInfo', [ &$this, &$query ] );
+@@ -87,6 +87,9 @@ class WantedPagesPage extends WantedQueryPage {
+ 		// Avoid PHP 7.1 warning from passing $this by reference
+ 		$wantedPages = $this;
+ 		Hooks::run( 'WantedPages::getQueryInfo', [ &$wantedPages, &$query ] );
 +		// <IntraACL>
 +		Hooks::run( 'FilterPageQuery', array( &$query, 'pg1', NULL, NULL ) );
 +		// </IntraACL>
@@ -2410,7 +2406,7 @@ index 76b721c..ac857e5 100644
  		return $query;
  	}
 diff --git a/includes/specials/SpecialWantedtemplates.php b/includes/specials/SpecialWantedtemplates.php
-index 66e6814..7ad15d9 100644
+index 66e681420f..7ad15d9992 100644
 --- a/includes/specials/SpecialWantedtemplates.php
 +++ b/includes/specials/SpecialWantedtemplates.php
 @@ -37,7 +37,7 @@ class WantedTemplatesPage extends WantedQueryPage {
@@ -2434,10 +2430,10 @@ index 66e6814..7ad15d9 100644
  
  	protected function getGroupName() {
 diff --git a/includes/specials/SpecialWatchlist.php b/includes/specials/SpecialWatchlist.php
-index 15691f2..c3b9451 100644
+index 3629fd8a49..72ef82e430 100644
 --- a/includes/specials/SpecialWatchlist.php
 +++ b/includes/specials/SpecialWatchlist.php
-@@ -374,6 +374,11 @@ class SpecialWatchlist extends ChangesListSpecialPage {
+@@ -377,6 +377,11 @@ class SpecialWatchlist extends ChangesListSpecialPage {
  		foreach ( $rows as $obj ) {
  			# Make RC entry
  			$rc = RecentChange::newFromRow( $obj );
@@ -2450,7 +2446,7 @@ index 15691f2..c3b9451 100644
  			# Skip CatWatch entries for hidden cats based on user preference
  			if (
 diff --git a/includes/specials/SpecialWhatlinkshere.php b/includes/specials/SpecialWhatlinkshere.php
-index baa55f0..a0c04e9 100644
+index 1ead290f2a..62d734ebfe 100644
 --- a/includes/specials/SpecialWhatlinkshere.php
 +++ b/includes/specials/SpecialWhatlinkshere.php
 @@ -280,7 +280,11 @@ class SpecialWhatLinksHere extends IncludableSpecialPage {
@@ -2467,11 +2463,11 @@ index baa55f0..a0c04e9 100644
  				$out->addHTML( $this->listItem( $row, $nt, $target, true ) );
  				$this->showIndirectLinks(
 diff --git a/includes/specials/SpecialWithoutinterwiki.php b/includes/specials/SpecialWithoutinterwiki.php
-index cca54b3..cebe0da 100644
+index a1e5156397..f62bcb33e4 100644
 --- a/includes/specials/SpecialWithoutinterwiki.php
 +++ b/includes/specials/SpecialWithoutinterwiki.php
 @@ -100,7 +100,9 @@ class WithoutInterwikiPage extends PageQueryPage {
- 			$dbr = wfGetDB( DB_SLAVE );
+ 			$dbr = wfGetDB( DB_REPLICA );
  			$query['conds'][] = 'page_title ' . $dbr->buildLike( $this->prefix, $dbr->anyString() );
  		}
 -
@@ -2482,7 +2478,7 @@ index cca54b3..cebe0da 100644
  	}
  
 diff --git a/includes/specials/helpers/LoginHelper.php b/includes/specials/helpers/LoginHelper.php
-index f853f41..5ecaf25 100644
+index cfcbf652c0..49db405cbb 100644
 --- a/includes/specials/helpers/LoginHelper.php
 +++ b/includes/specials/helpers/LoginHelper.php
 @@ -75,7 +75,12 @@ class LoginHelper extends ContextSource {
@@ -2500,10 +2496,10 @@ index f853f41..5ecaf25 100644
  		if ( $wgSecureLogin && !$stickHTTPS ) {
  			$options = [ 'http' ];
 diff --git a/includes/specials/pagers/CategoryPager.php b/includes/specials/pagers/CategoryPager.php
-index cba4952..73131b4 100644
+index b78fed89d5..5859e7b199 100644
 --- a/includes/specials/pagers/CategoryPager.php
 +++ b/includes/specials/pagers/CategoryPager.php
-@@ -48,12 +48,16 @@ class CategoryPager extends AlphabeticPager {
+@@ -49,12 +49,16 @@ class CategoryPager extends AlphabeticPager {
  	}
  
  	function getQueryInfo() {
@@ -2523,7 +2519,7 @@ index cba4952..73131b4 100644
  
  	function getIndexField() {
 diff --git a/includes/specials/pagers/ImageListPager.php b/includes/specials/pagers/ImageListPager.php
-index 40706fa..74f534d 100644
+index 7fc4a9595d..247b552e44 100644
 --- a/includes/specials/pagers/ImageListPager.php
 +++ b/includes/specials/pagers/ImageListPager.php
 @@ -221,6 +221,11 @@ class ImageListPager extends TablePager {
@@ -2539,10 +2535,10 @@ index 40706fa..74f534d 100644
  		return $qi;
  	}
 diff --git a/includes/specials/pagers/NewFilesPager.php b/includes/specials/pagers/NewFilesPager.php
-index ae57736..0050ec4 100644
+index 41819fc431..64e065fbc4 100644
 --- a/includes/specials/pagers/NewFilesPager.php
 +++ b/includes/specials/pagers/NewFilesPager.php
-@@ -113,6 +113,10 @@ class NewFilesPager extends ReverseChronologicalPager {
+@@ -111,6 +111,10 @@ class NewFilesPager extends ReverseChronologicalPager {
  			'options' => $options,
  		];
  
@@ -2554,10 +2550,10 @@ index ae57736..0050ec4 100644
  	}
  
 diff --git a/includes/specials/pagers/NewPagesPager.php b/includes/specials/pagers/NewPagesPager.php
-index 2d39f99..5c47e6e 100644
+index 46297b4cf2..29d03a99e0 100644
 --- a/includes/specials/pagers/NewPagesPager.php
 +++ b/includes/specials/pagers/NewPagesPager.php
-@@ -118,6 +118,10 @@ class NewPagesPager extends ReverseChronologicalPager {
+@@ -120,6 +120,10 @@ class NewPagesPager extends ReverseChronologicalPager {
  			$this->opts['tagfilter']
  		);
  
@@ -2568,11 +2564,30 @@ index 2d39f99..5c47e6e 100644
  		return $info;
  	}
  
+diff --git a/includes/upload/UploadBase.php b/includes/upload/UploadBase.php
+index 8a059f687e..a18d79a24f 100644
+--- a/includes/upload/UploadBase.php
++++ b/includes/upload/UploadBase.php
+@@ -756,6 +756,14 @@ abstract class UploadBase {
+ 			return call_user_func_array( 'Status::newFatal', $error );
+ 		}
+ 
++		// <IntraACL>
++		$status = NULL;
++		Hooks::run( 'PerformUpload', array( $this, $comment, $pageText, $watch, $user, &$status ) );
++		if ( $status ) {
++			return $status;
++		}
++		// </IntraACL>
++
+ 		$status = $this->getLocalFile()->upload(
+ 			$this->mTempPath,
+ 			$comment,
 diff --git a/includes/user/User.php b/includes/user/User.php
-index 6c6404b..e45b704 100644
+index 92a65f074c..b7069d2f55 100644
 --- a/includes/user/User.php
 +++ b/includes/user/User.php
-@@ -393,7 +393,13 @@ class User implements IDBAccessObject {
+@@ -389,7 +389,13 @@ class User implements IDBAccessObject {
  					$this->queryFlagsUsed = $flags;
  				}
  
@@ -2586,7 +2601,7 @@ index 6c6404b..e45b704 100644
  				if ( !$this->mId ) {
  					// Nonexistent user placeholder object
  					$this->loadDefaults( $this->mName );
-@@ -846,12 +852,21 @@ class User implements IDBAccessObject {
+@@ -804,12 +810,21 @@ class User implements IDBAccessObject {
  	public static function isValidUserName( $name ) {
  		global $wgContLang, $wgMaxNameChars;
  
@@ -2608,7 +2623,7 @@ index 6c6404b..e45b704 100644
  			return false;
  		}
  
-@@ -861,6 +876,9 @@ class User implements IDBAccessObject {
+@@ -819,6 +834,9 @@ class User implements IDBAccessObject {
  		if ( is_null( $parsed )
  			|| $parsed->getNamespace()
  			|| strcmp( $name, $parsed->getPrefixedText() ) ) {
@@ -2618,7 +2633,7 @@ index 6c6404b..e45b704 100644
  			return false;
  		}
  
-@@ -875,9 +893,15 @@ class User implements IDBAccessObject {
+@@ -833,9 +851,15 @@ class User implements IDBAccessObject {
  			'\x{e000}-\x{f8ff}' . # private use
  			']/u';
  		if ( preg_match( $unicodeBlacklist, $name ) ) {
@@ -2634,7 +2649,7 @@ index 6c6404b..e45b704 100644
  		return true;
  	}
  
-@@ -1048,6 +1072,14 @@ class User implements IDBAccessObject {
+@@ -1044,6 +1068,14 @@ class User implements IDBAccessObject {
  	 * @return bool|string
  	 */
  	public static function getCanonicalName( $name, $validate = 'valid' ) {
@@ -2649,7 +2664,7 @@ index 6c6404b..e45b704 100644
  		// Force usernames to capital
  		global $wgContLang;
  		$name = $wgContLang->ucfirst( $name );
-@@ -1056,6 +1088,11 @@ class User implements IDBAccessObject {
+@@ -1052,6 +1084,11 @@ class User implements IDBAccessObject {
  		# with title normalisation, but then it's too late to
  		# check elsewhere
  		if ( strpos( $name, '#' ) !== false ) {
@@ -2661,7 +2676,7 @@ index 6c6404b..e45b704 100644
  			return false;
  		}
  
-@@ -1065,6 +1102,11 @@ class User implements IDBAccessObject {
+@@ -1061,6 +1098,11 @@ class User implements IDBAccessObject {
  			Title::newFromText( $name, NS_USER ) : Title::makeTitle( NS_USER, $name );
  		// Check for invalid titles
  		if ( is_null( $t ) || $t->getNamespace() !== NS_USER || $t->isExternal() ) {
@@ -2673,7 +2688,7 @@ index 6c6404b..e45b704 100644
  			return false;
  		}
  
-@@ -1092,9 +1134,15 @@ class User implements IDBAccessObject {
+@@ -1088,9 +1130,15 @@ class User implements IDBAccessObject {
  				}
  				break;
  			default:
@@ -2689,7 +2704,7 @@ index 6c6404b..e45b704 100644
  		return $name;
  	}
  
-@@ -4341,8 +4389,18 @@ class User implements IDBAccessObject {
+@@ -4414,8 +4462,18 @@ class User implements IDBAccessObject {
  	 * @return string Formatted URL
  	 */
  	protected function getTokenUrl( $page, $token ) {

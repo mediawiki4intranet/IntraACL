@@ -2752,18 +2752,10 @@ index 31307c2445..dbf77b1c81 100644
  		$this->mDestName = $this->getLocalFile()->getName();
  
  		return true;
-@@ -697,6 +702,22 @@ abstract class UploadBase {
+@@ -697,6 +702,14 @@ abstract class UploadBase {
  	public function performUpload( $comment, $pageText, $watch, $user ) {
  		$this->getLocalFile()->load( File::READ_LATEST );
  
-+		// <IntraACL>
-+		$status = NULL;
-+		Hooks::run( 'PerformUpload', array( $this, $comment, $pageText, $watch, $user, &$status ) );
-+		if ( $status ) {
-+			return $status;
-+		}
-+		// </IntraACL>
-+
 +		// <IntraACL>
 +		$status = NULL;
 +		Hooks::run( 'PerformUpload', array( $this, $comment, $pageText, $watch, $user, &$status ) );

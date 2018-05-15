@@ -968,17 +968,20 @@ class IACLParserFunctions
         {
             // Move SD for page
             $newSDTitle = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_PAGE, $newTitle));
-            wfDebug("Move SD for page: $oldSDTitle -> $newSDTitle\n");
-            if ($newSDTitle->exists() && $newSDTitle->userCan('delete'))
+            if ($newSDTitle)
             {
-                $page = new WikiPage($newSDTitle);
-                $page->doDeleteArticle(wfMessage('hacl_move_acl')->text());
+                wfDebug("Move SD for page: $oldSDTitle -> $newSDTitle\n");
+                if ($newSDTitle->exists() && $newSDTitle->userCan('delete'))
+                {
+                    $page = new WikiPage($newSDTitle);
+                    $page->doDeleteArticle(wfMessage('hacl_move_acl')->text());
+                }
+                else
+                {
+                    // FIXME report "permission denied to overwrite $to"
+                }
+                $oldSDTitle->moveTo($newSDTitle, false, wfMessage('hacl_move_acl')->text(), true);
             }
-            else
-            {
-                // FIXME report "permission denied to overwrite $to"
-            }
-            $oldSDTitle->moveTo($newSDTitle, false, wfMessage('hacl_move_acl')->text(), true);
         }
         self::refreshBadlinks($newTitle);
 
