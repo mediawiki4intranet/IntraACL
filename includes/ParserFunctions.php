@@ -964,7 +964,7 @@ class IACLParserFunctions
 
         // Check if the old title has page SD
         $oldSDTitle = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_PAGE, $oldTitle));
-        if ($oldSDTitle->exists())
+        if ($oldSDTitle->exists() && $oldSDTitle->userCan('move'))
         {
             // Move SD for page
             $newSDTitle = Title::newFromText(IACLDefinition::nameOfSD(IACL::PE_PAGE, $newTitle));
