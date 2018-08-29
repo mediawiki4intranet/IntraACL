@@ -1,4 +1,4 @@
-function change_filter(chk)
+window.change_filter = function(chk)
 {
     haclt_ajax('haclGrouplist',
         [ document.getElementById('acl_filter').value, document.getElementById('acl_not_filter').value ],
