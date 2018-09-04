@@ -224,7 +224,7 @@ language plpgsql;
 create or replace function /*_*/rm_category_closure_catlinks(old_page_id int, old_cat_id int) returns void as
 $mw$
 declare
-  cur cursor for select page_id from /*_*/category_closure where category_id=old_cat_id;
+  cur cursor for select page_id from /*_*/category_closure where category_id=old_page_id;
 begin
   -- rebuild everything to the "left" of deleted edge of categorylinks graph
   for r in cur loop

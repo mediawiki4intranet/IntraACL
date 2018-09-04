@@ -236,10 +236,10 @@ modifies sql data
 begin
   declare pg_id int unsigned;
   declare fin int default 0;
-  declare cur cursor for select page_id
-    from /*_*/category_closure where category_id=old_cat_id;
-  declare continue handler for not found set fin=1;
   -- rebuild everything to the "left" of deleted edge of categorylinks graph
+  declare cur cursor for select page_id
+    from /*_*/category_closure where category_id=old_page_id;
+  declare continue handler for not found set fin=1;
   open cur;
   repeat
     fetch cur into pg_id;
