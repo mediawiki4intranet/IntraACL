@@ -1,0 +1,2689 @@
+diff --git a/includes/CategoryViewer.php b/includes/CategoryViewer.php
+index f36c758..a071865 100644
+--- a/includes/CategoryViewer.php
++++ b/includes/CategoryViewer.php
+@@ -266,6 +266,11 @@ class CategoryViewer extends ContextSource {
+ 	 * @param bool $isRedirect
+ 	 */
+ 	function addPage( $title, $sortkey, $pageLength, $isRedirect = false ) {
++		// <IntraACL>
++		if ( !$title->userCan( 'read' ) ) {
++				return;
++		}
++		// </IntraACL>
+ 		global $wgContLang;
+ 
+ 		$this->articles[] = $this->generateLink( 'page', $title, $isRedirect );
+diff --git a/includes/FeedUtils.php b/includes/FeedUtils.php
+index 4dde52d..3364133 100644
+--- a/includes/FeedUtils.php
++++ b/includes/FeedUtils.php
+@@ -117,11 +117,9 @@ class FeedUtils {
+ 					$actiontext,
+ 					Linker::formatComment( $comment ) ] ) ) . "</p>\n";
+ 
+-		// NOTE: Check permissions for anonymous users, not current user.
+-		//       No "privileged" version should end up in the cache.
+-		//       Most feed readers will not log in anyway.
+-		$anon = new User();
+-		$accErrors = $title->getUserPermissionsErrors( 'read', $anon, true );
++		// NOTE: Check permissions for current user. -- IntraACL
++		global $wgUser;
++		$accErrors = $title->getUserPermissionsErrors( 'read', $wgUser, true );
+ 
+ 		// Can't diff special pages, unreadable pages or pages with no new revision
+ 		// to compare against: just return the text.
+diff --git a/includes/GlobalFunctions.php b/includes/GlobalFunctions.php
+index 0152209..5c5ce5b 100644
+--- a/includes/GlobalFunctions.php
++++ b/includes/GlobalFunctions.php
+@@ -3226,8 +3226,19 @@ function wfUnpack( $format, $data, $length = false ) {
+ function wfIsBadImage( $name, $contextTitle = false, $blacklist = null ) {
+ 	# Handle redirects; callers almost always hit wfFindFile() anyway,
+ 	# so just use that method because it has a fast process cache.
++	// <IntraACL>
++	if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++	  $hacl = haclfDisableTitlePatch();
++	}
++	// </IntraACL>
++
+ 	$file = wfFindFile( $name ); // get the final name
+-	$name = $file ? $file->getTitle()->getDBkey() : $name;
++	// <IntraACL>
++	if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++		haclfRestoreTitlePatch( $hacl );
++	}
++	// </IntraACL>
++	$name = $file && $file->getTitle()->userCan( 'read' ) ? $file->getTitle()->getDBkey() : $name;
+ 
+ 	# Run the extension hook
+ 	$bad = false;
+diff --git a/includes/OutputPage.php b/includes/OutputPage.php
+index 99dd4a7..6a4993e 100644
+--- a/includes/OutputPage.php
++++ b/includes/OutputPage.php
+@@ -1265,6 +1265,12 @@ class OutputPage extends ContextSource {
+ 			'OutputPageMakeCategoryLinks',
+ 			[ &$outputPage, $categories, &$this->mCategoryLinks ] )
+ 		) {
++			// <IntraACL>
++			// Do not cloak category links during display
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				$etc = haclfDisableTitlePatch();
++			}
++			// </IntraACL>
+ 			$linkRenderer = MediaWikiServices::getInstance()->getLinkRenderer();
+ 			foreach ( $categories as $category => $type ) {
+ 				// array keys will cast numeric category names to ints, so cast back to string
+@@ -1282,6 +1288,12 @@ class OutputPage extends ContextSource {
+ 				$this->mCategories[$type][] = $title->getText();
+ 				$this->mCategoryLinks[$type][] = $linkRenderer->makeLink( $title, new HtmlArmor( $text ) );
+ 			}
++			// <IntraACL>
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $etc );
++			}
++			// </IntraACL>
++
+ 		}
+ 	}
+ 
+@@ -2495,7 +2507,14 @@ class OutputPage extends ContextSource {
+ 			# not especially useful as a returnto parameter. Use the title
+ 			# from the request instead, if there was one.
+ 			$request = $this->getRequest();
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				// IntraACL -- do not produce "&returnto=Access_Denied" links
++				$hacl = haclfDisableTitlePatch();
++			}
+ 			$returnto = Title::newFromText( $request->getVal( 'title', '' ) );
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $hacl );
++			}
+ 			if ( $action == 'edit' ) {
+ 				$msg = 'whitelistedittext';
+ 				$displayReturnto = $returnto;
+@@ -2684,7 +2703,9 @@ class OutputPage extends ContextSource {
+ 		}
+ 		// We don't want people to return to external interwiki. That
+ 		// might potentially be used as part of a phishing scheme
+-		if ( !is_object( $titleObj ) || $titleObj->isExternal() ) {
++		// <IntraACL>
++		if ( !is_object( $titleObj ) || $titleObj->isExternal() || !$titleObj->userCan( 'read' ) ) {
++		// </IntraACL>
+ 			$titleObj = Title::newMainPage();
+ 		}
+ 
+diff --git a/includes/TemplatesOnThisPageFormatter.php b/includes/TemplatesOnThisPageFormatter.php
+index 494c7bf..aea1ef7 100644
+--- a/includes/TemplatesOnThisPageFormatter.php
++++ b/includes/TemplatesOnThisPageFormatter.php
+@@ -117,7 +117,7 @@ class TemplatesOnThisPageFormatter {
+ 		$editLink = $this->buildEditLink( $titleObj );
+ 		return '<li>' . $this->linkRenderer->makeLink( $target )
+ 			. $this->context->msg( 'word-separator' )->escaped()
+-			. $this->context->msg( 'parentheses' )->rawParams( $editLink )->escaped()
++			. ( $editLink ? $this->context->msg( 'parentheses' )->rawParams( $editLink )->escaped() : '' )
+ 			. $this->context->msg( 'word-separator' )->escaped()
+ 			. $protected . '</li>';
+ 	}
+@@ -168,6 +168,10 @@ class TemplatesOnThisPageFormatter {
+ 	private function buildEditLink( Title $titleObj ) {
+ 		if ( $titleObj->quickUserCan( 'edit', $this->context->getUser() ) ) {
+ 			$linkMsg = 'editlink';
++		// <IntraACL>
++		} elseif ( !$titleObj->userCan( 'read', $this->context->getUser() ) ) {
++			return NULL;
++			// </IntraACL>
+ 		} else {
+ 			$linkMsg = 'viewsourcelink';
+ 		}
+diff --git a/includes/Title.php b/includes/Title.php
+index ec9840a..a8449ed 100644
+--- a/includes/Title.php
++++ b/includes/Title.php
+@@ -217,7 +217,9 @@ class Title implements LinkTarget {
+ 
+ 		try {
+ 			$t->secureAndSplit();
+-			return $t;
++			// <IntraACL>
++			return $t->checkAccessControl();
++			// </IntraACL>
+ 		} catch ( MalformedTitleException $ex ) {
+ 			return null;
+ 		}
+@@ -332,7 +334,9 @@ class Title implements LinkTarget {
+ 		if ( $defaultNamespace == NS_MAIN ) {
+ 			$titleCache->set( $text, $t );
+ 		}
+-		return $t;
++		// <IntraACL>
++		return $t->checkAccessControl();
++		// </IntraACL>
+ 	}
+ 
+ 	/**
+@@ -364,7 +368,9 @@ class Title implements LinkTarget {
+ 
+ 		try {
+ 			$t->secureAndSplit();
+-			return $t;
++			// <IntraACL>
++				return $t->checkAccessControl();
++			// </IntraACL>
+ 		} catch ( MalformedTitleException $ex ) {
+ 			return null;
+ 		}
+@@ -541,6 +547,9 @@ class Title implements LinkTarget {
+ 		$t->mUrlform = wfUrlencode( $t->mDbkeyform );
+ 		$t->mTextform = strtr( $title, '_', ' ' );
+ 		$t->mContentModel = false; # initialized lazily in getContentModel()
++		// <IntraACL>
++		$t = $t->checkAccessControl();
++		// </IntraACL>
+ 		return $t;
+ 	}
+ 
+@@ -572,7 +581,9 @@ class Title implements LinkTarget {
+ 
+ 		try {
+ 			$t->secureAndSplit();
+-			return $t;
++			// <IntraACL>
++			return $t->checkAccessControl();
++			// </IntraACL>
+ 		} catch ( MalformedTitleException $ex ) {
+ 			return null;
+ 		}
+@@ -2621,6 +2632,12 @@ class Title implements LinkTarget {
+ 					$whitelisted = true;
+ 				}
+ 			} elseif ( $this->isSpecialPage() ) {
++				// <IntraACL>
++				// Disable title patch here to avoid infinite recursion
++				if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++					$hacl = haclfDisableTitlePatch();
++				}
++				// </IntraACL>
+ 				# If it's a special page, ditch the subpage bit and check again
+ 				$name = $this->getDBkey();
+ 				list( $name, /* $subpage */ ) = SpecialPageFactory::resolveAlias( $name );
+@@ -2630,6 +2647,11 @@ class Title implements LinkTarget {
+ 						$whitelisted = true;
+ 					}
+ 				}
++				// <IntraACL>
++				if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++					haclfRestoreTitlePatch( $hacl );
++				}
++				// </IntraACL>
+ 			}
+ 		}
+ 
+@@ -5132,4 +5154,67 @@ class Title implements LinkTarget {
+ 		$this->mTextform = strtr( $this->mDbkeyform, '_', ' ' );
+ 	}
+ 
++	// <IntraACL>
++	/**
++		 * This function checks, if this title is accessible for the action of the
++		 * current request. If the action is unknown it is assumed to be "read".
++		 * If the title is not accessible, the new title "Permission denied" is
++		 * returned. This is a fallback to protect titles if all other security
++		 * patches fail.
++		 *
++		 * While a page is rendered, the same title is often checked several times.
++		 * To speed things up, the results of an accessibility check are internally
++		 * cached.
++		 *
++		 * This function can be disabled in HACL_Initialize.php or LocalSettings.php
++		 * by setting the variable $haclgEnableTitleCheck = false.
++		 *
++		 * @return
++		 * 		$this, if access is granted on this title or
++		 * 		the title for "Permission denied" if not.
++		 */
++	private function checkAccessControl() {
++		if ( !defined( 'HACL_HALOACL_VERSION' ) ) {
++		// IntraACL is disabled or not fully initialized
++			return $this;
++		}
++		global $haclgEnableTitleCheck;
++		if ( isset( $haclgEnableTitleCheck ) && $haclgEnableTitleCheck === false ) {
++			return $this;
++		}
++		static $permissionCache = array();
++
++		$action = 'read';
++		$index = $this->getFullText().'-'.$action;
++		$allowed = @$permissionCache[$index];
++		if ( !isset( $allowed ) ) {
++			switch ( $action ) {
++				case 'create':
++				case 'move':
++				case 'delete':
++					$allowed = $this->userCan( $action );
++					break;
++				case 'edit':
++					// If the article does not exist and edit right was requested,
++					// check for create right.
++					$allowed = $this->userCan( $this->exists() ? 'edit' : 'create' );
++					break;
++				default:
++					// If the user has no read access to a non-existing page,
++					// but has the right to create it - allow him to "read" it
++					$allowed = $this->userCan( 'read' ) || !$this->exists() && $this->userCan( 'create' );
++			}
++			$permissionCache[$index] = $allowed;
++		}
++		if ( $allowed === false ) {
++			global $haclgContLang;
++			$etc = $haclgEnableTitleCheck;
++			$haclgEnableTitleCheck = false;
++			$t = Title::newFromURL( $haclgContLang->getPermissionDeniedPage() );
++			$haclgEnableTitleCheck = $etc;
++			return $t;
++		}
++		return $this;
++	}
++	// </IntraACL>
+ }
+diff --git a/includes/api/ApiBase.php b/includes/api/ApiBase.php
+index 7fafa1f..95bcd35 100644
+--- a/includes/api/ApiBase.php
++++ b/includes/api/ApiBase.php
+@@ -949,6 +949,12 @@ abstract class ApiBase extends ContextSource {
+ 			}
+ 		}
+ 
++		// <IntraACL>
++		if ( !$pageObj->getTitle()->userCan( 'read' ) ) {
++			$this->dieUsageMsg( array( 'permission-denied' ) );
++		}
++		// </IntraACL>
++
+ 		return $pageObj;
+ 	}
+ 
+diff --git a/includes/api/ApiExpandTemplates.php b/includes/api/ApiExpandTemplates.php
+index fe49b25..d8762d2 100644
+--- a/includes/api/ApiExpandTemplates.php
++++ b/includes/api/ApiExpandTemplates.php
+@@ -80,7 +80,11 @@ class ApiExpandTemplates extends ApiBase {
+ 				$titleProvided = true;
+ 			}
+ 		}
+-
++		// <IntraACL>
++		if ( !$title_obj->userCan( 'read' ) ) {
++			$this->dieUsageMsg( array( 'invalidtitle', $params['title'] ) );
++		}
++		// </IntraACL>
+ 		$result = $this->getResult();
+ 
+ 		// Parse text
+diff --git a/includes/api/ApiImageRotate.php b/includes/api/ApiImageRotate.php
+index 21e2694..5244b5e 100644
+--- a/includes/api/ApiImageRotate.php
++++ b/includes/api/ApiImageRotate.php
+@@ -47,7 +47,7 @@ class ApiImageRotate extends ApiBase {
+ 			}
+ 		}
+ 
+-		foreach ( $pageSet->getTitles() as $title ) {
++		foreach ( $pageSet->getGoodTitles() as $title ) {
+ 			$r = [];
+ 			$r['id'] = $title->getArticleID();
+ 			ApiQueryBase::addTitleInfo( $r, $title );
+diff --git a/includes/api/ApiMove.php b/includes/api/ApiMove.php
+index f6b6b35..d7dad0d 100644
+--- a/includes/api/ApiMove.php
++++ b/includes/api/ApiMove.php
+@@ -46,13 +46,17 @@ class ApiMove extends ApiBase {
+ 			}
+ 		}
+ 
+-		if ( !$fromTitle->exists() ) {
++		// <IntraACL>
++		if ( !$fromTitle->exists() || !$fromTitle->userCan( 'read' ) ) {
++		  // </IntraACL>
+ 			$this->dieWithError( 'apierror-missingtitle' );
+ 		}
+ 		$fromTalk = $fromTitle->getTalkPage();
+ 
+ 		$toTitle = Title::newFromText( $params['to'] );
+-		if ( !$toTitle || $toTitle->isExternal() ) {
++		// <IntraACL>
++		if ( !$toTitle || $toTitle->isExternal() || !$toTitle->userCan( 'read' ) ) {
++		  // </IntraACL>
+ 			$this->dieWithError( [ 'apierror-invalidtitle', wfEscapeWikiText( $params['to'] ) ] );
+ 		}
+ 		$toTalk = $toTitle->getTalkPageIfDefined();
+diff --git a/includes/api/ApiPageSet.php b/includes/api/ApiPageSet.php
+index 48303a5..dd0e816 100644
+--- a/includes/api/ApiPageSet.php
++++ b/includes/api/ApiPageSet.php
+@@ -771,6 +771,11 @@ class ApiPageSet extends ApiBase {
+ 		// Store Title object in various data structures
+ 		$title = Title::newFromRow( $row );
+ 
++		// <IntraACL>
++		if ( !$title->userCan( 'read' ) ) {
++			return false;
++		}
++		// </IntraACL>
+ 		LinkCache::singleton()->addGoodLinkObjFromRow( $title, $row );
+ 
+ 		$pageId = intval( $row->page_id );
+@@ -788,6 +793,7 @@ class ApiPageSet extends ApiBase {
+ 		foreach ( $this->mRequestedPageFields as $fieldName => &$fieldValues ) {
+ 			$fieldValues[$pageId] = $row->$fieldName;
+ 		}
++		return true;
+ 	}
+ 
+ 	/**
+@@ -881,8 +887,11 @@ class ApiPageSet extends ApiBase {
+ 			foreach ( $res as $row ) {
+ 				$pageId = intval( $row->page_id );
+ 
++				// Store any extra fields requested by modules
++				$readable = $this->processDbRow( $row );
++
+ 				// Remove found page from the list of remaining items
+-				if ( isset( $remaining ) ) {
++				if ( $readable && isset( $remaining ) ) {
+ 					if ( $processTitles ) {
+ 						unset( $remaining[$row->page_namespace][$row->page_title] );
+ 					} else {
+@@ -891,7 +900,7 @@ class ApiPageSet extends ApiBase {
+ 				}
+ 
+ 				// Store any extra fields requested by modules
+-				$this->processDbRow( $row );
++				//$this->processDbRow( $row );
+ 
+ 				// Need gender information
+ 				if ( MWNamespace::hasGenderDistinction( $row->page_namespace ) ) {
+@@ -966,12 +975,12 @@ class ApiPageSet extends ApiBase {
+ 				$pageid = intval( $row->rev_page );
+ 				$this->mGoodRevIDs[$revid] = $pageid;
+ 				$this->mLiveRevIDs[$revid] = $pageid;
+-				$pageids[$pageid] = '';
++				$pageids[$pageid][] = $revid;
+ 				unset( $remaining[$revid] );
+ 			}
+ 		}
+ 
+-		$this->mMissingRevIDs = array_keys( $remaining );
++		//$this->mMissingRevIDs = array_keys( $remaining );
+ 
+ 		// Populate all the page information
+ 		$this->initFromPageIds( array_keys( $pageids ) );
+@@ -1018,6 +1027,19 @@ class ApiPageSet extends ApiBase {
+ 
+ 			$this->mMissingRevIDs = array_keys( $remaining );
+ 		}
++		// <IntraACL>
++		foreach ( $pageids as $pageid => $revids ) {
++			if ( !isset( $this->mGoodTitles[$pageid] ) ) {
++				// Page is unreadable, remove revisions from good list
++				foreach ( $revids as $revid ) {
++					unset( $this->mGoodRevIDs[$revid] );
++					unset( $this->mLiveRevIDs[$revid] );
++					$remaining[$revid] = true;
++				}
++			}
++		}
++		// </IntraACL>
++		$this->mMissingRevIDs = array_keys( $remaining );
+ 	}
+ 
+ 	/**
+@@ -1089,6 +1111,11 @@ class ApiPageSet extends ApiBase {
+ 				);
+ 				$this->mResolvedRedirectTitles[$from] = $this->mPendingRedirectIDs[$rdfrom];
+ 				unset( $this->mPendingRedirectIDs[$rdfrom] );
++				// <IntraACL>
++				if ( !$to->userCan( 'read' ) ) {
++					continue;
++				}
++				// </IntraACL>
+ 				if ( $to->isExternal() ) {
+ 					$this->mInterwikiTitles[$to->getPrefixedText()] = $to->getInterwiki();
+ 				} elseif ( !isset( $this->mAllPages[$to->getNamespace()][$to->getDBkey()] ) ) {
+@@ -1175,6 +1202,11 @@ class ApiPageSet extends ApiBase {
+ 			if ( is_string( $title ) ) {
+ 				try {
+ 					$titleObj = Title::newFromTextThrow( $title, $this->mDefaultNamespace );
++					// <IntraACL>
++					if ( !$titleObj->userCan( 'read' ) ) {
++					  throw new MalformedTitleException( 'title-permission-denied', $title );
++					}
++					// </IntraACL>
+ 				} catch ( MalformedTitleException $ex ) {
+ 					// Handle invalid titles gracefully
+ 					if ( !isset( $this->mAllPages[0][$title] ) ) {
+diff --git a/includes/api/ApiParse.php b/includes/api/ApiParse.php
+index 099d278..e2a608f 100644
+--- a/includes/api/ApiParse.php
++++ b/includes/api/ApiParse.php
+@@ -168,6 +168,11 @@ class ApiParse extends ApiBase {
+ 			if ( !$titleObj || $titleObj->isExternal() ) {
+ 				$this->dieWithError( [ 'apierror-invalidtitle', wfEscapeWikiText( $title ) ] );
+ 			}
++			// <IntraACL>
++			if ( !$titleObj->userCan( 'read' ) ) {
++			  $this->dieWithError( "You are not allowed to read this article", 'permissiondenied' );
++			}
++			// </IntraACL>
+ 			$revid = $params['revid'];
+ 			if ( $revid !== null ) {
+ 				$rev = Revision::newFromId( $revid );
+diff --git a/includes/api/ApiQueryAllCategories.php b/includes/api/ApiQueryAllCategories.php
+index 4f833e0..c7d6da1 100644
+--- a/includes/api/ApiQueryAllCategories.php
++++ b/includes/api/ApiQueryAllCategories.php
+@@ -120,6 +120,11 @@ class ApiQueryAllCategories extends ApiQueryGeneratorBase {
+ 
+ 			// Normalize titles
+ 			$titleObj = Title::makeTitle( NS_CATEGORY, $row->cat_title );
++			// <IntraACL>
++			if ( !$titleObj->userCan( 'read' ) ) {
++				continue;
++			}
++			// </IntraACL>
+ 			if ( !is_null( $resultPageSet ) ) {
+ 				$pages[] = $titleObj;
+ 			} else {
+diff --git a/includes/api/ApiQueryAllImages.php b/includes/api/ApiQueryAllImages.php
+index 14f1cc4..1c67483 100644
+--- a/includes/api/ApiQueryAllImages.php
++++ b/includes/api/ApiQueryAllImages.php
+@@ -298,6 +298,11 @@ class ApiQueryAllImages extends ApiQueryGeneratorBase {
+ 
+ 			if ( is_null( $resultPageSet ) ) {
+ 				$file = $repo->newFileFromRow( $row );
++				// <IntraACL>
++				if ( !$file ) {
++					continue;
++				}
++				// </IntraACL>
+ 				$info = array_merge( [ 'name' => $row->img_name ],
+ 					ApiQueryImageInfo::getInfo( $file, $prop, $result ) );
+ 				self::addTitleInfo( $info, $file->getTitle() );
+diff --git a/includes/api/ApiQueryAllLinks.php b/includes/api/ApiQueryAllLinks.php
+index 057dbb2..a3f9e28 100644
+--- a/includes/api/ApiQueryAllLinks.php
++++ b/includes/api/ApiQueryAllLinks.php
+@@ -206,8 +206,14 @@ class ApiQueryAllLinks extends ApiQueryGeneratorBase {
+ 				if ( $fld_ids ) {
+ 					$vals['fromid'] = intval( $row->pl_from );
+ 				}
++				$title = Title::makeTitle( $namespace, $row->pl_title );
++				// <IntraACL>
++				if ( !$title->userCan( 'read' ) ) {
++					continue;
++				}
++				// </IntraACL>
+ 				if ( $fld_title ) {
+-					$title = Title::makeTitle( $namespace, $row->pl_title );
++					//$title = Title::makeTitle( $namespace, $row->pl_title );
+ 					ApiQueryBase::addTitleInfo( $vals, $title );
+ 				}
+ 				foreach ( $this->props as $name => $field ) {
+diff --git a/includes/api/ApiQueryAllMessages.php b/includes/api/ApiQueryAllMessages.php
+index 40abcaf..7cc8ce2 100644
+--- a/includes/api/ApiQueryAllMessages.php
++++ b/includes/api/ApiQueryAllMessages.php
+@@ -47,7 +47,9 @@ class ApiQueryAllMessages extends ApiQueryBase {
+ 		if ( $params['enableparser'] ) {
+ 			if ( !is_null( $params['title'] ) ) {
+ 				$title = Title::newFromText( $params['title'] );
+-				if ( !$title || $title->isExternal() ) {
++				// <IntraACL>
++				if ( !$title || $title->isExternal() || !$title->userCan( 'read' ) ) {
++				 // </IntraACL>
+ 					$this->dieWithError( [ 'apierror-invalidtitle', wfEscapeWikiText( $params['title'] ) ] );
+ 				}
+ 			} else {
+diff --git a/includes/api/ApiQueryAllPages.php b/includes/api/ApiQueryAllPages.php
+index 40909a4..270d4bc 100644
+--- a/includes/api/ApiQueryAllPages.php
++++ b/includes/api/ApiQueryAllPages.php
+@@ -237,6 +237,11 @@ class ApiQueryAllPages extends ApiQueryGeneratorBase {
+ 
+ 			if ( is_null( $resultPageSet ) ) {
+ 				$title = Title::makeTitle( $row->page_namespace, $row->page_title );
++				// <IntraACL>
++				if ( !$title->userCan( 'read' ) ) {
++					continue;
++				}
++				// </IntraACL>
+ 				$vals = [
+ 					'pageid' => intval( $row->page_id ),
+ 					'ns' => intval( $title->getNamespace() ),
+diff --git a/includes/api/ApiQueryBacklinks.php b/includes/api/ApiQueryBacklinks.php
+index 35cb83a..ab15e87 100644
+--- a/includes/api/ApiQueryBacklinks.php
++++ b/includes/api/ApiQueryBacklinks.php
+@@ -182,6 +182,11 @@ class ApiQueryBacklinks extends ApiQueryGeneratorBase {
+ 
+ 			$this->pageMap[$row->page_namespace][$row->page_title] = $row->page_id;
+ 			$t = Title::makeTitle( $row->page_namespace, $row->page_title );
++			// <IntraACL>
++			if ( !$t->userCan( 'read' ) ) {
++				continue;
++			}
++			// </IntraACL>
+ 			if ( $row->page_is_redirect ) {
+ 				$this->redirTitles[] = $t;
+ 			}
+@@ -304,10 +309,16 @@ class ApiQueryBacklinks extends ApiQueryGeneratorBase {
+ 				$this->cont[] = $row->from_ns;
+ 				$this->cont[] = $row->page_id;
+ 			}
+-
++			$t = Title::makeTitle( $row->page_namespace, $row->page_title );
++			// <IntraACL>
++			if ( !$t->userCan( 'read' ) ) {
++				continue;
++			}
++			// </IntraACL>
+ 			if ( is_null( $resultPageSet ) ) {
+ 				$a['pageid'] = intval( $row->page_id );
+-				ApiQueryBase::addTitleInfo( $a, Title::makeTitle( $row->page_namespace, $row->page_title ) );
++				//ApiQueryBase::addTitleInfo( $a, Title::makeTitle( $row->page_namespace, $row->page_title ) );
++				ApiQueryBase::addTitleInfo( $a, $t );
+ 				if ( $row->page_is_redirect ) {
+ 					$a['redirect'] = true;
+ 				}
+diff --git a/includes/api/ApiQueryCategories.php b/includes/api/ApiQueryCategories.php
+index 7b447cb..ddf6b66 100644
+--- a/includes/api/ApiQueryCategories.php
++++ b/includes/api/ApiQueryCategories.php
+@@ -69,7 +69,7 @@ class ApiQueryCategories extends ApiQueryGeneratorBase {
+ 			$cats = [];
+ 			foreach ( $params['categories'] as $cat ) {
+ 				$title = Title::newFromText( $cat );
+-				if ( !$title || $title->getNamespace() != NS_CATEGORY ) {
++				if ( !$title || $title->getNamespace() != NS_CATEGORY || !$title->userCan( 'read' ) ) {
+ 					$this->addWarning( [ 'apiwarn-invalidcategory', wfEscapeWikiText( $cat ) ] );
+ 				} else {
+ 					$cats[] = $title->getDBkey();
+@@ -141,6 +141,11 @@ class ApiQueryCategories extends ApiQueryGeneratorBase {
+ 				}
+ 
+ 				$title = Title::makeTitle( NS_CATEGORY, $row->cl_to );
++				// <IntraACL>
++				if ( !$title->userCan( 'read' ) ) {
++					continue;
++				}
++				// </IntraACL>
+ 				$vals = [];
+ 				ApiQueryBase::addTitleInfo( $vals, $title );
+ 				if ( isset( $prop['sortkey'] ) ) {
+diff --git a/includes/api/ApiQueryCategoryMembers.php b/includes/api/ApiQueryCategoryMembers.php
+index 37d0788..d6fec76 100644
+--- a/includes/api/ApiQueryCategoryMembers.php
++++ b/includes/api/ApiQueryCategoryMembers.php
+@@ -247,8 +247,14 @@ class ApiQueryCategoryMembers extends ApiQueryGeneratorBase {
+ 				if ( $fld_ids ) {
+ 					$vals['pageid'] = intval( $row->page_id );
+ 				}
++				$title = Title::makeTitle( $row->page_namespace, $row->page_title );
++				// <IntraACL>
++				if ( !$title->userCan( 'read' ) ) {
++					continue;
++			  }
++				// </IntraACL>
+ 				if ( $fld_title ) {
+-					$title = Title::makeTitle( $row->page_namespace, $row->page_title );
++					//$title = Title::makeTitle( $row->page_namespace, $row->page_title );
+ 					ApiQueryBase::addTitleInfo( $vals, $title );
+ 				}
+ 				if ( $fld_sortkey ) {
+diff --git a/includes/api/ApiQueryDeletedrevs.php b/includes/api/ApiQueryDeletedrevs.php
+index 83d00a9..230434a 100644
+--- a/includes/api/ApiQueryDeletedrevs.php
++++ b/includes/api/ApiQueryDeletedrevs.php
+@@ -393,6 +393,15 @@ class ApiQueryDeletedrevs extends ApiQueryBase {
+ 					$a['token'] = $token;
+ 				}
+ 				$fit = $result->addValue( [ 'query', $this->getModuleName() ], $pageID, $a );
++				// <IntraACL>
++				if ( $title->userCan( 'read' ) ) {
++					// </IntraACL>
++					ApiQueryBase::addTitleInfo( $a, $title );
++					if ( $fld_token ) {
++						$a['token'] = $token;
++					}
++					$fit = $result->addValue( [ 'query', $this->getModuleName() ], $pageID, $a );
++				}
+ 			} else {
+ 				$pageID = $pageMap[$row->ar_namespace][$row->ar_title];
+ 				$fit = $result->addValue(
+diff --git a/includes/api/ApiQueryExtLinksUsage.php b/includes/api/ApiQueryExtLinksUsage.php
+index fc5d8a0..5e24557 100644
+--- a/includes/api/ApiQueryExtLinksUsage.php
++++ b/includes/api/ApiQueryExtLinksUsage.php
+@@ -117,8 +117,14 @@ class ApiQueryExtLinksUsage extends ApiQueryGeneratorBase {
+ 				if ( $fld_ids ) {
+ 					$vals['pageid'] = intval( $row->page_id );
+ 				}
++				$title = Title::makeTitle( $row->page_namespace, $row->page_title );
++				// <IntraACL>
++				if ( !$title->userCan( 'read' ) ) {
++					continue;
++				}
++				// </IntraACL>
+ 				if ( $fld_title ) {
+-					$title = Title::makeTitle( $row->page_namespace, $row->page_title );
++					//$title = Title::makeTitle( $row->page_namespace, $row->page_title );
+ 					ApiQueryBase::addTitleInfo( $vals, $title );
+ 				}
+ 				if ( $fld_url ) {
+diff --git a/includes/api/ApiQueryFilearchive.php b/includes/api/ApiQueryFilearchive.php
+index ebffb15..6256ab7 100644
+--- a/includes/api/ApiQueryFilearchive.php
++++ b/includes/api/ApiQueryFilearchive.php
+@@ -150,6 +150,11 @@ class ApiQueryFilearchive extends ApiQueryBase {
+ 			$file['id'] = (int)$row->fa_id;
+ 			$file['name'] = $row->fa_name;
+ 			$title = Title::makeTitle( NS_FILE, $row->fa_name );
++			// <IntraACL>
++			if ( !$title->userCan( 'read' ) ) {
++				continue;
++			}
++			// </IntraACL>
+ 			self::addTitleInfo( $file, $title );
+ 
+ 			if ( $fld_description &&
+diff --git a/includes/api/ApiQueryIWBacklinks.php b/includes/api/ApiQueryIWBacklinks.php
+index 90aed6e..83102a0 100644
+--- a/includes/api/ApiQueryIWBacklinks.php
++++ b/includes/api/ApiQueryIWBacklinks.php
+@@ -134,6 +134,11 @@ class ApiQueryIWBacklinks extends ApiQueryGeneratorBase {
+ 				$entry = [ 'pageid' => $row->page_id ];
+ 
+ 				$title = Title::makeTitle( $row->page_namespace, $row->page_title );
++				// <IntraACL>
++				if ( !$title->userCan( 'read' ) ) {
++					continue;
++				}
++				// </IntraACL>
+ 				ApiQueryBase::addTitleInfo( $entry, $title );
+ 
+ 				if ( $row->page_is_redirect ) {
+diff --git a/includes/api/ApiQueryImages.php b/includes/api/ApiQueryImages.php
+index 06a3ba0..270df9a 100644
+--- a/includes/api/ApiQueryImages.php
++++ b/includes/api/ApiQueryImages.php
+@@ -85,7 +85,7 @@ class ApiQueryImages extends ApiQueryGeneratorBase {
+ 			$images = [];
+ 			foreach ( $params['images'] as $img ) {
+ 				$title = Title::newFromText( $img );
+-				if ( !$title || $title->getNamespace() != NS_FILE ) {
++				if ( !$title || $title->getNamespace() != NS_FILE || !$title->userCan( 'read' ) ) {
+ 					$this->addWarning( [ 'apiwarn-notfile', wfEscapeWikiText( $img ) ] );
+ 				} else {
+ 					$images[] = $title->getDBkey();
+@@ -110,7 +110,13 @@ class ApiQueryImages extends ApiQueryGeneratorBase {
+ 					break;
+ 				}
+ 				$vals = [];
+-				ApiQueryBase::addTitleInfo( $vals, Title::makeTitle( NS_FILE, $row->il_to ) );
++				$title = Title::makeTitle( NS_FILE, $row->il_to );
++				// <IntraACL>
++				if ( !$title->userCan( 'read' ) ) {
++				  continue;
++				}
++				// </IntraACL>
++				ApiQueryBase::addTitleInfo( $vals, $title );
+ 				$fit = $this->addPageSubItem( $row->il_from, $vals );
+ 				if ( !$fit ) {
+ 					$this->setContinueEnumParameter( 'continue', $row->il_from . '|' . $row->il_to );
+diff --git a/includes/api/ApiQueryInfo.php b/includes/api/ApiQueryInfo.php
+index 1d3c110..f0d32f4 100644
+--- a/includes/api/ApiQueryInfo.php
++++ b/includes/api/ApiQueryInfo.php
+@@ -322,14 +322,21 @@ class ApiQueryInfo extends ApiQueryBase {
+ 			$cont = explode( '|', $this->params['continue'] );
+ 			$this->dieContinueUsageIf( count( $cont ) != 2 );
+ 			$conttitle = Title::makeTitleSafe( $cont[0], $cont[1] );
+-			foreach ( $this->everything as $pageid => $title ) {
+-				if ( Title::compare( $title, $conttitle ) >= 0 ) {
+-					break;
++
++      // <IntraACL>
++			if ( $conttitle && $conttitle->userCan( 'read' ) ) {
++		  // </IntraACL>
++				foreach ( $this->everything as $pageid => $title ) {
++					if ( Title::compare( $title, $conttitle ) >= 0 ) {
++						break;
++					}
++					unset( $this->titles[$pageid] );
++					unset( $this->missing[$pageid] );
++					unset( $this->everything[$pageid] );
+ 				}
+-				unset( $this->titles[$pageid] );
+-				unset( $this->missing[$pageid] );
+-				unset( $this->everything[$pageid] );
+-			}
++			// <IntraACL>
++		  }
++			// </IntraACL>
+ 		}
+ 
+ 		$this->pageRestrictions = $pageSet->getCustomField( 'page_restrictions' );
+diff --git a/includes/api/ApiQueryLangBacklinks.php b/includes/api/ApiQueryLangBacklinks.php
+index 9b99312..4dff827 100644
+--- a/includes/api/ApiQueryLangBacklinks.php
++++ b/includes/api/ApiQueryLangBacklinks.php
+@@ -133,6 +133,11 @@ class ApiQueryLangBacklinks extends ApiQueryGeneratorBase {
+ 				$entry = [ 'pageid' => $row->page_id ];
+ 
+ 				$title = Title::makeTitle( $row->page_namespace, $row->page_title );
++				// <IntraACL>
++				if ( !$title->userCan( 'read' ) ) {
++				  continue;
++				}
++				// </IntraACL>
+ 				ApiQueryBase::addTitleInfo( $entry, $title );
+ 
+ 				if ( $row->page_is_redirect ) {
+diff --git a/includes/api/ApiQueryLinks.php b/includes/api/ApiQueryLinks.php
+index 67bf619..56da02c 100644
+--- a/includes/api/ApiQueryLinks.php
++++ b/includes/api/ApiQueryLinks.php
+@@ -93,7 +93,7 @@ class ApiQueryLinks extends ApiQueryGeneratorBase {
+ 			$lb = new LinkBatch;
+ 			foreach ( $params[$this->titlesParam] as $t ) {
+ 				$title = Title::newFromText( $t );
+-				if ( !$title ) {
++				if ( !$title || !$title->userCan( 'read' ) ) {
+ 					$this->addWarning( [ 'apiwarn-invalidtitle', wfEscapeWikiText( $t ) ] );
+ 				} elseif ( !$filterNS || isset( $filterNS[$title->getNamespace()] ) ) {
+ 					$lb->addObj( $title );
+@@ -163,7 +163,13 @@ class ApiQueryLinks extends ApiQueryGeneratorBase {
+ 					break;
+ 				}
+ 				$vals = [];
+-				ApiQueryBase::addTitleInfo( $vals, Title::makeTitle( $row->pl_namespace, $row->pl_title ) );
++				$title = Title::makeTitle( $row->pl_namespace, $row->pl_title );
++				// <IntraACL>
++				if ( !$title->userCan( 'read' ) ) {
++					continue;
++				}
++				// </IntraACL>
++				ApiQueryBase::addTitleInfo( $vals, $title );
+ 				$fit = $this->addPageSubItem( $row->pl_from, $vals );
+ 				if ( !$fit ) {
+ 					$this->setContinueEnumParameter( 'continue',
+diff --git a/includes/api/ApiQueryLogEvents.php b/includes/api/ApiQueryLogEvents.php
+index 84e12d7..5292d59 100644
+--- a/includes/api/ApiQueryLogEvents.php
++++ b/includes/api/ApiQueryLogEvents.php
+@@ -181,7 +181,9 @@ class ApiQueryLogEvents extends ApiQueryBase {
+ 		$title = $params['title'];
+ 		if ( !is_null( $title ) ) {
+ 			$titleObj = Title::newFromText( $title );
+-			if ( is_null( $titleObj ) ) {
++			// <IntraACL>
++			if ( is_null( $titleObj ) || !$titleObj->userCan( 'read' ) ) {
++			  // </IntraACL>
+ 				$this->dieWithError( [ 'apierror-invalidtitle', wfEscapeWikiText( $title ) ] );
+ 			}
+ 			$this->addWhereFld( 'log_namespace', $titleObj->getNamespace() );
+@@ -288,6 +290,11 @@ class ApiQueryLogEvents extends ApiQueryBase {
+ 
+ 		if ( $this->fld_title || $this->fld_parsedcomment ) {
+ 			$title = Title::makeTitle( $row->log_namespace, $row->log_title );
++			// <IntraACL>
++			if ( !$title->userCan( 'read' ) ) {
++				return false;
++			}
++			// </IntraACL>
+ 		}
+ 
+ 		if ( $this->fld_title || $this->fld_ids || $this->fld_details && $row->log_params !== '' ) {
+diff --git a/includes/api/ApiQueryPagesWithProp.php b/includes/api/ApiQueryPagesWithProp.php
+index 06b412f..ee9702b 100644
+--- a/includes/api/ApiQueryPagesWithProp.php
++++ b/includes/api/ApiQueryPagesWithProp.php
+@@ -102,8 +102,14 @@ class ApiQueryPagesWithProp extends ApiQueryGeneratorBase {
+ 				if ( $fld_ids ) {
+ 					$vals['pageid'] = (int)$row->page_id;
+ 				}
++				$title = Title::makeTitle( $row->page_namespace, $row->page_title );
++				// <IntraACL>
++				if ( !$title->userCan( 'read' ) ) {
++					continue;
++				}
++				// </IntraACL>
+ 				if ( $fld_title ) {
+-					$title = Title::makeTitle( $row->page_namespace, $row->page_title );
++					//$title = Title::makeTitle( $row->page_namespace, $row->page_title );
+ 					ApiQueryBase::addTitleInfo( $vals, $title );
+ 				}
+ 				if ( $fld_value ) {
+diff --git a/includes/api/ApiQueryProtectedTitles.php b/includes/api/ApiQueryProtectedTitles.php
+index f526685..e13b1c0 100644
+--- a/includes/api/ApiQueryProtectedTitles.php
++++ b/includes/api/ApiQueryProtectedTitles.php
+@@ -115,6 +115,11 @@ class ApiQueryProtectedTitles extends ApiQueryGeneratorBase {
+ 
+ 			$title = Title::makeTitle( $row->pt_namespace, $row->pt_title );
+ 			if ( is_null( $resultPageSet ) ) {
++				// <IntraACL>
++				if ( !$title->userCan( 'read' ) ) {
++				  continue;
++			  }
++				// </IntraACL>
+ 				$vals = [];
+ 				ApiQueryBase::addTitleInfo( $vals, $title );
+ 				if ( isset( $prop['timestamp'] ) ) {
+diff --git a/includes/api/ApiQueryQueryPage.php b/includes/api/ApiQueryQueryPage.php
+index a828e11..9e8d35d 100644
+--- a/includes/api/ApiQueryQueryPage.php
++++ b/includes/api/ApiQueryQueryPage.php
+@@ -93,6 +93,11 @@ class ApiQueryQueryPage extends ApiQueryGeneratorBase {
+ 
+ 			$title = Title::makeTitle( $row->namespace, $row->title );
+ 			if ( is_null( $resultPageSet ) ) {
++				// <IntraACL>
++				if ( !$title->userCan( 'read' ) ) {
++				  continue;
++				}
++				// </IntraACL>
+ 				$data = [ 'value' => $row->value ];
+ 				if ( $qp->usesTimestamps() ) {
+ 					$data['timestamp'] = wfTimestamp( TS_ISO_8601, $row->value );
+diff --git a/includes/api/ApiQueryRandom.php b/includes/api/ApiQueryRandom.php
+index 636191d..129090c 100644
+--- a/includes/api/ApiQueryRandom.php
++++ b/includes/api/ApiQueryRandom.php
+@@ -94,6 +94,11 @@ class ApiQueryRandom extends ApiQueryGeneratorBase {
+ 			}
+ 			if ( is_null( $resultPageSet ) ) {
+ 				$title = Title::makeTitle( $row->page_namespace, $row->page_title );
++				// <IntraACL>
++				if ( !$title->userCan( 'read' ) ) {
++				  continue;
++				}
++				// </IntraACL>
+ 				$page = [
+ 					'id' => (int)$row->page_id,
+ 				];
+diff --git a/includes/api/ApiQueryRecentChanges.php b/includes/api/ApiQueryRecentChanges.php
+index 326debc..4f79763 100644
+--- a/includes/api/ApiQueryRecentChanges.php
++++ b/includes/api/ApiQueryRecentChanges.php
+@@ -461,6 +461,11 @@ class ApiQueryRecentChanges extends ApiQueryGeneratorBase {
+ 	public function extractRowInfo( $row ) {
+ 		/* Determine the title of the page that has been changed. */
+ 		$title = Title::makeTitle( $row->rc_namespace, $row->rc_title );
++		// <IntraACL>
++		if ( !$title->userCan( 'read' ) ) {
++		  return false;
++		}
++		// </IntraACL>
+ 		$user = $this->getUser();
+ 
+ 		/* Our output data. */
+diff --git a/includes/api/ApiQueryRevisionsBase.php b/includes/api/ApiQueryRevisionsBase.php
+index f888434..38cac83 100644
+--- a/includes/api/ApiQueryRevisionsBase.php
++++ b/includes/api/ApiQueryRevisionsBase.php
+@@ -163,6 +163,11 @@ abstract class ApiQueryRevisionsBase extends ApiQueryGeneratorBase {
+ 	 */
+ 	protected function extractRevisionInfo( Revision $revision, $row ) {
+ 		$title = $revision->getTitle();
++		// <IntraACL>
++		if ( !$title->userCan( 'read' ) ) {
++		  return NULL;
++		}
++		// </IntraACL>
+ 		$user = $this->getUser();
+ 		$vals = [];
+ 		$anyHidden = false;
+diff --git a/includes/api/ApiQuerySearch.php b/includes/api/ApiQuerySearch.php
+index 7d46a5f..886d33e 100644
+--- a/includes/api/ApiQuerySearch.php
++++ b/includes/api/ApiQuerySearch.php
+@@ -1,4 +1,4 @@
+-<?php
++ <?php
+ /**
+  * Copyright © 2007 Yuri Astrakhan "<Firstname><Lastname>@gmail.com"
+  *
+@@ -159,7 +159,16 @@ class ApiQuerySearch extends ApiQueryGeneratorBase {
+ 				continue;
+ 			}
+ 
++			$title = $result->getTitle();
++			// <IntraACL>
++			if ( !$title->userCan( 'read' ) ) {
++				$result = $matches->next();
++				continue;
++			}
++			// </IntraACL>
++			
+ 			if ( $resultPageSet === null ) {
++
+ 				$vals = $this->getSearchResultData( $result, $prop, $terms );
+ 				if ( $vals ) {
+ 					// Add item to results and see whether it fits
+diff --git a/includes/api/ApiQueryUserContributions.php b/includes/api/ApiQueryUserContributions.php
+index 12f42ed..6eff4d6 100644
+--- a/includes/api/ApiQueryUserContributions.php
++++ b/includes/api/ApiQueryUserContributions.php
+@@ -410,6 +410,9 @@ class ApiQueryContributions extends ApiQueryBase {
+ 				}
+ 
+ 				$vals = $this->extractRowInfo( $row );
++				if ( !$vals ) {
++					continue;
++				}
+ 				$fit = $this->processRow( $row, $vals, $hookData ) &&
+ 					$this->getResult()->addValue( [ 'query', $this->getModuleName() ], null, $vals );
+ 				if ( !$fit ) {
+@@ -639,7 +642,11 @@ class ApiQueryContributions extends ApiQueryBase {
+ 		}
+ 
+ 		$title = Title::makeTitle( $row->page_namespace, $row->page_title );
+-
++		// <IntraACL>
++		if ( !$title || !$title->userCan( 'read' ) ) {
++			return false;
++		}
++		// </IntraACL>
+ 		if ( $this->fld_title ) {
+ 			ApiQueryBase::addTitleInfo( $vals, $title );
+ 		}
+diff --git a/includes/api/ApiQueryWatchlist.php b/includes/api/ApiQueryWatchlist.php
+index bb09838..6874183 100644
+--- a/includes/api/ApiQueryWatchlist.php
++++ b/includes/api/ApiQueryWatchlist.php
+@@ -187,6 +187,11 @@ class ApiQueryWatchlist extends ApiQueryGeneratorBase {
+ 			/** @var WatchedItem $watchedItem */
+ 			if ( is_null( $resultPageSet ) ) {
+ 				$vals = $this->extractOutputData( $watchedItem, $recentChangeInfo );
++				// <IntraACL>
++				if ( !$vals ) {
++					continue;
++				}
++				// </IntraACL>
+ 				$fit = $this->getResult()->addValue( [ 'query', $this->getModuleName() ], null, $vals );
+ 				if ( !$fit ) {
+ 					$startFrom = [ $recentChangeInfo['rc_timestamp'], $recentChangeInfo['rc_id'] ];
+@@ -268,7 +273,11 @@ class ApiQueryWatchlist extends ApiQueryGeneratorBase {
+ 		/* Determine the title of the page that has been changed. */
+ 		$title = Title::newFromLinkTarget( $watchedItem->getLinkTarget() );
+ 		$user = $this->getUser();
+-
++		// <IntraACL>
++		if ( !$title || !$title->userCan( 'read', $user ) ) {
++			return false;
++		}
++		// </IntraACL>
+ 		/* Our output data. */
+ 		$vals = [];
+ 		$type = intval( $recentChangeInfo['rc_type'] );
+diff --git a/includes/api/ApiQueryWatchlistRaw.php b/includes/api/ApiQueryWatchlistRaw.php
+index 0adbfdb..2d91c21 100644
+--- a/includes/api/ApiQueryWatchlistRaw.php
++++ b/includes/api/ApiQueryWatchlistRaw.php
+@@ -111,6 +111,11 @@ class ApiQueryWatchlistRaw extends ApiQueryGeneratorBase {
+ 			$t = Title::makeTitle( $ns, $dbKey );
+ 
+ 			if ( is_null( $resultPageSet ) ) {
++				// <IntraACL>
++				if ( !$t || !$t->userCan( 'read' ) ) {
++					return false;
++				}
++				// </IntraACL>
+ 				$vals = [];
+ 				ApiQueryBase::addTitleInfo( $vals, $t );
+ 				if ( isset( $prop['changed'] ) && !is_null( $item->getNotificationTimestamp() ) ) {
+diff --git a/includes/cache/LinkBatch.php b/includes/cache/LinkBatch.php
+index 30d105b..5e9c5d5 100644
+--- a/includes/cache/LinkBatch.php
++++ b/includes/cache/LinkBatch.php
+@@ -156,7 +156,11 @@ class LinkBatch {
+ 		if ( !$res ) {
+ 			return [];
+ 		}
+-
++		// <IntraACL>
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			$etc = haclfDisableTitlePatch();
++		}
++		// </IntraACL>
+ 		$titleFormatter = MediaWikiServices::getInstance()->getTitleFormatter();
+ 		// For each returned entry, add it to the list of good links, and remove it from $remaining
+ 
+@@ -179,7 +183,11 @@ class LinkBatch {
+ 				$ids[$pdbk] = 0;
+ 			}
+ 		}
+-
++		// <IntraACL>
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			haclfRestoreTitlePatch( $etc );
++		}
++		// </IntraACL>
+ 		return $ids;
+ 	}
+ 
+diff --git a/includes/changes/ChangesFeed.php b/includes/changes/ChangesFeed.php
+index 7ac8cd0..1263dad 100644
+--- a/includes/changes/ChangesFeed.php
++++ b/includes/changes/ChangesFeed.php
+@@ -76,17 +76,19 @@ class ChangesFeed {
+ 	 * @return null|bool True or null
+ 	 */
+ 	public function execute( $feed, $rows, $lastmod, $opts ) {
+-		global $wgLang, $wgRenderHashAppend;
++		global $wgLang, $wgRenderHashAppend, $wgUser;
+ 
+ 		if ( !FeedUtils::checkFeedOutput( $this->format ) ) {
+ 			return null;
+ 		}
+ 
++    $userid = $wgUser->getId();
++
+ 		$cache = ObjectCache::getMainWANInstance();
+ 		$optionsHash = md5( serialize( $opts->getAllValues() ) ) . $wgRenderHashAppend;
+ 		$timekey = $cache->makeKey(
+-			$this->type, $this->format, $wgLang->getCode(), $optionsHash, 'timestamp' );
+-		$key = $cache->makeKey( $this->type, $this->format, $wgLang->getCode(), $optionsHash );
++			$this->type, $this->format, $userid, $wgLang->getCode(), $optionsHash, 'timestamp' );
++		$key = wfMemcKey( $this->type, $this->format, $userid, $wgLang->getCode(), $optionsHash );
+ 
+ 		FeedUtils::checkPurge( $timekey, $key );
+ 
+@@ -207,6 +209,11 @@ class ChangesFeed {
+ 
+ 		foreach ( $sorted as $obj ) {
+ 			$title = Title::makeTitle( $obj->rc_namespace, $obj->rc_title );
++			// <IntraACL>
++			if ( !$title->userCan( 'read' ) ) {
++				continue;
++			}
++			// </IntraACL>
+ 			$talkpage = MWNamespace::canTalk( $obj->rc_namespace )
+ 				? $title->getTalkPage()->getFullURL()
+ 				: '';
+diff --git a/includes/diff/DifferenceEngine.php b/includes/diff/DifferenceEngine.php
+index 8f57c57..bd31668 100644
+--- a/includes/diff/DifferenceEngine.php
++++ b/includes/diff/DifferenceEngine.php
+@@ -1446,7 +1446,12 @@ class DifferenceEngine extends ContextSource {
+ 		if ( !$this->mNewRev instanceof Revision ) {
+ 			return false;
+ 		}
+-
++		// <IntraACL>
++		if ( !$this->mNewRev->getTitle()->userCan( 'read' ) ) {
++		  $this->mNewRev = false;
++			return false;
++		}
++		// </IntraACL>
+ 		// Update the new revision ID in case it was 0 (makes life easier doing UI stuff)
+ 		$this->mNewid = $this->mNewRev->getId();
+ 		$this->mNewPage = $this->mNewRev->getTitle();
+@@ -1473,6 +1478,13 @@ class DifferenceEngine extends ContextSource {
+ 
+ 		if ( $this->mOldRev ) {
+ 			$this->mOldPage = $this->mOldRev->getTitle();
++			// <IntraACL>
++			if ( !$this->mOldRev->getTitle()->userCan( 'read' ) ) {
++				$this->mOldid = false;
++				$this->mOldRev = false;
++				return false;
++			}
++			// </IntraACL>
+ 		}
+ 
+ 		// Load tags information for both revisions
+diff --git a/includes/filerepo/LocalRepo.php b/includes/filerepo/LocalRepo.php
+index 76043d5..65cdb17 100644
+--- a/includes/filerepo/LocalRepo.php
++++ b/includes/filerepo/LocalRepo.php
+@@ -387,7 +387,12 @@ class LocalRepo extends FileRepo {
+ 
+ 		$result = [];
+ 		foreach ( $res as $row ) {
+-			$result[] = $this->newFileFromRow( $row );
++			$file = $this->newFileFromRow( $row );
++			// <IntraACL>
++			if ( $file !== NULL ) {
++				$result[] = $file;
++			}
++			// </IntraACL>
+ 		}
+ 		$res->free();
+ 
+@@ -422,7 +427,11 @@ class LocalRepo extends FileRepo {
+ 		$result = [];
+ 		foreach ( $res as $row ) {
+ 			$file = $this->newFileFromRow( $row );
+-			$result[$file->getSha1()][] = $file;
++			// <IntraACL>
++			if ( $file !== NULL ) {
++				$result[$file->getSha1()][] = $file;
++			}
++			// </IntraACL>
+ 		}
+ 		$res->free();
+ 
+@@ -454,7 +463,12 @@ class LocalRepo extends FileRepo {
+ 		// Build file objects
+ 		$files = [];
+ 		foreach ( $res as $row ) {
+-			$files[] = $this->newFileFromRow( $row );
++			$file = $this->newFileFromRow( $row );
++			// <IntraACL>
++			if ( $file !== NULL ) {
++				$files[] = $file;
++			}
++			// </IntraACL>
+ 		}
+ 
+ 		return $files;
+diff --git a/includes/filerepo/file/LocalFile.php b/includes/filerepo/file/LocalFile.php
+index 90a984a..230cc60 100644
+--- a/includes/filerepo/file/LocalFile.php
++++ b/includes/filerepo/file/LocalFile.php
+@@ -158,6 +158,11 @@ class LocalFile extends File {
+ 	 */
+ 	static function newFromRow( $row, $repo ) {
+ 		$title = Title::makeTitle( NS_FILE, $row->img_name );
++		// <IntraACL>
++		if ( !$title->userCan( 'read' ) ) {
++			return NULL;
++		}
++		// </IntraACL>
+ 		$file = new self( $title, $repo );
+ 		$file->loadFromRow( $row );
+ 
+diff --git a/includes/logging/LogEventsList.php b/includes/logging/LogEventsList.php
+index 93a81cf..46e0200 100644
+--- a/includes/logging/LogEventsList.php
++++ b/includes/logging/LogEventsList.php
+@@ -378,6 +378,11 @@ class LogEventsList extends ContextSource {
+ 	 */
+ 	public function logLine( $row ) {
+ 		$entry = DatabaseLogEntry::newFromRow( $row );
++		// <IntraACL>
++		if ( !$entry->getTarget()->userCan( 'read' ) ) {
++			return '';
++		}
++		// </IntraACL>
+ 		$formatter = LogFormatter::newFromEntry( $entry );
+ 		$formatter->setContext( $this->getContext() );
+ 		$formatter->setLinkRenderer( $this->getLinkRenderer() );
+diff --git a/includes/mail/EmailNotification.php b/includes/mail/EmailNotification.php
+index 67b7142..71d1ce1 100644
+--- a/includes/mail/EmailNotification.php
++++ b/includes/mail/EmailNotification.php
+@@ -239,6 +239,9 @@ class EmailNotification {
+ 						&& $watchingUser->getId() != $userTalkId
+ 						&& !in_array( $watchingUser->getName(), $wgUsersNotifiedOnAllChanges )
+ 						&& !( $wgBlockDisablesLogin && $watchingUser->isBlocked() )
++						// <IntraACL>
++						&& !$title->getUserPermissionsErrors( 'read', $watchingUser ) // Check page read access
++						// </IntraACL>
+ 					) {
+ 						if ( Hooks::run( 'SendWatchlistEmailNotification', [ $watchingUser, $title, $this ] ) ) {
+ 							$this->compose( $watchingUser, self::WATCHLIST );
+@@ -254,7 +257,12 @@ class EmailNotification {
+ 				continue;
+ 			}
+ 			$user = User::newFromName( $name );
+-			$this->compose( $user, self::ALL_CHANGES );
++			// <IntraACL>
++			if ( !$title->getUserPermissionsErrors( 'read', $user ) ) {
++				// Check page read access
++				$this->compose( $user, self::ALL_CHANGES );
++			}
++			// </IntraACL>
+ 		}
+ 
+ 		$this->sendMails();
+diff --git a/includes/parser/LinkHolderArray.php b/includes/parser/LinkHolderArray.php
+index 816f7f7..955adaa 100644
+--- a/includes/parser/LinkHolderArray.php
++++ b/includes/parser/LinkHolderArray.php
+@@ -80,6 +80,12 @@ class LinkHolderArray {
+ 	 * Recreate the Title objects
+ 	 */
+ 	public function __wakeup() {
++		// <IntraACL>
++		// LinkHolderArray skips permission checks so page links in parsed content are never cloaked
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++		   $etc = haclfDisableTitlePatch();
++		}
++		// </IntraACL>
+ 		foreach ( $this->internals as &$nsLinks ) {
+ 			foreach ( $nsLinks as &$entry ) {
+ 				$entry['title'] = Title::newFromText( $entry['pdbk'] );
+@@ -92,6 +98,11 @@ class LinkHolderArray {
+ 			$entry['title'] = Title::newFromText( $entry['pdbk'] );
+ 		}
+ 		unset( $entry );
++		// <IntraACL>
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			haclfRestoreTitlePatch( $etc );
++		}
++		// </IntraACL>
+ 	}
+ 
+ 	/**
+@@ -287,6 +298,12 @@ class LinkHolderArray {
+ 		$output = $this->parent->getOutput();
+ 		$linkRenderer = $this->parent->getLinkRenderer();
+ 
++		// <IntraACL>
++		// LinkHolderArray skips permission checks so page links in parsed content are never cloaked
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			$etc = haclfDisableTitlePatch();
++		}
++		// </IntraACL>
+ 		$dbr = wfGetDB( DB_REPLICA );
+ 
+ 		# Sort by namespace
+@@ -412,6 +429,11 @@ class LinkHolderArray {
+ 			$replacer->cb(),
+ 			$text
+ 		);
++		// <IntraACL>
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			haclfRestoreTitlePatch( $etc );
++		}
++		// </IntraACL>
+ 	}
+ 
+ 	/**
+diff --git a/includes/parser/Parser.php b/includes/parser/Parser.php
+index b66031c..33d2e6a 100644
+--- a/includes/parser/Parser.php
++++ b/includes/parser/Parser.php
+@@ -2233,9 +2233,24 @@ class Parser {
+ 			// just in case, let's assert that xmlish tags aren't valid in
+ 			// the title position.
+ 			$unstrip = $this->mStripState->killMarkers( $link );
++
++			// <IntraACL>
++			// Do not check permissions for links, except image links
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				$etc = haclfDisableTitlePatch();
++			}
++			// </IntraACL>
++
+ 			$noMarkers = ( $unstrip === $link );
++      $nt = $noMarkers ? Title::newFromText( $link ) : null;
++			$nt = Title::newFromText( $this->mStripState->unstripNoWiki( $link ) );
++
++			// <IntraACL>
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $etc );
++			}
++			// </IntraACL>
+ 
+-			$nt = $noMarkers ? Title::newFromText( $link ) : null;
+ 			if ( $nt === null ) {
+ 				$s .= $prefix . '[[' . $line;
+ 				continue;
+@@ -2325,7 +2340,9 @@ class Parser {
+ 				}
+ 
+ 				if ( $ns == NS_FILE ) {
+-					if ( !wfIsBadImage( $nt->getDBkey(), $this->mTitle ) ) {
++				  // <IntraACL>
++					if ( !wfIsBadImage( $nt->getDBkey(), $this->mTitle ) && $nt->userCan( 'read' ) ) {
++					// </IntraACL>
+ 						if ( $wasblank ) {
+ 							# if no parameters were passed, $text
+ 							# becomes something like "File:Foo.png",
+@@ -3169,7 +3186,18 @@ class Parser {
+ 				$part1 = $relative;
+ 				$ns = $this->mTitle->getNamespace();
+ 			}
++			// <IntraACL>
++			// Template access check is done below, after loading
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				$etc = haclfDisableTitlePatch();
++			}
++			// </IntraACL>
+ 			$title = Title::newFromText( $part1, $ns );
++			// <IntraACL>
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $etc );
++			}
++			// </IntraACL>
+ 			if ( $title ) {
+ 				$titleText = $title->getPrefixedText();
+ 				# Check for language variants if the template is not found
+@@ -3240,11 +3268,25 @@ class Parser {
+ 					wfDebug( __METHOD__ . ": template inclusion denied for " .
+ 						$title->getPrefixedDBkey() . "\n" );
+ 				} else {
+-					list( $text, $title ) = $this->getTemplateDom( $title );
++					list( $text, $title, $canRead ) = $this->getTemplateDom( $title );
+ 					if ( $text !== false ) {
+ 						$found = true;
+ 						$isChildObj = true;
+ 					}
++					// <IntraACL>
++					if ( $text !== false && !$canRead ) {
++					// Expand templates to always get correct templatelinks,
++					// even if current user has no access to some templates
++						global $haclgInclusionDeniedMessage;
++						$this->getPreprocessor()->newFrame()->expand( $text, 0 );
++						if ( $haclgInclusionDeniedMessage ) {
++							$text = wfMessage( $haclgInclusionDeniedMessage )->getText();
++						} elseif ( $haclgInclusionDeniedMessage === '' ) {
++							$text = '';
++						}
++						$isChildObj = false;
++					}
++					// </IntraACL>
+ 				}
+ 
+ 				# If the title is valid but undisplayable, make a link to it
+@@ -3478,26 +3520,30 @@ class Parser {
+ 			$titleText = $title->getPrefixedDBkey();
+ 		}
+ 		if ( isset( $this->mTplDomCache[$titleText] ) ) {
+-			return [ $this->mTplDomCache[$titleText], $title ];
++			$dom = $this->mTplDomCache[$titleText];
++			if ( !$dom ) {
++				return [ false, $title, true ];
++			}
++				return [ $dom[0], $title, $dom[1] ];
+ 		}
+ 
+ 		# Cache miss, go to the database
+-		list( $text, $title ) = $this->fetchTemplateAndTitle( $title );
++		list( $text, $title, $canRead ) = $this->fetchTemplateAndTitle( $title );
+ 
+ 		if ( $text === false ) {
+ 			$this->mTplDomCache[$titleText] = false;
+-			return [ false, $title ];
++			return [ false, $title, $canRead ];
+ 		}
+ 
+ 		$dom = $this->preprocessToDom( $text, self::PTD_FOR_INCLUSION );
+-		$this->mTplDomCache[$titleText] = $dom;
++		$this->mTplDomCache[$titleText] = [ $dom, $canRead ];
+ 
+ 		if ( !$title->equals( $cacheTitle ) ) {
+ 			$this->mTplRedirCache[$cacheTitle->getPrefixedDBkey()] =
+ 				[ $title->getNamespace(), $title->getDBkey() ];
+ 		}
+ 
+-		return [ $dom, $title ];
++		return [ $dom, $title, $canRead ];
+ 	}
+ 
+ 	/**
+@@ -3543,7 +3589,7 @@ class Parser {
+ 	/**
+ 	 * Fetch the unparsed text of a template and register a reference to it.
+ 	 * @param Title $title
+-	 * @return array ( string or false, Title )
++	 * @return array ( string or false, Title, boolean )
+ 	 */
+ 	public function fetchTemplateAndTitle( $title ) {
+ 		// Defaults to Parser::statelessFetchTemplate()
+@@ -3565,7 +3611,7 @@ class Parser {
+ 				}
+ 			}
+ 		}
+-		return [ $text, $finalTitle ];
++		return [ $text, $finalTitle, $stuff['canRead'] ];
+ 	}
+ 
+ 	/**
+@@ -3574,7 +3620,8 @@ class Parser {
+ 	 * @return string|bool
+ 	 */
+ 	public function fetchTemplate( $title ) {
+-		return $this->fetchTemplateAndTitle( $title )[0];
++		$rv = $this->fetchTemplateAndTitle( $title );
++		return $rv[2] ? $rv[0] : '';
+ 	}
+ 
+ 	/**
+@@ -3590,6 +3637,7 @@ class Parser {
+ 		$text = $skip = false;
+ 		$finalTitle = $title;
+ 		$deps = [];
++		$canRead = true;
+ 
+ 		# Loop to fetch the article, with up to 1 redirect
+ 		// phpcs:ignore Generic.CodeAnalysis.ForLoopWithTestFunctionCall
+@@ -3599,6 +3647,8 @@ class Parser {
+ 			Hooks::run( 'BeforeParserFetchTemplateAndtitle',
+ 				[ $parser, $title, &$skip, &$id ] );
+ 
++			$canRead = $canRead && $title->userCan( 'read' );
++
+ 			if ( $skip ) {
+ 				$text = false;
+ 				$deps[] = [
+@@ -3608,6 +3658,11 @@ class Parser {
+ 				];
+ 				break;
+ 			}
++			// <IntraACL>
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				$etc = haclfDisableTitlePatch();
++			}
++			// </IntraACL>
+ 			# Get the revision
+ 			if ( $id ) {
+ 				$rev = Revision::newFromId( $id );
+@@ -3617,6 +3672,11 @@ class Parser {
+ 				$rev = Revision::newFromTitle( $title );
+ 			}
+ 			$rev_id = $rev ? $rev->getId() : 0;
++			// <IntraACL>
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $etc );
++			}
++			// </IntraACL>
+ 			# If there is no current revision, there is no page
+ 			if ( $id === false && !$rev ) {
+ 				$linkCache = LinkCache::singleton();
+@@ -3663,9 +3723,20 @@ class Parser {
+ 			}
+ 			# Redirect?
+ 			$finalTitle = $title;
++			// <IntraACL>
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				$etc = haclfDisableTitlePatch();
++			}
++			// </IntraACL>
+ 			$title = $content->getRedirectTarget();
++			// <IntraACL>
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $etc );
++			}
++			// </IntraACL>
+ 		}
+ 		return [
++			'canRead' => $canRead,
+ 			'text' => $text,
+ 			'finalTitle' => $finalTitle,
+ 			'deps' => $deps ];
+diff --git a/includes/parser/ParserCache.php b/includes/parser/ParserCache.php
+index 8a7fca6..5dee640 100644
+--- a/includes/parser/ParserCache.php
++++ b/includes/parser/ParserCache.php
+@@ -94,6 +94,9 @@ class ParserCache {
+ 		$pageid = $article->getId();
+ 		$renderkey = (int)( $wgRequest->getVal( 'action' ) == 'render' );
+ 
++		// Needed for IntraACL >= 2.03 to modify parser cache key for correct permissions
++		wfRunHooks( 'ParserOutputRenderKey', array( $article, &$renderkey ) );
++
+ 		$key = $this->mMemc->makeKey( 'pcache', 'idhash', "{$pageid}-{$renderkey}!{$hash}" );
+ 		return $key;
+ 	}
+diff --git a/includes/search/SqlSearchResultSet.php b/includes/search/SqlSearchResultSet.php
+index 53d09e8..3e4531a 100644
+--- a/includes/search/SqlSearchResultSet.php
++++ b/includes/search/SqlSearchResultSet.php
+@@ -39,8 +39,14 @@ class SqlSearchResultSet extends SearchResultSet {
+ 			return false;
+ 		}
+ 
++		// <IntraACL>
++		$title = Title::makeTitle( $row->page_namespace, $row->page_title );
++		if ( !$title->userCan( 'read' ) ) {
++			return false;
++		}
++		// </IntraACL>
+ 		return SearchResult::newFromTitle(
+-			Title::makeTitle( $row->page_namespace, $row->page_title ), $this
++			$title, $this
+ 		);
+ 	}
+ 
+diff --git a/includes/specialpage/QueryPage.php b/includes/specialpage/QueryPage.php
+index f642106..8149cff 100644
+--- a/includes/specialpage/QueryPage.php
++++ b/includes/specialpage/QueryPage.php
+@@ -405,6 +405,12 @@ abstract class QueryPage extends SpecialPage {
+ 		if ( is_array( $query ) ) {
+ 			$tables = isset( $query['tables'] ) ? (array)$query['tables'] : [];
+ 			$fields = isset( $query['fields'] ) ? (array)$query['fields'] : [];
++			// <IntraACL>
++			if ( in_array( 'page', $tables ) && !isset( $fields['namespace'] ) ) {
++				$fields['namespace'] = 'page_namespace';
++				$fields['title'] = 'page_title';
++			}
++			// </IntraACL>
+ 			$conds = isset( $query['conds'] ) ? (array)$query['conds'] : [];
+ 			$options = isset( $query['options'] ) ? (array)$query['options'] : [];
+ 			$join_conds = isset( $query['join_conds'] ) ? (array)$query['join_conds'] : [];
+@@ -702,6 +708,12 @@ abstract class QueryPage extends SpecialPage {
+ 			# $num [should update this to use a Pager]
+ 			// phpcs:ignore Generic.CodeAnalysis.ForLoopWithTestFunctionCall
+ 			for ( $i = 0; $i < $num && $row = $res->fetchObject(); $i++ ) {
++			  // <IntraACL>
++				$title = Title::makeTitleSafe( $row->namespace, $row->title );
++				if ( !$title || !$title->userCan( 'read' ) ) {
++					continue;
++				}
++				// </IntraACL>
+ 				$line = $this->formatResult( $skin, $row );
+ 				if ( $line ) {
+ 					$html[] = $this->listoutput
+diff --git a/includes/specials/SpecialAllPages.php b/includes/specials/SpecialAllPages.php
+index f9c917d..1fbb905 100644
+--- a/includes/specials/SpecialAllPages.php
++++ b/includes/specials/SpecialAllPages.php
+@@ -218,6 +218,11 @@ class SpecialAllPages extends IncludableSpecialPage {
+ 
+ 				while ( ( $n < $this->maxPerPage ) && ( $s = $res->fetchObject() ) ) {
+ 					$t = Title::newFromRow( $s );
++					// <IntraACL>
++					if ( $t && !$t->userCan( 'read' ) ) {
++						continue;
++					}
++					// </IntraACL>
+ 					if ( $t ) {
+ 						$out .= '<li' .
+ 							( $s->page_is_redirect ? ' class="allpagesredirect"' : '' ) .
+diff --git a/includes/specials/SpecialAncientpages.php b/includes/specials/SpecialAncientpages.php
+index ecc030e..34c88dd 100644
+--- a/includes/specials/SpecialAncientpages.php
++++ b/includes/specials/SpecialAncientpages.php
+@@ -41,7 +41,7 @@ class AncientPagesPage extends QueryPage {
+ 	}
+ 
+ 	public function getQueryInfo() {
+-		return [
++		$query = [
+ 			'tables' => [ 'page', 'revision' ],
+ 			'fields' => [
+ 				'namespace' => 'page_namespace',
+@@ -54,6 +54,10 @@ class AncientPagesPage extends QueryPage {
+ 				'page_latest=rev_id'
+ 			]
+ 		];
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	public function usesTimestamps() {
+diff --git a/includes/specials/SpecialBrokenRedirects.php b/includes/specials/SpecialBrokenRedirects.php
+index 3e1909b..620f811 100644
+--- a/includes/specials/SpecialBrokenRedirects.php
++++ b/includes/specials/SpecialBrokenRedirects.php
+@@ -54,7 +54,7 @@ class BrokenRedirectsPage extends QueryPage {
+ 	public function getQueryInfo() {
+ 		$dbr = wfGetDB( DB_REPLICA );
+ 
+-		return [
++		$query = [
+ 			'tables' => [
+ 				'redirect',
+ 				'p1' => 'page',
+@@ -86,6 +86,10 @@ class BrokenRedirectsPage extends QueryPage {
+ 				] ],
+ 			],
+ 		];
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'p1', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	/**
+diff --git a/includes/specials/SpecialDeadendpages.php b/includes/specials/SpecialDeadendpages.php
+index f13f231..8f9b72b 100644
+--- a/includes/specials/SpecialDeadendpages.php
++++ b/includes/specials/SpecialDeadendpages.php
+@@ -57,7 +57,7 @@ class DeadendPagesPage extends PageQueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return [
++		$query = [
+ 			'tables' => [ 'page', 'pagelinks' ],
+ 			'fields' => [
+ 				'namespace' => 'page_namespace',
+@@ -76,6 +76,10 @@ class DeadendPagesPage extends PageQueryPage {
+ 				]
+ 			]
+ 		];
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	function getOrderFields() {
+diff --git a/includes/specials/SpecialDoubleRedirects.php b/includes/specials/SpecialDoubleRedirects.php
+index 77c59f0..6a81b91 100644
+--- a/includes/specials/SpecialDoubleRedirects.php
++++ b/includes/specials/SpecialDoubleRedirects.php
+@@ -99,7 +99,9 @@ class DoubleRedirectsPage extends QueryPage {
+ 			$retval['conds']['pa.page_namespace'] = $namespace;
+ 			$retval['conds']['pa.page_title'] = $title;
+ 		}
+-
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$retval, 'pa', NULL, NULL ) );
++		// </IntraACL>
+ 		return $retval;
+ 	}
+ 
+diff --git a/includes/specials/SpecialEditTags.php b/includes/specials/SpecialEditTags.php
+index 60d5fd7..c6b1fc5 100644
+--- a/includes/specials/SpecialEditTags.php
++++ b/includes/specials/SpecialEditTags.php
+@@ -98,6 +98,11 @@ class SpecialEditTags extends UnlistedSpecialPage {
+ 
+ 		$this->typeName = $request->getVal( 'type' );
+ 		$this->targetObj = Title::newFromText( $request->getText( 'target' ) );
++		// <IntraACL>
++		if ( !$this->targetObj->userCan( 'read' ) ) {
++			throw new ErrorPageError( 'permission-denied', 'permission-denied' );
++		}
++		// </IntraACL>
+ 
+ 		// sanity check of parameter
+ 		switch ( $this->typeName ) {
+diff --git a/includes/specials/SpecialFewestrevisions.php b/includes/specials/SpecialFewestrevisions.php
+index f20829f..e85a1e0 100644
+--- a/includes/specials/SpecialFewestrevisions.php
++++ b/includes/specials/SpecialFewestrevisions.php
+@@ -41,7 +41,7 @@ class FewestrevisionsPage extends QueryPage {
+ 	}
+ 
+ 	public function getQueryInfo() {
+-		return [
++		$query = [
+ 			'tables' => [ 'revision', 'page' ],
+ 			'fields' => [
+ 				'namespace' => 'page_namespace',
+@@ -56,6 +56,10 @@ class FewestrevisionsPage extends QueryPage {
+ 				'GROUP BY' => [ 'page_namespace', 'page_title', 'page_is_redirect' ]
+ 			]
+ 		];
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', array( 'page_title=tl_title', 'page_namespace=tl_namespace' ), NULL ) );
++		// </IntraACL>
++	  return $query;
+ 	}
+ 
+ 	function sortDescending() {
+diff --git a/includes/specials/SpecialListfiles.php b/includes/specials/SpecialListfiles.php
+index e6e1048..3dbc3f1 100644
+--- a/includes/specials/SpecialListfiles.php
++++ b/includes/specials/SpecialListfiles.php
+@@ -59,6 +59,17 @@ class SpecialListFiles extends IncludableSpecialPage {
+ 		}
+ 	}
+ 
++	function formatRow( $row ) {
++			// <IntraACL>
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				$filePage = Title::makeTitleSafe( NS_FILE, $row->img_name );
++				if ( $filePage && !$filePage->userCan('read') ) {
++					return '';
++				}
++			}
++			// </IntraACL>
++			return parent::formatRow( $row );
++  }
+ 	/**
+ 	 * Return an array of subpages beginning with $search that this special page will accept.
+ 	 *
+diff --git a/includes/specials/SpecialListredirects.php b/includes/specials/SpecialListredirects.php
+index 48f3640..38cba40 100644
+--- a/includes/specials/SpecialListredirects.php
++++ b/includes/specials/SpecialListredirects.php
+@@ -49,7 +49,7 @@ class ListredirectsPage extends QueryPage {
+ 	}
+ 
+ 	public function getQueryInfo() {
+-		return [
++		$query = [
+ 			'tables' => [ 'p1' => 'page', 'redirect', 'p2' => 'page' ],
+ 			'fields' => [ 'namespace' => 'p1.page_namespace',
+ 				'title' => 'p1.page_title',
+@@ -66,6 +66,10 @@ class ListredirectsPage extends QueryPage {
+ 					'p2.page_namespace=rd_namespace',
+ 					'p2.page_title=rd_title' ] ] ]
+ 		];
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'p1', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	function getOrderFields() {
+@@ -134,6 +138,11 @@ class ListredirectsPage extends QueryPage {
+ 		# Find out where the redirect leads
+ 		$target = $this->getRedirectTarget( $result );
+ 		if ( $target ) {
++			// <IntraACL>
++			if ( !$target->userCan( 'read' ) ) {
++				return '';
++			}
++			// </IntraACL>
+ 			# Make a link to the destination page
+ 			$lang = $this->getLanguage();
+ 			$arr = $lang->getArrow() . $lang->getDirMark();
+diff --git a/includes/specials/SpecialLonelypages.php b/includes/specials/SpecialLonelypages.php
+index ff76a4b..8bd3afc 100644
+--- a/includes/specials/SpecialLonelypages.php
++++ b/includes/specials/SpecialLonelypages.php
+@@ -74,7 +74,7 @@ class LonelyPagesPage extends PageQueryPage {
+ 		// Allow extensions to modify the query
+ 		Hooks::run( 'LonelyPagesQuery', [ &$tables, &$conds, &$joinConds ] );
+ 
+-		return [
++		$query = [
+ 			'tables' => $tables,
+ 			'fields' => [
+ 				'namespace' => 'page_namespace',
+@@ -84,6 +84,10 @@ class LonelyPagesPage extends PageQueryPage {
+ 			'conds' => $conds,
+ 			'join_conds' => $joinConds
+ 		];
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	function getOrderFields() {
+diff --git a/includes/specials/SpecialMostcategories.php b/includes/specials/SpecialMostcategories.php
+index 123c174..1ee4a85 100644
+--- a/includes/specials/SpecialMostcategories.php
++++ b/includes/specials/SpecialMostcategories.php
+@@ -46,7 +46,7 @@ class MostcategoriesPage extends QueryPage {
+ 	}
+ 
+ 	public function getQueryInfo() {
+-		return [
++		$query = [
+ 			'tables' => [ 'categorylinks', 'page' ],
+ 			'fields' => [
+ 				'namespace' => 'page_namespace',
+@@ -65,6 +65,10 @@ class MostcategoriesPage extends QueryPage {
+ 				]
+ 			]
+ 		];
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', array( 'page_title=cat_title' ), NS_CATEGORY ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	/**
+diff --git a/includes/specials/SpecialMostimages.php b/includes/specials/SpecialMostimages.php
+index 1339f4b..e9d019e 100644
+--- a/includes/specials/SpecialMostimages.php
++++ b/includes/specials/SpecialMostimages.php
+@@ -43,7 +43,7 @@ class MostimagesPage extends ImageQueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return [
++		$query = [
+ 			'tables' => [ 'imagelinks' ],
+ 			'fields' => [
+ 				'namespace' => NS_FILE,
+@@ -55,6 +55,10 @@ class MostimagesPage extends ImageQueryPage {
+ 				'HAVING' => 'COUNT(*) > 1'
+ 			]
+ 		];
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', array( 'page_title=il_to' ), NS_FILE ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	function getCellHtml( $row ) {
+diff --git a/includes/specials/SpecialMostinterwikis.php b/includes/specials/SpecialMostinterwikis.php
+index c963838..f1098c4 100644
+--- a/includes/specials/SpecialMostinterwikis.php
++++ b/includes/specials/SpecialMostinterwikis.php
+@@ -43,7 +43,7 @@ class MostinterwikisPage extends QueryPage {
+ 	}
+ 
+ 	public function getQueryInfo() {
+-		return [
++		$query = [
+ 			'tables' => [
+ 				'langlinks',
+ 				'page'
+@@ -66,6 +66,10 @@ class MostinterwikisPage extends QueryPage {
+ 				]
+ 			]
+ 		];
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	/**
+@@ -85,7 +89,9 @@ class MostinterwikisPage extends QueryPage {
+ 	 */
+ 	function formatResult( $skin, $result ) {
+ 		$title = Title::makeTitleSafe( $result->namespace, $result->title );
+-		if ( !$title ) {
++		// <IntraACL>
++		if ( !$title || !$title->userCan( 'read' ) ) {
++		// </IntraACL>
+ 			return Html::element(
+ 				'span',
+ 				[ 'class' => 'mw-invalidtitle' ],
+diff --git a/includes/specials/SpecialMostlinked.php b/includes/specials/SpecialMostlinked.php
+index c4553a4..da2a9ea 100644
+--- a/includes/specials/SpecialMostlinked.php
++++ b/includes/specials/SpecialMostlinked.php
+@@ -47,7 +47,7 @@ class MostlinkedPage extends QueryPage {
+ 	}
+ 
+ 	public function getQueryInfo() {
+-		return [
++		$query = [
+ 			'tables' => [ 'pagelinks', 'page' ],
+ 			'fields' => [
+ 				'namespace' => 'pl_namespace',
+@@ -72,6 +72,10 @@ class MostlinkedPage extends QueryPage {
+ 				]
+ 			]
+ 		];
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	/**
+diff --git a/includes/specials/SpecialMostlinkedtemplates.php b/includes/specials/SpecialMostlinkedtemplates.php
+index 4544468..3068158 100644
+--- a/includes/specials/SpecialMostlinkedtemplates.php
++++ b/includes/specials/SpecialMostlinkedtemplates.php
+@@ -64,7 +64,7 @@ class MostlinkedTemplatesPage extends QueryPage {
+ 	}
+ 
+ 	public function getQueryInfo() {
+-		return [
++		$query = [
+ 			'tables' => [ 'templatelinks' ],
+ 			'fields' => [
+ 				'namespace' => 'tl_namespace',
+@@ -73,6 +73,10 @@ class MostlinkedTemplatesPage extends QueryPage {
+ 			],
+ 			'options' => [ 'GROUP BY' => [ 'tl_namespace', 'tl_title' ] ]
+ 		];
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', array( 'page_namespace=tl_namespace', 'page_title=tl_title' ), NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	/**
+diff --git a/includes/specials/SpecialNewpages.php b/includes/specials/SpecialNewpages.php
+index 46d5276..8f00a2d 100644
+--- a/includes/specials/SpecialNewpages.php
++++ b/includes/specials/SpecialNewpages.php
+@@ -323,6 +323,12 @@ class SpecialNewpages extends IncludableSpecialPage {
+ 		$lang = $this->getLanguage();
+ 		$dm = $lang->getDirMark();
+ 
++		// <IntraACL>
++		if ( !$title->userCan( 'read' ) ) {
++			return '';
++		}
++		// </IntraACL>
++
+ 		$spanTime = Html::element( 'span', [ 'class' => 'mw-newpages-time' ],
+ 			$lang->userTimeAndDate( $result->rc_timestamp, $this->getUser() )
+ 		);
+diff --git a/includes/specials/SpecialPageLanguage.php b/includes/specials/SpecialPageLanguage.php
+index a68f08f..d229d71 100644
+--- a/includes/specials/SpecialPageLanguage.php
++++ b/includes/specials/SpecialPageLanguage.php
+@@ -160,6 +160,13 @@ class SpecialPageLanguage extends FormSpecialPage {
+ 			$title->isRedirect() ? [ 'redirect' => 'no' ] : []
+ 		);
+ 
++		// Check if title is valid
++ 		// <IntraACL>
++		if ( !$title || !$title->userCan( 'edit' ) ) {
++ 			return false;
++ 		}
++		// </IntraACL>
++
+ 		return self::changePageLanguage(
+ 			$this->getContext(),
+ 			$title,
+diff --git a/includes/specials/SpecialPagesWithProp.php b/includes/specials/SpecialPagesWithProp.php
+index 34fcc78..7b544ee 100644
+--- a/includes/specials/SpecialPagesWithProp.php
++++ b/includes/specials/SpecialPagesWithProp.php
+@@ -134,7 +134,7 @@ class SpecialPagesWithProp extends QueryPage {
+ 	}
+ 
+ 	public function getQueryInfo() {
+-		return [
++		$query = [
+ 			'tables' => [ 'page_props', 'page' ],
+ 			'fields' => [
+ 				'page_id' => 'pp_page',
+@@ -153,6 +153,10 @@ class SpecialPagesWithProp extends QueryPage {
+ 			],
+ 			'options' => []
+ 		];
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	function getOrderFields() {
+diff --git a/includes/specials/SpecialPrefixindex.php b/includes/specials/SpecialPrefixindex.php
+index 34ffa07..9790185 100644
+--- a/includes/specials/SpecialPrefixindex.php
++++ b/includes/specials/SpecialPrefixindex.php
+@@ -220,6 +220,11 @@ class SpecialPrefixindex extends SpecialAllPages {
+ 						break;
+ 					}
+ 					$title = Title::newFromRow( $row );
++					// <IntraACL>
++					if ( !$title->userCan( 'read' ) ) {
++						continue;
++					}
++					// </IntraACL>
+ 					// Make sure it gets into LinkCache
+ 					$linkCache->addGoodLinkObjFromRow( $title, $row );
+ 					$displayed = $title->getText();
+diff --git a/includes/specials/SpecialRandomInCategory.php b/includes/specials/SpecialRandomInCategory.php
+index adf12d4..10b0665 100644
+--- a/includes/specials/SpecialRandomInCategory.php
++++ b/includes/specials/SpecialRandomInCategory.php
+@@ -152,6 +152,8 @@ class SpecialRandomInCategory extends FormSpecialPage {
+ 	 * @return Title|null Title object (or null if nothing to choose from)
+ 	 */
+ 	public function getRandomTitle() {
++		$try = 0;
++retry:
+ 		// Convert to float, since we do math with the random number.
+ 		$rand = (float)wfRandom();
+ 		$title = null;
+@@ -184,7 +186,17 @@ class SpecialRandomInCategory extends FormSpecialPage {
+ 		}
+ 
+ 		if ( $row ) {
+-			return Title::makeTitle( $row->page_namespace, $row->page_title );
++			$title = Title::makeTitle( $row->page_namespace, $row->page_title );
++			// <IntraACL>
++			if ( !$title->userCan( 'read' ) ) {
++				if ( $try < 10 ) {
++					$try++;
++					goto retry;
++				}
++				return null;
++			}
++			// </IntraACL>
++			return $title;
+ 		}
+ 
+ 		return null;
+diff --git a/includes/specials/SpecialRandompage.php b/includes/specials/SpecialRandompage.php
+index e3b567d..ddb5ae7 100644
+--- a/includes/specials/SpecialRandompage.php
++++ b/includes/specials/SpecialRandompage.php
+@@ -73,6 +73,15 @@ class RandomPage extends SpecialPage {
+ 			return;
+ 		}
+ 
++		// <IntraACL>
++		// Do not redirect to non-readable pages, just print permission errors in that case
++		global $wgUser;
++		$permErrors = $title->getUserPermissionsErrors( 'read', $wgUser );
++		if ( count( $permErrors ) ) {
++			throw new PermissionsError( 'read', $permErrors );
++		}
++		// </IntraACL>
++
+ 		$redirectParam = $this->isRedirect() ? [ 'redirect' => 'no' ] : [];
+ 		$query = array_merge( $this->getRequest()->getValues(), $redirectParam );
+ 		unset( $query['title'] );
+diff --git a/includes/specials/SpecialRecentchanges.php b/includes/specials/SpecialRecentchanges.php
+index bfef5e0..5f0b18c 100644
+--- a/includes/specials/SpecialRecentchanges.php
++++ b/includes/specials/SpecialRecentchanges.php
+@@ -418,6 +418,11 @@ class SpecialRecentChanges extends ChangesListSpecialPage {
+ 				break;
+ 			}
+ 			$rc = RecentChange::newFromRow( $obj );
++			// <IntraACL>
++			if ( !$rc->getTitle()->userCan( 'read' ) ) {
++				continue;
++			}
++			// </IntraACL>
+ 
+ 			# Skip CatWatch entries for hidden cats based on user preference
+ 			if (
+diff --git a/includes/specials/SpecialRedirect.php b/includes/specials/SpecialRedirect.php
+index e827911..9e31c9c 100644
+--- a/includes/specials/SpecialRedirect.php
++++ b/includes/specials/SpecialRedirect.php
+@@ -80,7 +80,11 @@ class SpecialRedirect extends FormSpecialPage {
+ 			return null;
+ 		}
+ 		$userpage = Title::makeTitle( NS_USER, $username );
+-
++		// <IntraACL>
++		if ( !$userpage->userCan( 'read' ) ) {
++			return null;
++		}
++		// </IntraACL>
+ 		return $userpage->getFullURL( '', false, PROTO_CURRENT );
+ 	}
+ 
+@@ -92,7 +96,9 @@ class SpecialRedirect extends FormSpecialPage {
+ 	function dispatchFile() {
+ 		$title = Title::makeTitleSafe( NS_FILE, $this->mValue );
+ 
+-		if ( !$title instanceof Title ) {
++	  // <IntraACL>
++		if ( !$title instanceof Title || $title->getNamespace() != NS_FILE || !$title->userCan( 'read' ) ) {
++			// </IntraACL>
+ 			return null;
+ 		}
+ 		$file = wfFindFile( $title );
+diff --git a/includes/specials/SpecialShortpages.php b/includes/specials/SpecialShortpages.php
+index d90f72c..927467d 100644
+--- a/includes/specials/SpecialShortpages.php
++++ b/includes/specials/SpecialShortpages.php
+@@ -54,7 +54,7 @@ class ShortPagesPage extends QueryPage {
+ 		// Allow extensions to modify the query
+ 		Hooks::run( 'ShortPagesQuery', [ &$tables, &$conds, &$joinConds, &$options ] );
+ 
+-		return [
++		$query = [
+ 			'tables' => $tables,
+ 			'fields' => [
+ 				'namespace' => 'page_namespace',
+@@ -65,6 +65,10 @@ class ShortPagesPage extends QueryPage {
+ 			'join_conds' => $joinConds,
+ 			'options' => $options
+ 		];
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	public function reallyDoQuery( $limit, $offset = false ) {
+diff --git a/includes/specials/SpecialSpecialpages.php b/includes/specials/SpecialSpecialpages.php
+index 4f29082..0cce5bf 100644
+--- a/includes/specials/SpecialSpecialpages.php
++++ b/includes/specials/SpecialSpecialpages.php
+@@ -61,7 +61,9 @@ class SpecialSpecialpages extends UnlistedSpecialPage {
+ 		$groups = [];
+ 		/** @var SpecialPage $page */
+ 		foreach ( $pages as $page ) {
+-			if ( $page->isListed() ) {
++			// <IntraACL>
++			if ( $page->isListed() && $page->getTitle()->userCan( 'read' ) ) {
++				// </IntraACL>
+ 				$group = $page->getFinalGroupName();
+ 				if ( !isset( $groups[$group] ) ) {
+ 					$groups[$group] = [];
+diff --git a/includes/specials/SpecialUncategorizedimages.php b/includes/specials/SpecialUncategorizedimages.php
+index 1cb27a3..59ff883 100644
+--- a/includes/specials/SpecialUncategorizedimages.php
++++ b/includes/specials/SpecialUncategorizedimages.php
+@@ -46,7 +46,7 @@ class UncategorizedImagesPage extends ImageQueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return [
++		$query = [
+ 			'tables' => [ 'page', 'categorylinks' ],
+ 			'fields' => [ 'namespace' => 'page_namespace',
+ 				'title' => 'page_title',
+@@ -57,6 +57,10 @@ class UncategorizedImagesPage extends ImageQueryPage {
+ 			'join_conds' => [ 'categorylinks' => [
+ 				'LEFT JOIN', 'cl_from=page_id' ] ]
+ 		];
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	protected function getGroupName() {
+diff --git a/includes/specials/SpecialUncategorizedpages.php b/includes/specials/SpecialUncategorizedpages.php
+index 30b33cc..9270ca9 100644
+--- a/includes/specials/SpecialUncategorizedpages.php
++++ b/includes/specials/SpecialUncategorizedpages.php
+@@ -47,7 +47,7 @@ class UncategorizedPagesPage extends PageQueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return [
++		$query = [
+ 			'tables' => [ 'page', 'categorylinks' ],
+ 			'fields' => [
+ 				'namespace' => 'page_namespace',
+@@ -67,6 +67,10 @@ class UncategorizedPagesPage extends PageQueryPage {
+ 				'categorylinks' => [ 'LEFT JOIN', 'cl_from = page_id' ]
+ 			]
+ 		];
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	function getOrderFields() {
+diff --git a/includes/specials/SpecialUnusedcategories.php b/includes/specials/SpecialUnusedcategories.php
+index 1469742..6bd06b9 100644
+--- a/includes/specials/SpecialUnusedcategories.php
++++ b/includes/specials/SpecialUnusedcategories.php
+@@ -38,7 +38,7 @@ class UnusedCategoriesPage extends QueryPage {
+ 	}
+ 
+ 	public function getQueryInfo() {
+-		return [
++		$query = [
+ 			'tables' => [ 'page', 'categorylinks' ],
+ 			'fields' => [
+ 				'namespace' => 'page_namespace',
+@@ -52,6 +52,10 @@ class UnusedCategoriesPage extends QueryPage {
+ 			],
+ 			'join_conds' => [ 'categorylinks' => [ 'LEFT JOIN', 'cl_to = page_title' ] ]
+ 		];
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	/**
+diff --git a/includes/specials/SpecialUnusedimages.php b/includes/specials/SpecialUnusedimages.php
+index 9fcbf15..12a421d 100644
+--- a/includes/specials/SpecialUnusedimages.php
++++ b/includes/specials/SpecialUnusedimages.php
+@@ -68,6 +68,9 @@ class UnusedimagesPage extends ImageQueryPage {
+ 				'LEFT JOIN', 'il_to = page_title' ];
+ 		}
+ 
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$retval, 'page', array( 'page_title=img_name' ), NS_FILE ) );
++		// </IntraACL>
+ 		return $retval;
+ 	}
+ 
+diff --git a/includes/specials/SpecialUnusedtemplates.php b/includes/specials/SpecialUnusedtemplates.php
+index f73be43..3c6efc1 100644
+--- a/includes/specials/SpecialUnusedtemplates.php
++++ b/includes/specials/SpecialUnusedtemplates.php
+@@ -47,7 +47,7 @@ class UnusedtemplatesPage extends QueryPage {
+ 	}
+ 
+ 	public function getQueryInfo() {
+-		return [
++		$query = [
+ 			'tables' => [ 'page', 'templatelinks' ],
+ 			'fields' => [
+ 				'namespace' => 'page_namespace',
+@@ -63,6 +63,10 @@ class UnusedtemplatesPage extends QueryPage {
+ 				'LEFT JOIN', [ 'tl_title = page_title',
+ 					'tl_namespace = page_namespace' ] ] ]
+ 		];
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	/**
+diff --git a/includes/specials/SpecialUnwatchedpages.php b/includes/specials/SpecialUnwatchedpages.php
+index 0ea7dfa..3af0dcb 100644
+--- a/includes/specials/SpecialUnwatchedpages.php
++++ b/includes/specials/SpecialUnwatchedpages.php
+@@ -68,7 +68,7 @@ class UnwatchedpagesPage extends QueryPage {
+ 
+ 	public function getQueryInfo() {
+ 		$dbr = wfGetDB( DB_REPLICA );
+-		return [
++		$query = [
+ 			'tables' => [ 'page', 'watchlist' ],
+ 			'fields' => [
+ 				'namespace' => 'page_namespace',
+@@ -84,6 +84,10 @@ class UnwatchedpagesPage extends QueryPage {
+ 				'LEFT JOIN', [ 'wl_title = page_title',
+ 					'wl_namespace = page_namespace' ] ] ]
+ 		];
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	function sortDescending() {
+diff --git a/includes/specials/SpecialUpload.php b/includes/specials/SpecialUpload.php
+index f7cb654..ec53972 100644
+--- a/includes/specials/SpecialUpload.php
++++ b/includes/specials/SpecialUpload.php
+@@ -366,6 +366,7 @@ class SpecialUpload extends SpecialPage {
+ 	 *   warnings and it should continue processing
+ 	 */
+ 	protected function showUploadWarning( $warnings ) {
++		wfRunHooks( 'SpecialUploadCheckWarnings', array( $this, &$warnings ) );
+ 		# If there are no warnings, or warnings we can ignore, return early.
+ 		# mDestWarningAck is set when some javascript has shown the warning
+ 		# to the user. mForReUpload is set when the user clicks the "upload a
+diff --git a/includes/specials/SpecialWantedcategories.php b/includes/specials/SpecialWantedcategories.php
+index fc0c312..289c709 100644
+--- a/includes/specials/SpecialWantedcategories.php
++++ b/includes/specials/SpecialWantedcategories.php
+@@ -36,7 +36,7 @@ class WantedCategoriesPage extends WantedQueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return [
++		$query = [
+ 			'tables' => [ 'categorylinks', 'page' ],
+ 			'fields' => [
+ 				'namespace' => NS_CATEGORY,
+@@ -49,6 +49,10 @@ class WantedCategoriesPage extends WantedQueryPage {
+ 				[ 'page_title = cl_to',
+ 					'page_namespace' => NS_CATEGORY ] ] ]
+ 		];
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	function preprocessResults( $db, $res ) {
+diff --git a/includes/specials/SpecialWantedfiles.php b/includes/specials/SpecialWantedfiles.php
+index 2ebbc2d..03b151c 100644
+--- a/includes/specials/SpecialWantedfiles.php
++++ b/includes/specials/SpecialWantedfiles.php
+@@ -108,7 +108,7 @@ class WantedFilesPage extends WantedQueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return [
++		$query = [
+ 			'tables' => [
+ 				'imagelinks',
+ 				'page',
+@@ -145,6 +145,10 @@ class WantedFilesPage extends WantedQueryPage {
+ 				]
+ 			]
+ 		];
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', array( 'page_title=img_name' ), NS_FILE ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	protected function getGroupName() {
+diff --git a/includes/specials/SpecialWantedpages.php b/includes/specials/SpecialWantedpages.php
+index 8cea6cc..2072400 100644
+--- a/includes/specials/SpecialWantedpages.php
++++ b/includes/specials/SpecialWantedpages.php
+@@ -88,6 +88,9 @@ class WantedPagesPage extends WantedQueryPage {
+ 		// Avoid PHP 7.1 warning from passing $this by reference
+ 		$wantedPages = $this;
+ 		Hooks::run( 'WantedPages::getQueryInfo', [ &$wantedPages, &$query ] );
++		// <IntraACL>
++		Hooks::run( 'FilterPageQuery', array( &$query, 'pg1', NULL, NULL ) );
++		// </IntraACL>
+ 
+ 		return $query;
+ 	}
+diff --git a/includes/specials/SpecialWantedtemplates.php b/includes/specials/SpecialWantedtemplates.php
+index 66e6814..7ad15d9 100644
+--- a/includes/specials/SpecialWantedtemplates.php
++++ b/includes/specials/SpecialWantedtemplates.php
+@@ -37,7 +37,7 @@ class WantedTemplatesPage extends WantedQueryPage {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return [
++		$query = [
+ 			'tables' => [ 'templatelinks', 'page' ],
+ 			'fields' => [
+ 				'namespace' => 'tl_namespace',
+@@ -53,6 +53,10 @@ class WantedTemplatesPage extends WantedQueryPage {
+ 				[ 'page_namespace = tl_namespace',
+ 					'page_title = tl_title' ] ] ]
+ 		];
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
++		return $query;
+ 	}
+ 
+ 	protected function getGroupName() {
+diff --git a/includes/specials/SpecialWatchlist.php b/includes/specials/SpecialWatchlist.php
+index c266a80..b3c0fbc 100644
+--- a/includes/specials/SpecialWatchlist.php
++++ b/includes/specials/SpecialWatchlist.php
+@@ -544,7 +544,11 @@ class SpecialWatchlist extends ChangesListSpecialPage {
+ 		foreach ( $rows as $obj ) {
+ 			# Make RC entry
+ 			$rc = RecentChange::newFromRow( $obj );
+-
++			// <IntraACL>
++			if ( !$rc->getTitle()->userCan( 'read' ) ) {
++				continue;
++			}
++			// </IntraACL>
+ 			# Skip CatWatch entries for hidden cats based on user preference
+ 			if (
+ 				$rc->getAttribute( 'rc_type' ) == RC_CATEGORIZE &&
+diff --git a/includes/specials/SpecialWhatlinkshere.php b/includes/specials/SpecialWhatlinkshere.php
+index 3080fbf..72f0c55 100644
+--- a/includes/specials/SpecialWhatlinkshere.php
++++ b/includes/specials/SpecialWhatlinkshere.php
+@@ -282,7 +282,11 @@ class SpecialWhatLinksHere extends IncludableSpecialPage {
+ 		$out->addHTML( $this->listStart( $level ) );
+ 		foreach ( $rows as $row ) {
+ 			$nt = Title::makeTitle( $row->page_namespace, $row->page_title );
+-
++			// <IntraACL>
++			if ( !$nt->userCan( 'read' ) ) {
++				continue;
++			}
++			// </IntraACL>
+ 			if ( $row->rd_from && $level < 2 ) {
+ 				$out->addHTML( $this->listItem( $row, $nt, $target, true ) );
+ 				$this->showIndirectLinks(
+diff --git a/includes/specials/SpecialWithoutinterwiki.php b/includes/specials/SpecialWithoutinterwiki.php
+index a1e5156..f62bcb3 100644
+--- a/includes/specials/SpecialWithoutinterwiki.php
++++ b/includes/specials/SpecialWithoutinterwiki.php
+@@ -100,7 +100,9 @@ class WithoutInterwikiPage extends PageQueryPage {
+ 			$dbr = wfGetDB( DB_REPLICA );
+ 			$query['conds'][] = 'page_title ' . $dbr->buildLike( $this->prefix, $dbr->anyString() );
+ 		}
+-
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', NULL, NULL ) );
++		// </IntraACL>
+ 		return $query;
+ 	}
+ 
+diff --git a/includes/specials/helpers/LoginHelper.php b/includes/specials/helpers/LoginHelper.php
+index a35a420..49db405 100644
+--- a/includes/specials/helpers/LoginHelper.php
++++ b/includes/specials/helpers/LoginHelper.php
+@@ -75,7 +75,12 @@ class LoginHelper extends ContextSource {
+ 		// Allow modification of redirect behavior
+ 		Hooks::run( 'PostLoginRedirect', [ &$returnTo, &$returnToQuery, &$type ] );
+ 
+-		$returnToTitle = Title::newFromText( $returnTo ) ?: Title::newMainPage();
++		$returnToTitle = Title::newFromText( $returnTo );
++		// <IntraACL>
++		if ( !$returnToTitle || !$returnToTitle->userCan( 'read' ) ) {
++			$returnToTitle = Title::newMainPage();
++		}
++		// </IntraACL>
+ 
+ 		if ( $wgSecureLogin && !$stickHTTPS ) {
+ 			$options = [ 'http' ];
+diff --git a/includes/specials/pagers/CategoryPager.php b/includes/specials/pagers/CategoryPager.php
+index 7db90c1..722fae5 100644
+--- a/includes/specials/pagers/CategoryPager.php
++++ b/includes/specials/pagers/CategoryPager.php
+@@ -49,11 +49,15 @@ class CategoryPager extends AlphabeticPager {
+ 	}
+ 
+ 	function getQueryInfo() {
+-		return [
++		$info = [
+ 			'tables' => [ 'category' ],
+ 			'fields' => [ 'cat_title', 'cat_pages' ],
+ 			'options' => [ 'USE INDEX' => 'cat_title' ],
+ 		];
++		//<IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$info, 'page', array( 'page_title=cat_title' ), NS_CATEGORY ) );
++		// </IntraACL>
++		return $info;
+ 	}
+ 
+ 	function getIndexField() {
+diff --git a/includes/specials/pagers/ImageListPager.php b/includes/specials/pagers/ImageListPager.php
+index 3225256..6b158cb 100644
+--- a/includes/specials/pagers/ImageListPager.php
++++ b/includes/specials/pagers/ImageListPager.php
+@@ -226,7 +226,11 @@ class ImageListPager extends TablePager {
+ 		// for two different tables, without reimplementing
+ 		// the pager class.
+ 		$qi = $this->getQueryInfoReal( $this->mTableName );
+-
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', [ &$qi, 'page', [
++			$this->mTableName === 'oldimage' ? 'page_title=oi_name' : 'page_title=img_name'
++		], NS_FILE ] );
++		// </IntraACL>
+ 		return $qi;
+ 	}
+ 
+diff --git a/includes/specials/pagers/NewFilesPager.php b/includes/specials/pagers/NewFilesPager.php
+index c214f1f..c5bc3a2 100644
+--- a/includes/specials/pagers/NewFilesPager.php
++++ b/includes/specials/pagers/NewFilesPager.php
+@@ -160,7 +160,9 @@ class NewFilesPager extends RangeChronologicalPager {
+ 			'conds' => $conds,
+ 			'options' => $options,
+ 		];
+-
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$query, 'page', array( 'page_title=img_name' ), NS_FILE ) );
++		// </IntraACL>
+ 		return $query;
+ 	}
+ 
+diff --git a/includes/specials/pagers/NewPagesPager.php b/includes/specials/pagers/NewPagesPager.php
+index f16a5cb..0cc343b 100644
+--- a/includes/specials/pagers/NewPagesPager.php
++++ b/includes/specials/pagers/NewPagesPager.php
+@@ -128,7 +128,9 @@ class NewPagesPager extends ReverseChronologicalPager {
+ 			$info['options'],
+ 			$this->opts['tagfilter']
+ 		);
+-
++		// <IntraACL>
++		wfRunHooks( 'FilterPageQuery', array( &$info, 'page', NULL, NULL ) );
++		// </IntraACL>
+ 		return $info;
+ 	}
+ 
+diff --git a/includes/upload/UploadBase.php b/includes/upload/UploadBase.php
+index ae59164..cd9d8e1 100644
+--- a/includes/upload/UploadBase.php
++++ b/includes/upload/UploadBase.php
+@@ -856,7 +856,13 @@ abstract class UploadBase {
+ 			}
+ 			return call_user_func_array( 'Status::newFatal', $error );
+ 		}
+-
++		// <IntraACL>
++		$status = NULL;
++		Hooks::run( 'PerformUpload', array( $this, $comment, $pageText, $watch, $user, &$status ) );
++		if ( $status ) {
++			return $status;
++		}
++		// </IntraACL>
+ 		$status = $this->getLocalFile()->upload(
+ 			$this->mTempPath,
+ 			$comment,
+diff --git a/includes/user/User.php b/includes/user/User.php
+index aa21184..9bf9fb0 100644
+--- a/includes/user/User.php
++++ b/includes/user/User.php
+@@ -398,8 +398,13 @@ class User implements IDBAccessObject, UserIdentity {
+ 					$flags |= self::READ_LATEST;
+ 					$this->queryFlagsUsed = $flags;
+ 				}
+-
++				if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++					$hacl = haclfDisableTitlePatch();
++				}
+ 				$this->mId = self::idFromName( $this->mName, $flags );
++				if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++					haclfRestoreTitlePatch( $hacl );
++				}
+ 				if ( !$this->mId ) {
+ 					// Nonexistent user placeholder object
+ 					$this->loadDefaults( $this->mName );
+@@ -968,13 +973,20 @@ class User implements IDBAccessObject, UserIdentity {
+ 	 */
+ 	public static function isValidUserName( $name ) {
+ 		global $wgContLang, $wgMaxNameChars;
+-
++		# Disable IntraACL title check as the main and/or
++		# user namespaces may be protected
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			$hacl = haclfDisableTitlePatch();
++		}
+ 		if ( $name == ''
+ 			|| self::isIP( $name )
+ 			|| strpos( $name, '/' ) !== false
+ 			|| strlen( $name ) > $wgMaxNameChars
+ 			|| $name != $wgContLang->ucfirst( $name )
+ 		) {
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $hacl );
++			}
+ 			return false;
+ 		}
+ 
+@@ -984,6 +996,9 @@ class User implements IDBAccessObject, UserIdentity {
+ 		if ( is_null( $parsed )
+ 			|| $parsed->getNamespace()
+ 			|| strcmp( $name, $parsed->getPrefixedText() ) ) {
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $hacl );
++			}
+ 			return false;
+ 		}
+ 
+@@ -998,9 +1013,14 @@ class User implements IDBAccessObject, UserIdentity {
+ 			'\x{e000}-\x{f8ff}' . # private use
+ 			']/u';
+ 		if ( preg_match( $unicodeBlacklist, $name ) ) {
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $hacl );
++			}
+ 			return false;
+ 		}
+-
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			haclfRestoreTitlePatch( $hacl );
++		}
+ 		return true;
+ 	}
+ 
+@@ -1208,6 +1228,13 @@ class User implements IDBAccessObject, UserIdentity {
+ 	 * @return bool|string
+ 	 */
+ 	public static function getCanonicalName( $name, $validate = 'valid' ) {
++		// <IntraACL>
++		# Disable IntraACL title check as the main and/or
++		# user namespaces may be protected
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			$hacl = haclfDisableTitlePatch();
++		}
++		// </IntraACL>
+ 		// Force usernames to capital
+ 		global $wgContLang;
+ 		$name = $wgContLang->ucfirst( $name );
+@@ -1216,6 +1243,11 @@ class User implements IDBAccessObject, UserIdentity {
+ 		# with title normalisation, but then it's too late to
+ 		# check elsewhere
+ 		if ( strpos( $name, '#' ) !== false ) {
++			// <IntraACL>
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $hacl );
++			}
++			// </IntraACL>
+ 			return false;
+ 		}
+ 
+@@ -1225,6 +1257,11 @@ class User implements IDBAccessObject, UserIdentity {
+ 			Title::newFromText( $name, NS_USER ) : Title::makeTitle( NS_USER, $name );
+ 		// Check for invalid titles
+ 		if ( is_null( $t ) || $t->getNamespace() !== NS_USER || $t->isExternal() ) {
++			// <IntraACL>
++			if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++				haclfRestoreTitlePatch( $hacl );
++			}
++			// </IntraACL>
+ 			return false;
+ 		}
+ 
+@@ -1252,9 +1289,15 @@ class User implements IDBAccessObject, UserIdentity {
+ 				}
+ 				break;
+ 			default:
++				if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++					haclfRestoreTitlePatch( $hacl );
++				}
+ 				throw new InvalidArgumentException(
+ 					'Invalid parameter value for $validate in ' . __METHOD__ );
+ 		}
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			haclfRestoreTitlePatch( $hacl );
++		}
+ 		return $name;
+ 	}
+ 
+@@ -4709,8 +4752,18 @@ class User implements IDBAccessObject, UserIdentity {
+ 	 * @return string Formatted URL
+ 	 */
+ 	protected function getTokenUrl( $page, $token ) {
++		// <IntraACL>
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			$hacl = haclfDisableTitlePatch();
++		}
++		// </IntraACL>
+ 		// Hack to bypass localization of 'Special:'
+ 		$title = Title::makeTitle( NS_MAIN, "Special:$page/$token" );
++		// <IntraACL>
++		if ( defined( 'HACL_HALOACL_VERSION' ) ) {
++			haclfRestoreTitlePatch($hacl);
++		}
++		// </IntraACL>
+ 		return $title->getCanonicalURL();
+ 	}
+ 
+diff --git a/index.php b/index.php
+index 791ffb1..acae681 100644
+--- a/index.php
++++ b/index.php
+@@ -1,4 +1,6 @@
+ <?php
++//error_reporting(E_ALL);
++//ini_set("display_errors", 1); 
+ /**
+  * This is the main web entry point for MediaWiki.
+  *

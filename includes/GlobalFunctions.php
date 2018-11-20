@@ -236,7 +236,7 @@ function haclfLanguageGetMagic(&$magicWords, $langCode)
  */
 function haclfSetupExtension()
 {
-    wfProfileIn(__FUNCTION__);
+    //wfProfileIn(__FUNCTION__);
 
     global $haclgIP, $wgHooks, $wgParser, $wgExtensionCredits,
         $wgLanguageCode, $wgRequest, $wgContLang;
@@ -329,7 +329,7 @@ function haclfSetupExtension()
 
     haclCheckScriptPath();
 
-    wfProfileOut(__FUNCTION__);
+    //wfProfileOut(__FUNCTION__);
     return true;
 }
 
@@ -405,7 +405,7 @@ function haclfInitContentLanguage($langcode)
     {
         return;
     }
-    wfProfileIn(__FUNCTION__);
+    //wfProfileIn(__FUNCTION__);
 
     $haclContLangFile = 'HACL_Language' . str_replace('-', '_', ucfirst($langcode));
     $haclContLangClass = 'HACLLanguage' . str_replace('-', '_', ucfirst($langcode));
@@ -423,7 +423,7 @@ function haclfInitContentLanguage($langcode)
     }
     $haclgContLang = new $haclContLangClass();
 
-    wfProfileOut(__FUNCTION__);
+    //wfProfileOut(__FUNCTION__);
 }
 
 /**
