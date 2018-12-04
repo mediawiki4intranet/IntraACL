@@ -619,7 +619,7 @@ class DeferCreatePermissionDenied
             // Create page "Permission denied".
             echo "Creating IntraACL 'Permission denied' page...";
             $a = new WikiPage($t);
-            $a->doEdit($haclgContLang->getPermissionDeniedPageContent(), "", EDIT_NEW);
+            $a->doEditContent($haclgContLang->getPermissionDeniedPageContent(), "", EDIT_NEW);
             echo "done.\n";
         }
     }
@@ -641,7 +641,7 @@ class DeferReparsePageRights
         foreach ($titles as $title)
         {
             $article = new WikiPage($title);
-            $article->doEdit($article->getText(), 'Re-parse right definition', EDIT_UPDATE);
+            $article->doEditContent($article->getText(), 'Re-parse right definition', EDIT_UPDATE);
         }
     }
 
