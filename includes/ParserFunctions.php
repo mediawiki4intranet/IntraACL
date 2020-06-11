@@ -800,7 +800,7 @@ class IACLParserFunctions
         $id = $title->getArticleId();
         foreach ($this->badLinks as $bl)
         {
-            $rows[] = array(
+            $rows[$bl->getNamespace().':'.$bl->getDBkey()] = array(
                 'bl_from' => $id,
                 'bl_namespace' => $bl->getNamespace(),
                 'bl_title' => $bl->getDBkey(),
@@ -809,7 +809,7 @@ class IACLParserFunctions
         $dbw->delete('intraacl_badlinks', array('bl_from' => $id), __METHOD__);
         if ($rows)
         {
-            $dbw->insert('intraacl_badlinks', $rows, __METHOD__);
+            $dbw->insert('intraacl_badlinks', array_values($rows), __METHOD__);
         }
     }
 
